@@ -66,7 +66,7 @@ static void quote_colors_set_dialog_ok		(GtkWidget	*widget,
 						 gpointer	 data);
 static void quote_colors_set_dialog_cancel	(GtkWidget	*widget,
 						 gpointer	 data);
-static void quote_colors_set_dialog_key_pressed	(GtkWidget	*widget,
+static gboolean quote_colors_set_dialog_key_pressed	(GtkWidget	*widget,
 						 GdkEventKey	*event,
 						 gpointer	 data);
 static void set_button_bg_color			(GtkWidget	*widget,
@@ -105,7 +105,7 @@ void prefs_msg_colors_create_widget(PrefsPage *_page, GtkWindow *window,
 			  (GTK_EXPAND | GTK_FILL), 0, 0, 0);
 
 	color_buttons.quote_level1_btn = gtk_button_new();
-	gtk_widget_set_usize (color_buttons.quote_level1_btn, 30, 20);
+	gtk_widget_set_size_request (color_buttons.quote_level1_btn, 30, 20);
   	gtk_box_pack_start (GTK_BOX(hbox), color_buttons.quote_level1_btn, 
 			    FALSE, FALSE, 0);
 
@@ -118,7 +118,7 @@ void prefs_msg_colors_create_widget(PrefsPage *_page, GtkWindow *window,
 			  (GTK_EXPAND | GTK_FILL), 0, 0, 0);
 
 	color_buttons.quote_level2_btn = gtk_button_new();
-	gtk_widget_set_usize (color_buttons.quote_level2_btn, 30, 20);
+	gtk_widget_set_size_request (color_buttons.quote_level2_btn, 30, 20);
   	gtk_box_pack_start (GTK_BOX(hbox), color_buttons.quote_level2_btn, 
 			    FALSE, FALSE, 0);
 
@@ -131,7 +131,7 @@ void prefs_msg_colors_create_widget(PrefsPage *_page, GtkWindow *window,
 			  (GTK_EXPAND | GTK_FILL), 0, 0, 0);
 
 	color_buttons.quote_level3_btn = gtk_button_new_with_label ("");
-	gtk_widget_set_usize (color_buttons.quote_level3_btn, 30, 20);
+	gtk_widget_set_size_request (color_buttons.quote_level3_btn, 30, 20);
   	gtk_box_pack_start (GTK_BOX(hbox), color_buttons.quote_level3_btn, 
 			    FALSE, FALSE, 0);
 
@@ -144,7 +144,7 @@ void prefs_msg_colors_create_widget(PrefsPage *_page, GtkWindow *window,
 			  (GTK_EXPAND | GTK_FILL), 0, 0, 0);
 
 	color_buttons.uri_btn = gtk_button_new_with_label ("");
-	gtk_widget_set_usize (color_buttons.uri_btn, 30, 20);
+	gtk_widget_set_size_request (color_buttons.uri_btn, 30, 20);
   	gtk_box_pack_start (GTK_BOX(hbox), color_buttons.uri_btn, 
 			    FALSE, FALSE, 0);
 
@@ -156,7 +156,7 @@ void prefs_msg_colors_create_widget(PrefsPage *_page, GtkWindow *window,
 			  (GTK_EXPAND | GTK_FILL), 0, 0, 0);
 
 	color_buttons.tgt_folder_btn = gtk_button_new_with_label ("");
-	gtk_widget_set_usize (color_buttons.tgt_folder_btn, 30, 20);
+	gtk_widget_set_size_request (color_buttons.tgt_folder_btn, 30, 20);
   	gtk_box_pack_start (GTK_BOX(hbox), color_buttons.tgt_folder_btn, 
 			    FALSE, FALSE, 0);
 
@@ -168,7 +168,7 @@ void prefs_msg_colors_create_widget(PrefsPage *_page, GtkWindow *window,
 			  (GTK_EXPAND | GTK_FILL), 0, 0, 0);
 
 	color_buttons.signature_btn = gtk_button_new_with_label ("");
-	gtk_widget_set_usize (color_buttons.signature_btn, 30, 20);
+	gtk_widget_set_size_request (color_buttons.signature_btn, 30, 20);
   	gtk_box_pack_start (GTK_BOX(hbox), color_buttons.signature_btn, 
 			    FALSE, FALSE, 0);
 
@@ -183,18 +183,18 @@ void prefs_msg_colors_create_widget(PrefsPage *_page, GtkWindow *window,
 			  
 	gtk_widget_show_all(table);
 
-	gtk_signal_connect(GTK_OBJECT(color_buttons.quote_level1_btn), "clicked",
-			   GTK_SIGNAL_FUNC(quote_color_set_dialog), "LEVEL1");
-	gtk_signal_connect(GTK_OBJECT(color_buttons.quote_level2_btn), "clicked",
-			   GTK_SIGNAL_FUNC(quote_color_set_dialog), "LEVEL2");
-	gtk_signal_connect(GTK_OBJECT(color_buttons.quote_level3_btn), "clicked",
-			   GTK_SIGNAL_FUNC(quote_color_set_dialog), "LEVEL3");
-	gtk_signal_connect(GTK_OBJECT(color_buttons.uri_btn), "clicked",
-			   GTK_SIGNAL_FUNC(quote_color_set_dialog), "URI");
-	gtk_signal_connect(GTK_OBJECT(color_buttons.tgt_folder_btn), "clicked",
-			   GTK_SIGNAL_FUNC(quote_color_set_dialog), "TGTFLD");
-	gtk_signal_connect(GTK_OBJECT(color_buttons.signature_btn), "clicked",
-			   GTK_SIGNAL_FUNC(quote_color_set_dialog), "SIGNATURE");
+	g_signal_connect(G_OBJECT(color_buttons.quote_level1_btn), "clicked",
+			 G_CALLBACK(quote_color_set_dialog), "LEVEL1");
+	g_signal_connect(G_OBJECT(color_buttons.quote_level2_btn), "clicked",
+			 G_CALLBACK(quote_color_set_dialog), "LEVEL2");
+	g_signal_connect(G_OBJECT(color_buttons.quote_level3_btn), "clicked",
+			 G_CALLBACK(quote_color_set_dialog), "LEVEL3");
+	g_signal_connect(G_OBJECT(color_buttons.uri_btn), "clicked",
+			 G_CALLBACK(quote_color_set_dialog), "URI");
+	g_signal_connect(G_OBJECT(color_buttons.tgt_folder_btn), "clicked",
+			 G_CALLBACK(quote_color_set_dialog), "TGTFLD");
+	g_signal_connect(G_OBJECT(color_buttons.signature_btn), "clicked",
+			 G_CALLBACK(quote_color_set_dialog), "SIGNATURE");
 
 	set_button_bg_color(color_buttons.quote_level1_btn,
 			    prefs_common.quote_level1_col);
@@ -229,22 +229,22 @@ static void quote_color_set_dialog(GtkWidget *widget, gpointer data)
 	gint rgbvalue = 0;
 	GtkColorSelectionDialog *dialog;
 
-	if(g_strcasecmp(type, "LEVEL1") == 0) {
+	if(g_ascii_strcasecmp(type, "LEVEL1") == 0) {
 		title = _("Pick color for quotation level 1");
 		rgbvalue = prefs_common.quote_level1_col;
-	} else if(g_strcasecmp(type, "LEVEL2") == 0) {
+	} else if(g_ascii_strcasecmp(type, "LEVEL2") == 0) {
 		title = _("Pick color for quotation level 2");
 		rgbvalue = prefs_common.quote_level2_col;
-	} else if(g_strcasecmp(type, "LEVEL3") == 0) {
+	} else if(g_ascii_strcasecmp(type, "LEVEL3") == 0) {
 		title = _("Pick color for quotation level 3");
 		rgbvalue = prefs_common.quote_level3_col;
-	} else if(g_strcasecmp(type, "URI") == 0) {
+	} else if(g_ascii_strcasecmp(type, "URI") == 0) {
 		title = _("Pick color for URI");
 		rgbvalue = prefs_common.uri_col;
-	} else if(g_strcasecmp(type, "TGTFLD") == 0) {
+	} else if(g_ascii_strcasecmp(type, "TGTFLD") == 0) {
 		title = _("Pick color for target folder");
 		rgbvalue = prefs_common.tgt_folder_col;
-	} else if(g_strcasecmp(type, "SIGNATURE") == 0) {
+	} else if(g_ascii_strcasecmp(type, "SIGNATURE") == 0) {
 		title = _("Pick color for signatures");
 		rgbvalue = prefs_common.signature_col;
 	} else {   /* Should never be called */
@@ -255,16 +255,15 @@ static void quote_color_set_dialog(GtkWidget *widget, gpointer data)
 	color_dialog = gtk_color_selection_dialog_new(title);
 	gtk_window_set_position(GTK_WINDOW(color_dialog), GTK_WIN_POS_CENTER);
 	gtk_window_set_modal(GTK_WINDOW(color_dialog), TRUE);
-	gtk_window_set_policy(GTK_WINDOW(color_dialog), FALSE, FALSE, FALSE);
+	gtk_window_set_resizable(GTK_WINDOW(color_dialog), FALSE);
 	manage_window_set_transient(GTK_WINDOW(color_dialog));
 
-	gtk_signal_connect(GTK_OBJECT(GTK_COLOR_SELECTION_DIALOG(color_dialog)->ok_button),
-			   "clicked", GTK_SIGNAL_FUNC(quote_colors_set_dialog_ok), data);
-	gtk_signal_connect(GTK_OBJECT(GTK_COLOR_SELECTION_DIALOG(color_dialog)->cancel_button),
-			   "clicked", GTK_SIGNAL_FUNC(quote_colors_set_dialog_cancel), data);
-	gtk_signal_connect(GTK_OBJECT(color_dialog), "key_press_event",
-			   GTK_SIGNAL_FUNC(quote_colors_set_dialog_key_pressed),
-			   data);
+	g_signal_connect(G_OBJECT(GTK_COLOR_SELECTION_DIALOG(color_dialog)->ok_button),
+			 "clicked", G_CALLBACK(quote_colors_set_dialog_ok), data);
+	g_signal_connect(G_OBJECT(GTK_COLOR_SELECTION_DIALOG(color_dialog)->cancel_button),
+			 "clicked", G_CALLBACK(quote_colors_set_dialog_cancel), data);
+	g_signal_connect(G_OBJECT(color_dialog), "key_press_event",
+			 G_CALLBACK(quote_colors_set_dialog_key_pressed),data);
 
 	/* preselect the previous color in the color selection dialog */
 	color[0] = (gdouble) ((rgbvalue & 0xff0000) >> 16) / 255.0;
@@ -298,23 +297,23 @@ static void quote_colors_set_dialog_ok(GtkWidget *widget, gpointer data)
 	fprintf(stderr, "Color is %x\n", rgbvalue);
 #endif
 
-	if (g_strcasecmp(type, "LEVEL1") == 0) {
+	if (g_ascii_strcasecmp(type, "LEVEL1") == 0) {
 		prefs_common.quote_level1_col = rgbvalue;
 		set_button_bg_color(color_buttons.quote_level1_btn, rgbvalue);
-	} else if (g_strcasecmp(type, "LEVEL2") == 0) {
+	} else if (g_ascii_strcasecmp(type, "LEVEL2") == 0) {
 		prefs_common.quote_level2_col = rgbvalue;
 		set_button_bg_color(color_buttons.quote_level2_btn, rgbvalue);
-	} else if (g_strcasecmp(type, "LEVEL3") == 0) {
+	} else if (g_ascii_strcasecmp(type, "LEVEL3") == 0) {
 		prefs_common.quote_level3_col = rgbvalue;
 		set_button_bg_color(color_buttons.quote_level3_btn, rgbvalue);
-	} else if (g_strcasecmp(type, "URI") == 0) {
+	} else if (g_ascii_strcasecmp(type, "URI") == 0) {
 		prefs_common.uri_col = rgbvalue;
 		set_button_bg_color(color_buttons.uri_btn, rgbvalue);
-	} else if (g_strcasecmp(type, "TGTFLD") == 0) {
+	} else if (g_ascii_strcasecmp(type, "TGTFLD") == 0) {
 		prefs_common.tgt_folder_col = rgbvalue;
 		set_button_bg_color(color_buttons.tgt_folder_btn, rgbvalue);
 		folderview_set_target_folder_color(prefs_common.tgt_folder_col);
-	} else if (g_strcasecmp(type, "SIGNATURE") == 0) {
+	} else if (g_ascii_strcasecmp(type, "SIGNATURE") == 0) {
 		prefs_common.signature_col = rgbvalue;
 		set_button_bg_color(color_buttons.signature_btn, rgbvalue);
 	} else
@@ -328,11 +327,33 @@ static void quote_colors_set_dialog_cancel(GtkWidget *widget, gpointer data)
 	gtk_widget_destroy(color_dialog);
 }
 
-static void quote_colors_set_dialog_key_pressed(GtkWidget *widget,
+static gboolean quote_colors_set_dialog_key_pressed(GtkWidget *widget,
 						GdkEventKey *event,
 						gpointer data)
 {
-	gtk_widget_destroy(color_dialog);
+	if (event) {
+		switch (event->keyval) {
+			case GDK_Escape:
+				gtk_button_clicked(GTK_BUTTON(GTK_COLOR_SELECTION_DIALOG
+							(widget)->cancel_button));
+				return TRUE;
+			case GDK_Return: 
+			case GDK_KP_Enter:
+				/* NOTE: changing focus makes widget accept all currently 
+				 * changed settings! */
+				gtk_widget_grab_focus
+					(GTK_COLOR_SELECTION_DIALOG
+						(widget)->ok_button);
+				/* call ok handler */						
+				gtk_button_clicked(GTK_BUTTON
+					(GTK_COLOR_SELECTION_DIALOG
+						(widget)->ok_button));
+				return TRUE;
+			default:
+				break;
+		}
+	}
+	return FALSE;
 }
 
 static void set_button_bg_color(GtkWidget *widget, gint rgbvalue)

@@ -82,8 +82,8 @@ static void open_dialog (struct select_keys_s *sk);
 static void close_dialog (struct select_keys_s *sk);
 static gint delete_event_cb (GtkWidget *widget,
                              GdkEventAny *event, gpointer data);
-static void key_pressed_cb (GtkWidget *widget,
-                            GdkEventKey *event, gpointer data);
+static gboolean key_pressed_cb (GtkWidget *widget,
+                                GdkEventKey *event, gpointer data);
 static void showall_btn_cb (GtkWidget *widget, gpointer data);
 static void select_btn_cb (GtkWidget *widget, gpointer data);
 static void cancel_btn_cb (GtkWidget *widget, gpointer data);
@@ -171,6 +171,8 @@ set_row (GtkCList *clist, GpgmeKey key)
     const char *text[N_COL_TITLES];
     char *algo_buf;
     int row;
+    gssize by_read = 0, by_written = 0;
+    gchar *ret_str;
 
     /* first check whether the key is capable of encryption which is not
      * the case for revoked, expired or sign-only keys */
@@ -188,12 +190,24 @@ set_row (GtkCList *clist, GpgmeKey key)
     text[COL_KEYID] = s;
 
     s = gpgme_key_get_string_attr (key, GPGME_ATTR_NAME, NULL, 0);
+    ret_str = g_locale_to_utf8 (s, strlen(s), &by_read, &by_written, NULL);
+    if (ret_str && by_written) {
+        s = ret_str;
+    }
     text[COL_NAME] = s;
 
     s = gpgme_key_get_string_attr (key, GPGME_ATTR_EMAIL, NULL, 0);
+    ret_str = g_locale_to_utf8 (s, strlen(s), &by_read, &by_written, NULL);
+    if (ret_str && by_written) {
+        s = ret_str;
+    }
     text[COL_EMAIL] = s;
 
     s = gpgme_key_get_string_attr (key, GPGME_ATTR_VALIDITY, NULL, 0);
+    ret_str = g_locale_to_utf8 (s, strlen(s), &by_read, &by_written, NULL);
+    if (ret_str && by_written) {
+        s = ret_str;
+    }
     text[COL_VALIDITY] = s;
 
     row = gtk_clist_append (clist, (gchar**)text);
@@ -267,15 +281,15 @@ create_dialog (struct select_keys_s *sk)
     const char *titles[N_COL_TITLES];
 
     g_assert (!sk->window);
-    window = gtk_window_new (GTK_WINDOW_DIALOG);
-    gtk_widget_set_usize (window, 520, 280);
+    window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+    gtk_widget_set_size_request (window, 520, 280);
     gtk_container_set_border_width (GTK_CONTAINER (window), 8);
     gtk_window_set_title (GTK_WINDOW (window), _("Select Keys"));
     gtk_window_set_modal (GTK_WINDOW (window), TRUE);
-    gtk_signal_connect (GTK_OBJECT (window), "delete_event",
-                        GTK_SIGNAL_FUNC (delete_event_cb), sk);
-    gtk_signal_connect (GTK_OBJECT (window), "key_press_event",
-                        GTK_SIGNAL_FUNC (key_pressed_cb), sk);
+    g_signal_connect (G_OBJECT (window), "delete_event",
+		      G_CALLBACK (delete_event_cb), sk);
+    g_signal_connect (G_OBJECT (window), "key_press_event",
+		      G_CALLBACK (key_pressed_cb), sk);
     MANAGE_WINDOW_SIGNALS_CONNECT (window);
 
     vbox = gtk_vbox_new (FALSE, 8);
@@ -310,12 +324,12 @@ create_dialog (struct select_keys_s *sk)
     gtk_clist_set_column_width (GTK_CLIST(clist), COL_EMAIL,    130);
     gtk_clist_set_column_width (GTK_CLIST(clist), COL_VALIDITY,  20);
     gtk_clist_set_selection_mode (GTK_CLIST(clist), GTK_SELECTION_BROWSE);
-    gtk_signal_connect (GTK_OBJECT(GTK_CLIST(clist)->column[COL_NAME].button),
-		        "clicked",
-                        GTK_SIGNAL_FUNC(sort_keys_name), sk);
-    gtk_signal_connect (GTK_OBJECT(GTK_CLIST(clist)->column[COL_EMAIL].button),
-		        "clicked",
-                        GTK_SIGNAL_FUNC(sort_keys_email), sk);
+    g_signal_connect (G_OBJECT(GTK_CLIST(clist)->column[COL_NAME].button),
+		      "clicked",
+		      G_CALLBACK(sort_keys_name), sk);
+    g_signal_connect (G_OBJECT(GTK_CLIST(clist)->column[COL_EMAIL].button),
+		      "clicked",
+		      G_CALLBACK(sort_keys_email), sk);
 
     hbox = gtk_hbox_new (FALSE, 8);
     gtk_box_pack_end (GTK_BOX (vbox), hbox, FALSE, FALSE, 0);
@@ -324,8 +338,8 @@ create_dialog (struct select_keys_s *sk)
     gtk_widget_show (showall_btn);
     gtk_box_pack_start (GTK_BOX (hbox), showall_btn, FALSE, FALSE, 0);
 
-    gtk_signal_connect (GTK_OBJECT (showall_btn), "clicked",
-                        GTK_SIGNAL_FUNC (showall_btn_cb), sk);
+    g_signal_connect(G_OBJECT (showall_btn), "clicked",
+                     G_CALLBACK(showall_btn_cb), sk);
 
     gtkut_button_set_create (&bbox, 
                              &select_btn, _("Select"),
@@ -334,12 +348,12 @@ create_dialog (struct select_keys_s *sk)
     gtk_box_pack_end (GTK_BOX (hbox), bbox, FALSE, FALSE, 0);
     gtk_widget_grab_default (select_btn);
 
-    gtk_signal_connect (GTK_OBJECT (select_btn), "clicked",
-                        GTK_SIGNAL_FUNC (select_btn_cb), sk);
-    gtk_signal_connect (GTK_OBJECT(cancel_btn), "clicked",
-                        GTK_SIGNAL_FUNC (cancel_btn_cb), sk);
-    gtk_signal_connect (GTK_OBJECT (other_btn), "clicked",
-                        GTK_SIGNAL_FUNC (other_btn_cb), sk);
+    g_signal_connect (G_OBJECT (select_btn), "clicked",
+		      G_CALLBACK (select_btn_cb), sk);
+    g_signal_connect (G_OBJECT(cancel_btn), "clicked",
+		      G_CALLBACK (cancel_btn_cb), sk);
+    g_signal_connect (G_OBJECT (other_btn), "clicked",
+		      G_CALLBACK (other_btn_cb), sk);
 
     vbox2 = gtk_vbox_new (FALSE, 4);
     gtk_box_pack_start (GTK_BOX (hbox), vbox2, FALSE, FALSE, 0);
@@ -386,16 +400,17 @@ delete_event_cb (GtkWidget *widget, GdkEventAny *event, gpointer data)
 }
 
 
-static void 
+static gboolean 
 key_pressed_cb (GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct select_keys_s *sk = data;
 
-    g_return_if_fail (sk);
+    g_return_val_if_fail (sk, FALSE);
     if (event && event->keyval == GDK_Escape) {
         sk->okay = 0;
         gtk_main_quit ();
     }
+	return FALSE;
 }
 
 
@@ -486,7 +501,7 @@ cmp_attr (gconstpointer pa, gconstpointer pb, GpgmeAttr attr)
         return !!sb;
     if (!sb)
         return -1;
-    return g_strcasecmp(sa, sb);
+    return g_ascii_strcasecmp(sa, sb);
 }
 
 static gint 

@@ -358,7 +358,7 @@ static void prefs_gpg_account_create_widget_func(PrefsPage *_page,
 	if (config->sign_key_id != NULL)
 		gtk_entry_set_text(GTK_ENTRY(keyid), config->sign_key_id);
 
-	gtk_signal_connect(GTK_OBJECT(key_custom), "toggled", GTK_SIGNAL_FUNC(key_custom_toggled), page);
+	g_signal_connect(G_OBJECT(key_custom), "toggled", G_CALLBACK(key_custom_toggled), page);
 
 	page->key_default = key_default;
 	page->key_by_from = key_by_from;

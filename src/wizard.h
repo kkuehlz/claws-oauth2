@@ -1,5 +1,7 @@
-/* select-keys.h - GTK+ based key selection
- *      Copyright (C) 2001 Werner Koch (dd9jn)
+/*
+ * Sylpheed -- a GTK+ based, lightweight, and fast e-mail client
+ * Copyright (C) 1999-2004 Hiroyuki Yamamoto
+ * This file (C) 2004 Colin Leroy
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,14 +18,15 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef GPGMEGTK_SELECT_KEYS_H
-#define GPGMEGTK_SELECT_KEYS_H
+#ifndef __WIZARD_H__
+#define __WIZARD_H__
 
 #include <glib.h>
-#include <gpgme.h>
+#include <gdk/gdk.h>
+#include <gtk/gtkwidget.h>
 
+#include "mainwindow.h"
 
-GpgmeRecipients gpgmegtk_recipient_selection (GSList *recp_names);
+gboolean run_wizard(MainWindow *, gboolean create_mailbox);
 
-
-#endif /* GPGMEGTK_SELECT_KEYS_H */
+#endif

@@ -34,7 +34,7 @@ dnl
         aspell_includes=$aspell_prefix/include
      fi
      if test x$aspell_libs == x ; then
-        aspell_libs=$aspell_prefix/libs
+        aspell_libs=$aspell_prefix/lib
      fi
   fi
   if test x$aspell_includes == x ; then

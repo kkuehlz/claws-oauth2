@@ -52,17 +52,6 @@
 #include "account.h"
 #include "mimeview.h"
 
-#define FONT_LOAD(font, s) \
-{ \
-	gchar *fontstr, *p; \
- \
-	Xstrdup_a(fontstr, s, ); \
-	if ((p = strchr(fontstr, ',')) != NULL) *p = '\0'; \
-	font = gdk_font_load(fontstr); \
-	if (!font) \
-		g_warning("Couldn't load the font '%s'\n", fontstr); \
-}
-
 typedef struct _RemoteURI	RemoteURI;
 
 struct _RemoteURI
@@ -203,7 +192,7 @@ TextView *textview_create(void)
 		GtkStyle *style;
 		GdkFont *font;
 
-		FONT_LOAD(font, prefs_common.normalfont);
+		font = gtkut_font_load_from_fontset(prefs_common.normalfont);
 		if (font) {
 			style = gtk_style_copy(text_sb->style);
 			gdk_font_unref(style->font);
@@ -328,7 +317,7 @@ void textview_show_message(TextView *textview, MimeInfo *mimeinfo,
 
 	gtk_stext_freeze(text);
 
-	if (fseek(fp, mimeinfo->fpos, SEEK_SET) < 0) perror("fseek");
+	if (fseek(fp, mimeinfo->offset, SEEK_SET) < 0) perror("fseek");
 	headers = textview_scan_header(textview, fp);
 	if (headers) {
 		textview_show_header(textview, headers);
@@ -346,22 +335,23 @@ void textview_show_message(TextView *textview, MimeInfo *mimeinfo,
 void textview_show_part(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 {
 	GtkSText *text;
-	gchar buf[BUFFSIZE];
+#if 0 /* OLD MESSAGE PARSER */
 	const gchar *boundary = NULL;
 	gint boundary_len = 0;
+#endif
 	const gchar *charset = NULL;
 	GPtrArray *headers = NULL;
-	gboolean is_rfc822_part = FALSE;
 
 	g_return_if_fail(mimeinfo != NULL);
 	g_return_if_fail(fp != NULL);
 
-	if (mimeinfo->mime_type == MIME_MULTIPART) {
+	if (mimeinfo->type == MIMETYPE_MULTIPART) {
 		textview_clear(textview);
 		textview_add_parts(textview, mimeinfo, fp);
 		return;
 	}
 
+#if 0 /* OLD MESSAGE PARSER */
 	if (mimeinfo->parent && mimeinfo->parent->boundary) {
 		boundary = mimeinfo->parent->boundary;
 		boundary_len = strlen(boundary);
@@ -370,10 +360,11 @@ void textview_show_part(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 	if (!boundary && (mimeinfo->mime_type == MIME_TEXT || 
 			  mimeinfo->mime_type == MIME_TEXT_HTML || 
 			  mimeinfo->mime_type == MIME_TEXT_ENRICHED)) {
-		
-		if (fseek(fp, mimeinfo->fpos, SEEK_SET) < 0)
+#endif
+		if (fseek(fp, mimeinfo->offset, SEEK_SET) < 0)
 			perror("fseek");
 		headers = textview_scan_header(textview, fp);
+#if 0 /* OLD MESSAGE PARSER */
 	} else {
 		if (mimeinfo->mime_type == MIME_TEXT && mimeinfo->parent) {
 			glong fpos;
@@ -389,7 +380,7 @@ void textview_show_part(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 
 			if ((fpos = ftell(fp)) < 0)
 				perror("ftell");
-			else if (fseek(fp, parent->fpos, SEEK_SET) < 0)
+			else if (fseek(fp, parent->offset, SEEK_SET) < 0)
 				perror("fseek");
 			else {
 				headers = textview_scan_header(textview, fp);
@@ -403,7 +394,7 @@ void textview_show_part(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 	}
 
 	/* display attached RFC822 single text message */
-	if (mimeinfo->mime_type == MIME_MESSAGE_RFC822) {
+	if (mimeinfo->type == MIMETYPE_MESSAGE) {
 		if (headers) procheader_header_array_destroy(headers);
 		if (!mimeinfo->sub) {
 			textview_clear(textview);
@@ -413,11 +404,12 @@ void textview_show_part(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 		mimeinfo = mimeinfo->sub;
 		is_rfc822_part = TRUE;
 	}
+#endif
 
 	if (prefs_common.force_charset)
 		charset = prefs_common.force_charset;
 	else if (mimeinfo->charset)
-		charset = mimeinfo->charset;
+		charset = g_hash_table_lookup(mimeinfo->parameters, "charset");
 	textview_set_font(textview, charset);
 
 	text = GTK_STEXT(textview->text);
@@ -433,7 +425,7 @@ void textview_show_part(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 			gtk_stext_insert(text, NULL, NULL, NULL, "\n", 1);
 	}
 
-	if (mimeinfo->mime_type == MIME_MULTIPART || is_rfc822_part)
+	if (mimeinfo->type == MIMETYPE_MULTIPART)
 		textview_add_parts(textview, mimeinfo, fp);
 	else
 		textview_write_body(textview, mimeinfo, fp, charset);
@@ -445,27 +437,28 @@ static void textview_add_part(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 {
 	GtkSText *text = GTK_STEXT(textview->text);
 	gchar buf[BUFFSIZE];
+#if 0 /* OLD MESSAGE PARSER */
 	const gchar *boundary = NULL;
 	gint boundary_len = 0;
+#endif
 	const gchar *charset = NULL;
 	GPtrArray *headers = NULL;
 
 	g_return_if_fail(mimeinfo != NULL);
 	g_return_if_fail(fp != NULL);
 
-	if (mimeinfo->mime_type == MIME_MULTIPART) return;
+	if (mimeinfo->type == MIMETYPE_MULTIPART) return;
 
 	if (!mimeinfo->parent &&
-	    mimeinfo->mime_type != MIME_TEXT &&
-	    mimeinfo->mime_type != MIME_TEXT_HTML &&
-	    mimeinfo->mime_type != MIME_TEXT_ENRICHED)
+	    mimeinfo->type != MIMETYPE_TEXT)
 		return;
 
-	if (fseek(fp, mimeinfo->fpos, SEEK_SET) < 0) {
+	if (fseek(fp, mimeinfo->offset, SEEK_SET) < 0) {
 		perror("fseek");
 		return;
 	}
 
+#if 0 /* OLD MESSAGE PARSER */
 	if (mimeinfo->parent && mimeinfo->parent->boundary) {
 		boundary = mimeinfo->parent->boundary;
 		boundary_len = strlen(boundary);
@@ -473,8 +466,9 @@ static void textview_add_part(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 
 	while (fgets(buf, sizeof(buf), fp) != NULL)
 		if (buf[0] == '\r' || buf[0] == '\n') break;
+#endif
 
-	if (mimeinfo->mime_type == MIME_MESSAGE_RFC822) {
+	if (mimeinfo->type == MIMETYPE_MESSAGE) {
 		headers = textview_scan_header(textview, fp);
 		if (headers) {
 			gtk_stext_freeze(text);
@@ -488,78 +482,53 @@ static void textview_add_part(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 
 	gtk_stext_freeze(text);
 
-#if USE_GPGME
-	if (mimeinfo->sigstatus)
-		g_snprintf(buf, sizeof(buf), "\n[%s (%s)]\n",
-			   mimeinfo->content_type, mimeinfo->sigstatus);
+	if (g_hash_table_lookup(mimeinfo->parameters, "name") != NULL)
+		g_snprintf(buf, sizeof(buf), "\n[%s  %s/%s (%d bytes)]\n",
+			   (gchar *)g_hash_table_lookup(mimeinfo->parameters, "name"),
+			   procmime_get_type_str(mimeinfo->type), mimeinfo->subtype, mimeinfo->length);
 	else
-#endif
-	if (mimeinfo->filename || mimeinfo->name)
-		g_snprintf(buf, sizeof(buf), "\n[%s  %s (%d bytes)]\n",
-			   mimeinfo->filename ? mimeinfo->filename :
-			   mimeinfo->name,
-			   mimeinfo->content_type, mimeinfo->size);
-	else
-		g_snprintf(buf, sizeof(buf), "\n[%s (%d bytes)]\n",
-			   mimeinfo->content_type, mimeinfo->size);
+		g_snprintf(buf, sizeof(buf), "\n[%s/%s (%d bytes)]\n",
+			   procmime_get_type_str(mimeinfo->type), mimeinfo->subtype, mimeinfo->length);
 
-#if USE_GPGME
-	if (mimeinfo->sigstatus && !mimeinfo->sigstatus_full) {
-		gchar *tmp;
-		/* use standard font */
-		gpointer oldfont = textview->msgfont;
-		textview->msgfont = NULL;
-
-		tmp = g_strconcat("pgp: ", _("Check signature"), NULL);
-		textview_write_link(textview, tmp, buf, NULL);
-		
-		/* put things back */
-		textview->msgfont = (GdkFont *)oldfont;
-		oldfont = NULL;
-		g_free(tmp);
-	} else
-#endif
-	if (mimeinfo->mime_type != MIME_TEXT &&
-	    mimeinfo->mime_type != MIME_TEXT_HTML &&
-	    mimeinfo->mime_type != MIME_TEXT_ENRICHED) {
+	if (mimeinfo->type != MIME_TEXT) {
 		gtk_stext_insert(text, NULL, NULL, NULL, buf, -1);
 	} else {
-		if (!mimeinfo->main &&
-		    mimeinfo->parent &&
+		if (mimeinfo->parent &&
 		    mimeinfo->parent->children != mimeinfo)
 			gtk_stext_insert(text, NULL, NULL, NULL, buf, -1);
-		else
+		else if (prefs_common.display_header)
 			gtk_stext_insert(text, NULL, NULL, NULL, "\n", 1);
 		if (prefs_common.force_charset)
 			charset = prefs_common.force_charset;
 		else if (mimeinfo->charset)
-			charset = mimeinfo->charset;
+			charset = g_hash_table_lookup(mimeinfo->parameters, "charset");
 		textview_write_body(textview, mimeinfo, fp, charset);
 	}
 	
 	gtk_stext_thaw(text);
 }
 
-static void textview_add_parts(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
+static void textview_add_parts_func(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
 {
-	gint level;
-
 	g_return_if_fail(mimeinfo != NULL);
 	g_return_if_fail(fp != NULL);
 
-	level = mimeinfo->level;
-
-	for (;;) {
+	while (mimeinfo) {
 		textview_add_part(textview, mimeinfo, fp);
-		if (mimeinfo->parent && mimeinfo->parent->content_type &&
-		    !strcasecmp(mimeinfo->parent->content_type,
-				"multipart/alternative"))
-			mimeinfo = mimeinfo->parent->next;
-		else
-			mimeinfo = procmime_mimeinfo_next(mimeinfo);
-		if (!mimeinfo || mimeinfo->level <= level)
-			break;
+		if(mimeinfo->children)
+			textview_add_parts_func(textview, mimeinfo->children, fp);
+		mimeinfo = mimeinfo->next;
 	}
+}
+
+static void textview_add_parts(TextView *textview, MimeInfo *mimeinfo, FILE *fp)
+{
+	g_return_if_fail(mimeinfo != NULL);
+	g_return_if_fail(fp != NULL);
+
+	textview_add_part(textview, mimeinfo, fp);
+	if(mimeinfo->children)
+		textview_add_parts_func(textview, mimeinfo->children, fp);
 }
 
 #define TEXT_INSERT(str) \
@@ -595,31 +564,6 @@ void textview_show_mime_part(TextView *textview, MimeInfo *partinfo)
 	gtk_stext_thaw(text);
 }
 
-#if USE_GPGME
-void textview_show_signature_part(TextView *textview, MimeInfo *partinfo)
-{
-	GtkSText *text;
-
-	if (!partinfo) return;
-
-	textview_set_font(textview, NULL);
-	text = GTK_STEXT(textview->text);
-	textview_clear(textview);
-
-	gtk_stext_freeze(text);
-
-	if (partinfo->sigstatus_full == NULL) {
-		TEXT_INSERT(_("This signature has not been checked yet.\n"));
-		TEXT_INSERT(_("To check it, pop up the context menu with\n"));
-		TEXT_INSERT(_("right click and select `Check signature'.\n"));
-	} else {
-		TEXT_INSERT(partinfo->sigstatus_full);
-	}
-		
-	gtk_stext_thaw(text);
-}
-#endif /* USE_GPGME */
-
 #undef TEXT_INSERT
 
 static void textview_write_body(TextView *textview, MimeInfo *mimeinfo,
@@ -629,20 +573,27 @@ static void textview_write_body(TextView *textview, MimeInfo *mimeinfo,
 	gchar buf[BUFFSIZE];
 	CodeConverter *conv;
 
+	g_return_if_fail(mimeinfo->type == MIMETYPE_TEXT);
+
 	conv = conv_code_converter_new(charset);
 
-	tmpfp = procmime_decode_content(NULL, fp, mimeinfo);
-	
-	textview->is_in_signature = FALSE;
+	if(mimeinfo->encoding_type != ENC_BINARY && 
+	   mimeinfo->encoding_type != ENC_7BIT && 
+	   mimeinfo->encoding_type != ENC_8BIT)
+		procmime_decode_content(mimeinfo);
+
+	tmpfp = fopen(mimeinfo->filename, "rb");
 
 	if (tmpfp) {
-		
-		if (mimeinfo->mime_type == MIME_TEXT_HTML)
+		fseek(tmpfp, mimeinfo->offset, SEEK_SET);
+		debug_print("Viewing text content of type: %s (length: %d)\n", mimeinfo->subtype, mimeinfo->length);
+		if (!g_strcasecmp(mimeinfo->subtype, "html"))
 			textview_show_html(textview, tmpfp, conv);
-		else if (mimeinfo->mime_type == MIME_TEXT_ENRICHED)
+		else if (!g_strcasecmp(mimeinfo->subtype, "enriched"))
 			textview_show_ertf(textview, tmpfp, conv);
 		else
-			while (fgets(buf, sizeof(buf), tmpfp) != NULL)
+			while ((fgets(buf, sizeof(buf), tmpfp) != NULL) && 
+			       (ftell(tmpfp) < mimeinfo->offset + mimeinfo->length))
 				textview_write_line(textview, buf, conv);
 		fclose(tmpfp);
 	}
@@ -1229,11 +1180,11 @@ void textview_set_font(TextView *textview, const gchar *codeset)
 				text_sb_font->ascent = text_sb_font_orig_ascent;
 				text_sb_font->descent = text_sb_font_orig_descent;
 			}
-			if (MB_CUR_MAX > 1) {
-				FONT_LOAD(font, "-*-courier-medium-r-normal--14-*-*-*-*-*-iso8859-1");
-			} else {
-				FONT_LOAD(font, prefs_common.textfont);
-			}
+			if (MB_CUR_MAX > 1)
+				font = gdk_font_load("-*-courier-medium-r-normal--14-*-*-*-*-*-iso8859-1");
+			else
+				font = gtkut_font_load_from_fontset
+					(prefs_common.textfont);
 			if (font && text_sb_font != font) {
 				if (text_sb_font)
 					gdk_font_unref(text_sb_font);
@@ -1259,7 +1210,7 @@ void textview_set_font(TextView *textview, const gchar *codeset)
 	}
 
 	if (!textview->boldfont && prefs_common.boldfont)
-		FONT_LOAD(textview->boldfont, prefs_common.boldfont);
+		textview->boldfont = gtkut_font_load(prefs_common.boldfont);
 	if (!spacingfont)
 		spacingfont = gdk_font_load("-*-*-medium-r-normal--6-*");
 }
@@ -1342,7 +1293,6 @@ static GPtrArray *textview_scan_header(TextView *textview, FILE *fp)
 		g_ptr_array_free(headers, TRUE);
 	} else
 		procheader_header_array_destroy(headers);
-
 
 	return sorted_headers;
 }
@@ -1822,18 +1772,7 @@ static gint textview_button_released(GtkWidget *widget, GdkEventButton *event,
 						}
 						compose_new(account, uri->uri + 7, NULL);
 					}
-				} else 
-#if USE_GPGME
-				if (!g_strncasecmp(uri->uri, "pgp:", 4)) {
-					GtkAdjustment *pos = gtk_scrolled_window_get_vadjustment(
-								GTK_SCROLLED_WINDOW(textview->scrolledwin));
-					gfloat vpos = pos->value;
-					mimeview_check_signature(textview->messageview->mimeview);
-					/* scroll back where we were */
-					gtk_adjustment_set_value(pos, vpos);
-				} else
-#endif
-				{
+				} else {
 					open_uri(uri->uri,
 						 prefs_common.uri_cmd);
 				}

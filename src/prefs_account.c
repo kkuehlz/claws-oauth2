@@ -129,8 +129,8 @@ static struct Compose {
 static struct Privacy {
 	GtkWidget *default_encrypt_chkbtn;
 	GtkWidget *default_sign_chkbtn;
-	GtkWidget *ascii_armored_chkbtn;
-	GtkWidget *clearsign_chkbtn;
+	GtkWidget *gnupg_mime_radiobtn;
+	GtkWidget *gnupg_inline_radiobtn;
 	GtkWidget *defaultkey_radiobtn;
 	GtkWidget *emailkey_radiobtn;
 	GtkWidget *customkey_radiobtn;
@@ -207,7 +207,7 @@ static void prefs_account_enum_set_radiobtn		(PrefParam *pparam);
 #endif /* USE_GPGME || USE_SSL */
 
 #if USE_GPGME
-static void prefs_account_ascii_armored_warning		(GtkWidget *widget);
+static void prefs_account_gnupg_inline_warning		(GtkWidget *widget);
 #endif /* USE_GPGME */
 
 static void prefs_account_crosspost_set_data_from_colormenu(PrefParam *pparam);
@@ -217,8 +217,6 @@ static void prefs_account_nntpauth_toggled(GtkToggleButton *button,
 					   gpointer user_data);
 static void prefs_account_mailcmd_toggled(GtkToggleButton *button,
 					  gpointer user_data);
-static void prefs_account_smtp_userid_cb(GtkEditable *editable,
-					 gpointer smtp_passwd);
 
 static PrefParam param[] = {
 	/* Basic */
@@ -382,12 +380,10 @@ static PrefParam param[] = {
 	{"default_sign", "FALSE", &tmp_ac_prefs.default_sign, P_BOOL,
 	 &privacy.default_sign_chkbtn,
 	 prefs_set_data_from_toggle, prefs_set_toggle},
-	{"ascii_armored", "FALSE", &tmp_ac_prefs.ascii_armored, P_BOOL,
-	 &privacy.ascii_armored_chkbtn,
-	 prefs_set_data_from_toggle, prefs_set_toggle},
-	{"clearsign", "FALSE", &tmp_ac_prefs.clearsign, P_BOOL,
-	 &privacy.clearsign_chkbtn,
-	 prefs_set_data_from_toggle, prefs_set_toggle},
+	{"default_gnupg_mode", NULL, &tmp_ac_prefs.default_gnupg_mode, P_ENUM,
+	 &privacy.gnupg_mime_radiobtn,
+	 prefs_account_enum_set_data_from_radiobtn,
+	 prefs_account_enum_set_radiobtn},
 	{"sign_key", NULL, &tmp_ac_prefs.sign_key, P_ENUM,
 	 &privacy.defaultkey_radiobtn,
 	 prefs_account_enum_set_data_from_radiobtn,
@@ -502,6 +498,8 @@ static PrefParam param[] = {
 	{NULL, NULL, NULL, P_OTHER, NULL, NULL, NULL}
 };
 
+static gint prefs_account_get_new_id		(void);
+
 static void prefs_account_create		(void);
 static void prefs_account_basic_create		(void);
 static void prefs_account_receive_create	(void);
@@ -533,6 +531,19 @@ static void prefs_account_ok			(void);
 static gint prefs_account_apply			(void);
 static void prefs_account_cancel		(void);
 
+PrefsAccount *prefs_account_new(void)
+{
+	PrefsAccount *ac_prefs;
+
+	ac_prefs = g_new0(PrefsAccount, 1);
+	memset(&tmp_ac_prefs, 0, sizeof(PrefsAccount));
+	prefs_set_default(param);
+	*ac_prefs = tmp_ac_prefs;
+	ac_prefs->account_id = prefs_account_get_new_id();
+
+	return ac_prefs;
+}
+
 void prefs_account_read_config(PrefsAccount *ac_prefs, const gchar *label)
 {
 	const gchar *p = label;
@@ -550,17 +561,6 @@ void prefs_account_read_config(PrefsAccount *ac_prefs, const gchar *label)
 	ac_prefs->account_id = id;
 
 	prefs_custom_header_read_config(ac_prefs);
-}
-
-void prefs_account_save_config(PrefsAccount *ac_prefs)
-{
-	gchar *buf;
-
-	g_return_if_fail(ac_prefs != NULL);
-
-	tmp_ac_prefs = *ac_prefs;
-	buf = g_strdup_printf("Account: %d", ac_prefs->account_id);
-	prefs_save_config(param, buf, ACCOUNT_RC);
 }
 
 void prefs_account_save_config_all(GList *account_list)
@@ -636,11 +636,7 @@ PrefsAccount *prefs_account_open(PrefsAccount *ac_prefs)
 	cancelled = FALSE;
 
 	if (!ac_prefs) {
-		ac_prefs = g_new0(PrefsAccount, 1);
-		memset(&tmp_ac_prefs, 0, sizeof(PrefsAccount));
-		prefs_set_default(param);
-		*ac_prefs = tmp_ac_prefs;
-		ac_prefs->account_id = prefs_account_get_new_id();
+		ac_prefs = prefs_account_new();
 		new_account = TRUE;
 	}
 
@@ -1507,14 +1503,16 @@ static void prefs_account_compose_create(void)
 static void prefs_account_privacy_create(void)
 {
 	GtkWidget *vbox1;
+	GtkWidget *frame_mode;
+	GtkWidget *vbox_mode;
 	GtkWidget *frame1;
 	GtkWidget *vbox2;
 	GtkWidget *hbox1;
 	GtkWidget *label;
 	GtkWidget *default_encrypt_chkbtn;
 	GtkWidget *default_sign_chkbtn;
-	GtkWidget *ascii_armored_chkbtn;
-	GtkWidget *clearsign_chkbtn;
+	GtkWidget *gnupg_mime_radiobtn;
+	GtkWidget *gnupg_inline_radiobtn;
 	GtkWidget *defaultkey_radiobtn;
 	GtkWidget *emailkey_radiobtn;
 	GtkWidget *customkey_radiobtn;
@@ -1533,12 +1531,33 @@ static void prefs_account_privacy_create(void)
 			   _("Encrypt message by default"));
 	PACK_CHECK_BUTTON (vbox2, default_sign_chkbtn,
 			   _("Sign message by default"));
-	PACK_CHECK_BUTTON (vbox2, ascii_armored_chkbtn,
-			   _("Use ASCII-armored format for encryption"));
-	PACK_CHECK_BUTTON (vbox2, clearsign_chkbtn,
-			   _("Use clear text signature"));
-	gtk_signal_connect (GTK_OBJECT (ascii_armored_chkbtn), "toggled",
-			    prefs_account_ascii_armored_warning, NULL);
+			    
+	PACK_FRAME (vbox1, frame_mode, _("Default mode"));
+	
+	vbox_mode = gtk_vbox_new (FALSE, 0);
+	gtk_widget_show (vbox_mode);
+	gtk_container_add (GTK_CONTAINER (frame_mode), vbox_mode);
+	gtk_container_set_border_width (GTK_CONTAINER (vbox_mode), 8);
+
+	gnupg_mime_radiobtn = gtk_radio_button_new_with_label
+		(NULL, _("Use PGP/MIME"));
+	gtk_widget_show (gnupg_mime_radiobtn);
+	gtk_box_pack_start (GTK_BOX (vbox_mode), gnupg_mime_radiobtn,
+			    FALSE, FALSE, 0);
+	gtk_object_set_user_data (GTK_OBJECT (gnupg_mime_radiobtn),
+				  GINT_TO_POINTER (GNUPG_MODE_DETACH));
+
+	gnupg_inline_radiobtn = gtk_radio_button_new_with_label_from_widget
+		(GTK_RADIO_BUTTON (gnupg_mime_radiobtn),
+		 _("Use Inline"));
+	gtk_widget_show (gnupg_inline_radiobtn);
+	gtk_box_pack_start (GTK_BOX (vbox_mode), gnupg_inline_radiobtn,
+			    FALSE, FALSE, 0);
+	gtk_object_set_user_data (GTK_OBJECT (gnupg_inline_radiobtn),
+				  GINT_TO_POINTER (GNUPG_MODE_INLINE));
+	gtk_signal_connect (GTK_OBJECT (gnupg_inline_radiobtn), "clicked",
+			    prefs_account_gnupg_inline_warning, NULL);
+
 
 	PACK_FRAME (vbox1, frame1, _("Sign key"));
 
@@ -1595,8 +1614,8 @@ static void prefs_account_privacy_create(void)
 
 	privacy.default_encrypt_chkbtn = default_encrypt_chkbtn;
 	privacy.default_sign_chkbtn    = default_sign_chkbtn;
-	privacy.ascii_armored_chkbtn   = ascii_armored_chkbtn;
-	privacy.clearsign_chkbtn       = clearsign_chkbtn;
+	privacy.gnupg_mime_radiobtn    = gnupg_mime_radiobtn;
+	privacy.gnupg_inline_radiobtn  = gnupg_inline_radiobtn;
 	privacy.defaultkey_radiobtn    = defaultkey_radiobtn;
 	privacy.emailkey_radiobtn      = emailkey_radiobtn;
 	privacy.customkey_radiobtn     = customkey_radiobtn;
@@ -2160,13 +2179,13 @@ static void prefs_account_enum_set_radiobtn(PrefParam *pparam)
 #endif /* USE_GPGME || USE_SSL */
 
 #if USE_GPGME
-static void prefs_account_ascii_armored_warning(GtkWidget *widget)
+static void prefs_account_gnupg_inline_warning(GtkWidget *widget)
 {
 	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)) &&
 	    gtk_notebook_get_current_page(GTK_NOTEBOOK(dialog.notebook)) > 0)
 		alertpanel_warning
-			(_("It's not recommended to use the old style ASCII-armored\n"
-			   "mode for encrypted messages. It doesn't comply with the\n"
+			(_("Its not recommended to use the old style Inline\n"
+			   "mode for GnuPG messages. It doesn't comply with\n"
 			   "RFC 3156 - MIME Security with OpenPGP."));
 }
 #endif /* USE_GPGME */

@@ -53,13 +53,16 @@ struct _GtkSCTreeClass {
 
 
 GtkType gtk_sctree_get_type (void);
-GtkWidget *gtk_sctree_new_with_titles (gint columns, 
-				       gint tree_column, 
-				       gchar *titles[]);
-void  gtk_sctree_select (GtkSCTree *sctree,
-			 GtkCTreeNode *node);
 
-void  gtk_sctree_unselect_all (GtkSCTree *sctree);
+GtkWidget *gtk_sctree_new_with_titles	(gint		 columns, 
+					 gint		 tree_column, 
+					 gchar		*titles[]);
+void gtk_sctree_select			(GtkSCTree	*sctree,
+					 GtkCTreeNode	*node);
+void gtk_sctree_unselect_all		(GtkSCTree	*sctree);
+
+void gtk_sctree_set_anchor_row		(GtkSCTree	*sctree,
+					 GtkCTreeNode	*node);
 
 /***********************************************************
  *             Tree sorting functions                      *
@@ -68,8 +71,5 @@ void  gtk_sctree_unselect_all (GtkSCTree *sctree);
 void gtk_sctree_sort_node (GtkCTree *ctree, GtkCTreeNode *node);
 
 void gtk_sctree_sort_recursive (GtkCTree *ctree, GtkCTreeNode *node);
-
-
-
 
 #endif /* __GTK_SCTREE_H__ */

@@ -48,6 +48,8 @@ struct _PrefsFolderItem {
 	gboolean request_return_receipt;
 	gboolean enable_default_to;
 	gchar *default_to;
+	gboolean enable_default_reply_to;
+	gchar *default_reply_to;
 	gboolean enable_simplify_subject;
 	gchar *simplify_subject_regexp;
 	gboolean enable_folder_chmod;
@@ -72,5 +74,6 @@ PrefsFolderItem * prefs_folder_item_new(void);
 void prefs_folder_item_free(PrefsFolderItem * prefs);
 gint prefs_folder_item_get_sort_type(FolderItem * item);
 gint prefs_folder_item_get_sort_mode(FolderItem * item);
+void prefs_folder_item_copy_prefs(FolderItem * src, FolderItem * dest);
 
 #endif

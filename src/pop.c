@@ -59,7 +59,8 @@
 		     size > ac->size_limit * 1024);				\
 										\
 		if (ac->rmmail &&						\
-		    msg->recv_time != 0 &&					\
+		    msg->recv_time != RECV_TIME_NONE &&				\
+		    msg->recv_time != RECV_TIME_KEEP &&				\
 		    state->current_time - msg->recv_time >=			\
 		    ac->msg_leave_time * 24 * 60 * 60) {			\
 			log_print(_("POP3: Deleting expired message %d\n"),	\
@@ -337,8 +338,11 @@ gint pop3_getrange_uidl_recv(SockInfo *sock, gpointer data)
 	gint next_state;
 
 	if (!state->uidl_table) new = TRUE;
+#if 0
 	if (state->ac_prefs->getall ||
 	    (state->ac_prefs->rmmail && state->ac_prefs->msg_leave_time == 0))
+#endif
+	if (state->ac_prefs->getall)
 		get_all = TRUE;
 
 	if (pop3_ok(sock, NULL) != PS_SUCCESS) {
@@ -368,11 +372,12 @@ gint pop3_getrange_uidl_recv(SockInfo *sock, gpointer data)
 		recv_time = (time_t)g_hash_table_lookup(state->uidl_table, id);
 		state->msg[num].recv_time = recv_time;
 
-		if (!get_all && recv_time != 0)
+		if (!get_all && recv_time != RECV_TIME_NONE)
 			state->msg[num].received = TRUE;
 
 		if (new == FALSE &&
-		    (get_all || recv_time == 0 || state->ac_prefs->rmmail)) {
+		    (get_all || recv_time == RECV_TIME_NONE ||
+		     state->ac_prefs->rmmail)) {
 			state->cur_msg = num;
 			new = TRUE;
 		}
@@ -457,7 +462,7 @@ gint pop3_top_recv(SockInfo *sock, gpointer data)
 	Pop3State *state = (Pop3State *)data;
 	gchar *filename, *path;
 	gint next_state;
-	
+	gint write_val;
 	if (pop3_ok(sock, NULL) != PS_SUCCESS) 
 		return POP3_LOGOUT_SEND;
 
@@ -468,11 +473,16 @@ gint pop3_top_recv(SockInfo *sock, gpointer data)
 	
 	filename = g_strdup_printf("%s%i", path, state->cur_msg);
 				   
-	if (recv_write_to_file(sock, filename) < 0) {
-		state->error_val = PS_IOERR;
+	if ( (write_val = recv_write_to_file(sock, filename)) < 0) {
+		state->error_val = (write_val == -1 ? PS_IOERR : PS_SOCKET);
+		g_free(path);
+		g_free(filename);
 		return -1;
 	}
-
+	
+	g_free(path);
+	g_free(filename);
+	
 	pop3_sd_state(state, POP3_TOP_RECV, &next_state);
 	
 	if (state->cur_msg < state->count) {
@@ -497,15 +507,18 @@ gint pop3_retr_recv(SockInfo *sock, gpointer data)
 	gchar *file;
 	gint ok, drop_ok;
 	gint next_state;
+	gint write_val;
 	if ((ok = pop3_ok(sock, NULL)) == PS_SUCCESS) {
 		file = get_tmp_file();
-		if (recv_write_to_file(sock, file) < 0) {
+		if ((write_val = recv_write_to_file(sock, file)) < 0) {
 			g_free(file);
 			if (!state->cancelled)
-				state->error_val = PS_IOERR;
+				state->error_val = 
+					(write_val == -1 ? PS_IOERR : PS_SOCKET);
 			return -1;
 		}
 
+		/* drop_ok: 0: success 1: don't receive -1: error */
 		drop_ok = inc_drop_message(file, state);
 		g_free(file);
 		if (drop_ok < 0) {
@@ -521,9 +534,10 @@ gint pop3_retr_recv(SockInfo *sock, gpointer data)
 		state->cur_total_num++;
 
 		state->msg[state->cur_msg].received = TRUE;
-		state->msg[state->cur_msg].recv_time = state->current_time;
+		state->msg[state->cur_msg].recv_time =
+			drop_ok == 1 ? RECV_TIME_KEEP : state->current_time;
 
-		if (state->ac_prefs->rmmail &&
+		if (drop_ok == 0 && state->ac_prefs->rmmail &&
 		    state->ac_prefs->msg_leave_time == 0)
 			return POP3_DELETE_SEND;
 
@@ -682,6 +696,7 @@ static void pop3_sd_new_header(Pop3State *state)
 		
 		state->ac_prefs->msg_list = g_slist_append(state->ac_prefs->msg_list, 
 							   new_msg);
+		debug_print("received ?: msg %i, received: %i\n",new_msg->index, new_msg->received); 
 	}
 }
 
@@ -860,8 +875,8 @@ GHashTable *pop3_get_uidl_table(PrefsAccount *ac_prefs)
 	GHashTable *table;
 	gchar *path;
 	FILE *fp;
-	gchar buf[IDLEN + 3];
-	gchar uidl[IDLEN + 3];
+	gchar buf[POPBUFSIZE];
+	gchar uidl[POPBUFSIZE];
 	time_t recv_time;
 	time_t now;
 
@@ -888,15 +903,15 @@ GHashTable *pop3_get_uidl_table(PrefsAccount *ac_prefs)
 
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		strretchomp(buf);
-		recv_time = 0;
+		recv_time = RECV_TIME_NONE;
 		if (sscanf(buf, "%s\t%ld", uidl, &recv_time) != 2) {
 			if (sscanf(buf, "%s", uidl) != 1)
 				continue;
 			else
 				recv_time = now;
 		}
-		if (recv_time == 0)
-			recv_time = 1;
+		if (recv_time == RECV_TIME_NONE)
+			recv_time = RECV_TIME_RECEIVED;
 		g_hash_table_insert(table, g_strdup(uidl),
 				    GINT_TO_POINTER(recv_time));
 	}

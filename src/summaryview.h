@@ -37,9 +37,9 @@ typedef struct _SummaryColumnState	SummaryColumnState;
 #include "headerview.h"
 #include "messageview.h"
 #include "compose.h"
-#include "prefs_filter.h"
 #include "folder.h"
 #include "gtksctree.h"
+#include "prefs_filtering.h"
 
 typedef enum
 {
@@ -101,6 +101,7 @@ struct _SummaryView
 	GtkWidget *toggle_eventbox;
 	GtkWidget *toggle_arrow;
 	GtkWidget *toggle_search;
+	GtkWidget *quick_search_pixmap;
 	GtkWidget *popupmenu;
 	GtkWidget *colorlabel_menu;
 	GtkWidget *search_type_opt;
@@ -159,8 +160,6 @@ private:
 
 	/* list for moving/deleting messages */
 	GSList *mlist;
-	/* table for updating folder tree */
-	GHashTable *folder_table;
 };
 
 SummaryView	*summary_create(void);

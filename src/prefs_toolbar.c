@@ -128,8 +128,8 @@ static gint prefs_toolbar_key_pressed            (GtkWidget *widget,
 void prefs_toolbar(Toolbar source)
 {
 	gchar *win_titles[2];
-	win_titles[TOOLBAR_MAIN]    = _("set Main toolbar items");
-	win_titles[TOOLBAR_COMPOSE] = _("set Compose toolbar items");  
+	win_titles[TOOLBAR_MAIN]    = _("Main Toolbar Configuration");
+	win_titles[TOOLBAR_COMPOSE] = _("Compose Toolbar Configuration");  
 
 	toolbar.source = source;
 
@@ -302,7 +302,6 @@ static void prefs_toolbar_save(void)
 	gint row = 0;
 	GtkCList *clist = GTK_CLIST(toolbar.clist_set);
 	gchar *entry = NULL;
-	GSList *toolbar_list = NULL;
 	
 	toolbar_clear_list(toolbar.source);
 

@@ -61,7 +61,6 @@
 #include "progressdialog.h"
 #include "inputdialog.h"
 #include "alertpanel.h"
-#include "filter.h"
 #include "automaton.h"
 #include "folder.h"
 #include "filtering.h"
@@ -153,7 +152,7 @@ static void inc_finished(MainWindow *mainwin, gboolean new_messages)
 	} else if (prefs_common.scan_all_after_inc) {
 		item = mainwin->summaryview->folder_item;
 		if (FOLDER_SUMMARY_MISMATCH(item, mainwin->summaryview)) {
-			folderview_update_item(item, TRUE);
+			folder_update_item(item, TRUE);
 		}	
 	}
 }
@@ -170,6 +169,7 @@ void inc_mail(MainWindow *mainwin, gboolean notify)
 			       _("Yes"), _("No"), NULL) != G_ALERTDEFAULT)
 		return;
 
+	inc_lock();
 	inc_autocheck_timer_remove();
 	main_window_lock(mainwin);
 
@@ -200,6 +200,7 @@ void inc_mail(MainWindow *mainwin, gboolean notify)
 	main_window_unlock(mainwin);
  	inc_notify_cmd(new_msgs, notify);
 	inc_autocheck_timer_set();
+	inc_unlock();
 }
 
 void inc_selective_download(MainWindow *mainwin, PrefsAccount *acc, gint session)
@@ -237,11 +238,18 @@ static gint inc_account_mail(PrefsAccount *account, MainWindow *mainwin)
 	IncProgressDialog *inc_dialog;
 	IncSession *session;
 	gchar *text[3];
+	FolderItem *item;
+	
+	if(mainwin && mainwin->summaryview)
+		item = mainwin->summaryview->folder_item;
 
 	switch (account->protocol) {
 	case A_IMAP4:
 	case A_NNTP:
 		folderview_check_new(FOLDER(account->folder));
+		if (!prefs_common.scan_all_after_inc && item != NULL &&
+		    FOLDER(account->folder) == item->folder)
+			folder_update_item(item, TRUE);
 		return 1;
 
 	case A_POP3:
@@ -270,6 +278,9 @@ static gint inc_account_mail(PrefsAccount *account, MainWindow *mainwin)
 	case A_LOCAL:
 		inc_spool_account(account);
 		return 1;
+
+	default:
+		break;
 	}
 	return 0;
 }
@@ -313,8 +324,14 @@ void inc_all_account_mail(MainWindow *mainwin, gboolean notify)
 	for (; list != NULL; list = list->next) {
 		PrefsAccount *account = list->data;
 		if ((account->protocol == A_IMAP4 ||
-		     account->protocol == A_NNTP) && account->recv_at_getall)
+		     account->protocol == A_NNTP) && account->recv_at_getall) {
+			FolderItem *item = mainwin->summaryview->folder_item;
+
 			folderview_check_new(FOLDER(account->folder));
+			if (!prefs_common.scan_all_after_inc && item != NULL &&
+			    FOLDER(account->folder) == item->folder)
+				folder_update_item(item, TRUE);
+		}
 	}
 
 	/* check POP3 accounts */
@@ -439,7 +456,6 @@ static IncSession *inc_session_new(PrefsAccount *account)
 	session = g_new0(IncSession, 1);
 	session->pop3_state = pop3_state_new(account);
 	session->pop3_state->data = session;
-	session->folder_table = g_hash_table_new(NULL, NULL);
 
 	return session;
 }
@@ -449,7 +465,6 @@ static void inc_session_destroy(IncSession *session)
 	g_return_if_fail(session != NULL);
 
 	pop3_state_destroy(session->pop3_state);
-	g_hash_table_destroy(session->folder_table);
 	g_free(session);
 }
 
@@ -535,6 +550,7 @@ static gint inc_start(IncProgressDialog *inc_dialog)
 			break;
 		case INC_ERROR:
 		case INC_NOSPACE:
+		case INC_SOCKET_ERROR:
 			gtk_clist_set_pixmap(clist, num, 0, errorxpm, errorxpmmask);
 			gtk_clist_set_text(clist, num, 2, _("Error"));
 			break;
@@ -587,12 +603,9 @@ static gint inc_start(IncProgressDialog *inc_dialog)
 				/* filter if enabled in prefs or move to inbox if not */
 				if(pop3_state->ac_prefs->filter_on_recv) {
 					filter_message_by_msginfo_with_inbox(global_processing, msginfo,
-						    			     session->folder_table,
 									     inbox);
 				} else {
 					folder_item_move_msg(inbox, msginfo);
-					g_hash_table_insert(session->folder_table, inbox,
-							    GINT_TO_POINTER(1));
 				}
 				procmsg_msginfo_free(msginfo);
 			}
@@ -603,10 +616,8 @@ static gint inc_start(IncProgressDialog *inc_dialog)
 		new_msgs += pop3_state->cur_total_num;
 
 		if (!prefs_common.scan_all_after_inc) {
-			folder_item_scan_foreach(session->folder_table);
-			folderview_update_item_foreach
-				(session->folder_table,
-				 !prefs_common.open_inbox_on_inc);
+			folder_update_items_when_required
+				 (!prefs_common.open_inbox_on_inc);
 		}
 
 		if (pop3_state->error_val == PS_AUTHFAIL &&
@@ -619,7 +630,7 @@ static gint inc_start(IncProgressDialog *inc_dialog)
 
 		if (inc_state != INC_SUCCESS && inc_state != INC_CANCEL) {
 			error_num++;
-			if (inc_state == INC_NOSPACE) {
+			if (inc_state == INC_NOSPACE || inc_state == INC_SOCKET_ERROR) {
 				inc_put_error(inc_state);
 				break;
 			}
@@ -764,7 +775,7 @@ static IncState inc_pop3_session_do(IncSession *session)
 #if USE_SSL
 	if (pop3_state->ac_prefs->ssl_pop == SSL_TUNNEL &&
 	    !ssl_init_socket(sockinfo)) {
-		pop3_automaton_terminate(NULL, atm);
+		pop3_automaton_terminate(sockinfo, atm);
 		automaton_destroy(atm);
 		session->inc_state = INC_CONNECT_ERROR;
 		return INC_CONNECT_ERROR;
@@ -790,8 +801,11 @@ static IncState inc_pop3_session_do(IncSession *session)
 				      atm->state[atm->num].condition,
 				      automaton_input_cb, atm);
 
-	while (!atm->terminated)
+	while (!atm->terminated && !atm->cancelled)
 		gtk_main_iteration();
+
+	if (!atm->terminated)
+		pop3_automaton_terminate(sockinfo, atm);
 
 	log_verbosity_set(FALSE);
 	/* oha: see above */
@@ -811,6 +825,9 @@ static IncState inc_pop3_session_do(IncSession *session)
 		break;
 	case PS_IOERR:
 		session->inc_state = INC_NOSPACE;
+		break;
+	case PS_SOCKET:
+		session->inc_state = INC_SOCKET_ERROR;
 		break;
 	case PS_LOCKBUSY:
 		session->inc_state = INC_LOCKED;
@@ -964,8 +981,6 @@ gint inc_drop_message(const gchar *file, Pop3State *state)
 {
 	FolderItem *inbox;
 	FolderItem *dropfolder;
-	IncSession *session = (IncSession *)state->data;
-	gint val;
 	gint msgnum;
 
 	/* CLAWS: get default inbox (perhaps per account) */
@@ -983,32 +998,8 @@ gint inc_drop_message(const gchar *file, Pop3State *state)
 	}
 
 	/* CLAWS: claws uses a global .processing folder for the filtering. */
-	if (global_processing == NULL) {
-		if (state->ac_prefs->filter_on_recv) {
-			dropfolder =
-				filter_get_dest_folder(prefs_common.fltlist, file);
-			if (!dropfolder) dropfolder = inbox;
-			else if (!strcmp(dropfolder->path, FILTER_NOT_RECEIVE)) {
-				g_warning(_("a message won't be received\n"));
-				return 1;
-			}
-		} else
-			dropfolder = inbox;
-	} else {
-		dropfolder = folder_get_default_processing();
-	}
+	dropfolder = folder_get_default_processing();
 
-	val = GPOINTER_TO_INT(g_hash_table_lookup
-			      (session->folder_table, dropfolder));
-	if (val == 0) {
-		folder_item_scan(dropfolder);
-		/* force updating */
-		if (FOLDER_IS_LOCAL(dropfolder->folder))
-			dropfolder->mtime = 0;
-		g_hash_table_insert(session->folder_table, dropfolder,
-				    GINT_TO_POINTER(1));
-	}
-	
 	/* add msg file to drop folder */
 	if ((msgnum = folder_item_add_msg(dropfolder, file, TRUE)) < 0) {
 		unlink(file);
@@ -1028,6 +1019,9 @@ static void inc_put_error(IncState istate)
 		break;
 	case INC_NOSPACE:
 		alertpanel_error(_("No disk space left."));
+		break;
+	case INC_SOCKET_ERROR:
+		alertpanel_error(_("Socket error."));
 		break;
 	case INC_LOCKED:
 		if (!prefs_common.no_recv_err_panel)
@@ -1141,7 +1135,6 @@ static gint get_spool(FolderItem *dest, const gchar *mbox)
 	gint msgs, size;
 	gint lockfd;
 	gchar tmp_mbox[MAXPATHLEN + 1];
-	GHashTable *folder_table = NULL;
 
 	g_return_val_if_fail(dest != NULL, -1);
 	g_return_val_if_fail(mbox != NULL, -1);
@@ -1166,24 +1159,17 @@ static gint get_spool(FolderItem *dest, const gchar *mbox)
 	debug_print("Getting new messages from %s into %s...\n",
 		    mbox, dest->path);
 
-	if (prefs_common.filter_on_inc)
-		folder_table = g_hash_table_new(NULL, NULL);
-	msgs = proc_mbox(dest, tmp_mbox, folder_table);
+	msgs = proc_mbox(dest, tmp_mbox);
 
 	unlink(tmp_mbox);
 	if (msgs >= 0) empty_mbox(mbox);
 	unlock_mbox(mbox, lockfd, LOCK_FLOCK);
 
-	if (folder_table) {
-		if (!prefs_common.scan_all_after_inc) {
-		g_hash_table_insert(folder_table, dest,
-				    GINT_TO_POINTER(1));
-			folderview_update_item_foreach
-				(folder_table, !prefs_common.open_inbox_on_inc);
-		}
-		g_hash_table_destroy(folder_table);
+	if (!prefs_common.scan_all_after_inc) {
+		folder_update_items_when_required
+			(!prefs_common.open_inbox_on_inc);
 	} else if (!prefs_common.scan_all_after_inc) {
-		folderview_update_item(dest, TRUE);
+		folder_update_item(dest, TRUE);
 	}
 
 	return msgs;

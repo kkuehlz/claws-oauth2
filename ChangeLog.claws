@@ -1,3 +1,1112 @@
+2002-11-09 [colin]	0.8.5claws114
+
+	* src/mbox_folder.c
+		Added missing initialisation of folder->destroy()
+
+2002-11-09 [colin]	0.8.5claws113
+
+	* src/folder.c
+	  src/folderview.c
+		Fix the status bar messages
+
+2002-11-09 [colin]	0.8.5claws112
+
+	* src/folderview.c
+		Fix hangs after folder dnd, happening after 
+		claws109.
+
+2002-11-09 [christoph]	0.8.5claws111
+
+	* src/folderview.c
+		just changed order of calls (reverse order of
+		associated calls)
+	* src/inc.c
+		lock inc when checking only one account, otherwise
+		inc all could be executed at the same time
+
+2002-11-09 [christoph]	0.8.5claws110
+
+	* src/folderview.c
+		better unlock the mouse cursor before calling
+		summary_show because it changes the cursor too
+
+2002-11-09 [christoph]	0.8.5claws109
+
+	* src/folder.[ch]
+	* src/folderview.c
+		add functions to open and close a folder
+		o opending will execute scanning for remote folders
+		  and processing
+		o closing will unset new flag for messages
+
+2002-11-09 [colin]	0.8.5claws108
+
+	* src/folder.c
+		Add a call to prefs_matcher_write_config to 
+		avoid non-leaf folders filtering settings to be
+		lost
+
+2002-11-09 [paul]	0.8.5claws107
+
+	* src/prefs_account.c
+		re-word a label
+
+2002-11-09 [colin]	0.8.5claws106
+
+	* src/folderview.c
+		Minor esthetic fix
+
+2002-11-09 [colin]	0.8.5claws105
+
+	* src/folderview.c
+		Fix prefs_filtering deletion for MH folders (same
+		reason as below)
+	* src/prefs_filtering.c
+		Fix prefs_filtering renaming and deletion for 
+		folder-based processing rules.	
+
+2002-11-09 [christoph]	0.8.5claws104
+
+	* src/compose.c
+	* src/folder.[ch]
+	* src/folderview.[ch]
+	* src/import.c
+	* src/inc.c
+	* src/main.c
+	* src/mainwindow.c
+	* src/messageview.c
+	* src/prefs_folder_item.c
+	* src/procmsg.c
+	* src/summaryview.c
+		implement a callback system for folder item updates
+
+2002-11-09 [colin]	0.8.5claws103
+
+	* src/folderview.c
+		Fix prefs_filtering renaming for MH folders (we
+		shouldn't rename by path as another folder could
+		have the same hierarchy).
+
+2002-11-09 [colin]	0.8.5claws102
+
+	* src/folder.c
+		Fix a leak found by Christoph, use better variable
+		names
+
+2002-11-09 [colin]	0.8.5claws101
+
+	* src/folder.c
+		One more fix for processing rules
+
+2002-11-08 [colin] 	0.8.5claws100
+	
+	* src/matcher.c
+		Don't copy the compiled regexp (will be reevaluated)
+	* src/folderview.c
+		Lock folderview while moving
+	* src/folder.c
+		Provide info on what's happening to the user
+
+2002-11-08 [colin]	0.8.5claws99
+
+	* src/folderview.c
+		Fix folder reordering after a move if parent is 
+		root
+	* src/scoring.[ch]
+		Add function to copy a ScoringProp
+	* src/prefs_folder_item.c
+		Copy scoring rules when copying a folder prefs
+
+2002-11-08 [colin]	0.8.5claws98
+
+	* src/folderview.c
+		Fixes in case of failure
+	* src/filtering.[ch]	
+		Add function to duplicate a FilteringProp
+	* src/matcher.[ch]
+		Add function to duplicate a MatcherProp
+	* src/prefs_folder_item.c
+		Save folder's processing rules when copying 
+		its prefs
+
+2002-11-08 [colin]	0.8.5claws97
+	
+	* src/folderview.c
+		Sort after move
+	* src/folder.c 
+		Change a printf to debug_print
+
+2002-11-08 [colin]	0.8.5claws96
+
+	* src/folder.c
+	  src/folderview.c
+		Fix segfaults, call me stupido
+	
+
+2002-11-08 [colin]	0.8.5claws95
+
+	*src/folder.c
+		Added forgotten prefs to save when moving folders
+
+2002-11-08 [colin]	0.8.5claws94
+
+	* src/folder.c
+		Fixes to folder DND (prefs copy)
+	* src/folderview.c
+		Optimization for folder DND (don't rescan whole tree)
+		Added folderview_create_folder_node() for this 
+		optimization, so de-duped a bit the code
+	* src/prefs_folder_item.[ch]
+		Added prefs_folder_item_copy_prefs()	
+	  
+2002-11-08 [paul]	0.8.5claws93
+
+	* src/prefs_account.c
+	  tools/README
+	  tools/kmail2sylpheed_v2.pl
+	  	correct some typos
+
+2002-11-08 [paul]	0.8.5claws92
+
+	* src/compose.c
+	  src/prefs_account.[ch]
+	  	remove account options 'clearsign' and 'ascii_armored',
+		replace with 'default_gnupg_mode' to prevent mixed-mode
+		Privacy settings
+
+2002-11-08 [paul]	0.8.5claws91
+
+	* src/compose.[ch]
+		re-implement GnuPG 'on-the-fly' mode selection,
+		disallow mixed-mode
+
+2002-11-08 [colin]	0.8.5claws90
+
+	* src/folderview.c
+	  src/prefs_folder_item.c
+		Change "Property" to "Properties"
+
+2002-11-07 [colin]	0.8.5claws89
+
+	* src/folderview.c
+	  src/folder.c
+		Allow folder dropping to a root folder
+
+2002-11-07 [paul] 	0.8.5claws88
+
+	* src/compose.c
+		revert last commit
+
+2002-11-07 [paul]	0.8.5claws87
+
+	* src/compose.c
+		fix reply-to-list bug. closes bug report
+		"[633382] reply-to-list broken in recent cvs"
+
+2002-11-07 [paul]	0.8.5claws86
+
+	* src/compose.c
+		add a forgotten '#if USE_GPGME ... #endif'
+
+2002-11-07 [paul]	0.8.5claws85
+
+	* sync with 0.8.5cvs20
+		see ChangeLog 2002-11-07
+
+2002-11-07 [colin]	0.8.5claws84
+
+	* src/folder.[ch]
+		Change folder_item_move_to to return the newly 
+		created folderitem.
+	* src/folderview.c
+		Select the new folderitem after moving.
+
+2002-11-07 [colin]	0.8.5claws83
+
+	* src/prefs_filtering.c
+		Fix rule rewriting when moving a leaf folder to a 
+		shorter path
+
+2002-11-07 [colin]	0.8.5claws82
+
+	* src/prefs_filtering.c
+		fix a leak
+
+2002-11-07 [colin]	0.8.5claws81
+
+	* src/folder.[ch]
+		Add folder_item_move_to() function to move a 
+		folderitem into another one (updates matcher etc)
+	* src/folderview.c
+		Add folder drag'n drop (context menu to come)
+		[Should be dataloss free, but Please backup before 
+		 trying !]
+
+2002-11-06 [colin]	0.8.5claws80
+
+	* src/mh.c
+		mh_create_folder() returns NULL if can't create
+		directory hierarchy
+
+2002-11-06 [paul]	0.8.5claws79
+
+	* src/compose.[ch]
+		allow 'on-the-fly' changing of the type of encryption 
+		and/or signing used (mime/ascii) via the compose window
+
+2002-11-06 [paul]	0.8.5claws78
+
+	* sync with 0.8.5cvs19
+		see ChangeLog 2002-11-06 for src/account.c: 
+		account_get_special_folder()
+		
+2002-11-05 [alfons]	0.8.5claws77
+
+	* src/crash.c
+		very minor cleanups: nothing to see here, move on. :-)
+
+2002-11-05 [colin]	0.8.5claws76
+
+	* src/main.c
+		Changes choices if compose windows are opened to
+		Discard, Draft, Don't quit
+
+2002-11-05 [thorsten]	0.8.5claws75
+
+	* src/compose.c
+		reenabled default_reply_to folder option
+
+2002-11-05 [colin]	0.8.5claws74
+
+	* src/compose.[ch] 
+		add compose_draft()
+	* src/crash.c
+		add SIGTERM handler
+	* src/main.[ch]
+		add clean_quit() for the SIGTERM handler
+
+2002-11-05 [paul]	0.8.5claws73
+	
+	* po/es.po
+		updated by Ricardo Mones Lastra
+
+2002-11-05 [melvin]	0.8.5claws72
+
+	* src/logwindow.c
+		Fixed log-clipping bug #616795.
+		To stop logging in the log window use 0 length.
+	* src/prefs_common.c
+		Added a label to inform about the 0 log length behaviour.
+
+2002-11-05 [paul]	0.8.5claws71
+
+	* sync with 0.8.5cvs17
+		see ChangeLog 2002-11-05
+
+2002-11-04 [paul]	0.8.5claws70
+
+	* sylpheed-128x128.png
+	  sylpheed-64x64.png
+	  sylpheed.png
+	  	replace with pngcrushed icons. Submitted by Nicolas Kaiser,
+		<nikai@users.sourceforge.net>
+		
+	* po/bg.po
+		updated by George Danchev
+
+2002-11-03 [thorsten]	0.8.5claws69
+
+	* src/main.c
+	  src/mimeview.c
+	  src/rfc2015.h
+	  	add check if gpg is active
+
+2002-11-03 [thorsten]	0.8.5claws68
+
+	* src/toolbar.h
+		removed GSList declaration causing trouble on MacOS-X
+		(submitted by alfons, reported by xfesty)
+
+2002-11-01 [paul]	0.8.5claws67
+
+	* src/mainwindow.c
+		remove last remnants of main's filter code
+
+2002-11-01 [paul]	0.8.5claws66
+
+	* tools/filter_conv.pl
+		fix bug where user-defined headers were ignored
+
+2002-11-01 [paul]	0.8.5claws65
+
+	* src/logwindow.c
+		make a debug_print() not translatable
+
+2002-10-31 [melvin]	0.8.5claws64
+
+	* ac/aspell.m4
+		Fixed --disable-aspell-test. Now --disable-aspell-test will 
+		not run any GNU/aspell test.  The dictionary path will
+		be by default /usr/local/lib/aspell/ unless --with-aspell-prefix
+		was given, in which case, it will be $prefix/lib/aspell/
+	* configure.in
+		Fixed typo in commentary (Aspell code).
+
+2002-10-31 [paul]	0.8.5claws63
+
+	* po/POTFILES.in
+		remove src/filter.c and src/prefs_filter.c
+		thanks to Ricardo for reminding me
+
+2002-10-31 [colin]	0.8.5claws62
+
+	* src/mbox_folder.c
+		Plug some leaks
+
+2002-10-31 [paul]	0.8.5claws61
+
+	* src/prefs_filter.[ch]	** REMOVED **
+	  src/filter.[ch]	** REMOVED **
+	  
+	* src/Makefile.am
+	  src/folderview.c
+	  src/inc.c
+	  src/main.c
+	  src/mainwindow.c
+	  src/mbox.c
+	  src/prefs_common.c
+	  src/prefs_filtering.c
+	  src/summaryview.[ch]
+	  	remove main's 'filter' code
+		
+	README.claws
+	 	update to reflect removal of main's filter
+
+2002-10-31 [paul]	0.8.5claws60
+
+	* src/summaryview.c
+		remove check for global_processing in summary_filter_open(). 
+		This fixes the bug where if the user uses the right-click 
+		'Create filter rule...' and doesn't have any filter rules 
+		already defined in claws' advanced filtering, the newly 
+		created filter rule goes to main's filtering which is 
+		inaccessible through the gui. Now the filter rule gets added
+		to claws' filtering by default.
+
+2002-10-28 [melvin]	0.8.5claws59
+
+	* src/prefs_actions.c
+		Fixed bug #627322 where MIME parts were not always
+		correctly passed to a %p action
+		Display an error dialog when message filename is not found.
+
+2002-10-28 [melvin]	0.8.5claws58
+
+	* src/prefs_common.c
+		Readded a missing function declaration lost in 0.8.3claws34
+
+2002-10-28 [paul]	0.8.5claws57
+
+	* sync with 0.8.5cvs15
+		see ChangeLog 2002-10-28 and 2002-10-25
+		
+	Note: ChangeLog entry 2002-10-24 is not sync'ed.
+
+2002-10-27 [oliver]	0.8.5claws56
+
+	* src/pop.c
+		plug leak in pop3_top_recv
+
+2002-10-26 [christoph]	0.8.5claws55
+
+	* src/folder.c
+		set need_update folder flag when messages are added
+		(closes bug [ 626922 ] folder not updated after receiving)
+
+2002-10-25 [melvin]	0.8.5claws54
+
+	* src/imageview.c
+		Fixed a memleak introduced in the scaling code.
+
+2002-10-24 [alfons]	0.8.5claws53
+
+	* src/filtering.c
+		make filtering's forward message action forward from the 
+		correct account
+		(closes bug [628089 ] Filter -> Forward from address problem
+		reported by Oktay)
+
+2002-10-24 [christoph]	0.8.5claws52
+
+	* src/mainwindow.c
+	* src/manual.[ch]
+		o use manual of current locale or english if current
+		  locale is not available (and english is available)
+		o also link to sylpheed doc project manuals
+
+2002-10-23 [paul]	0.8.5claws51
+
+	* tools/README
+	  tools/kmail2sylpheed_v2.pl
+	  	add new version of kmail addressbook importer script.
+		works with newer versions of Kmail/KAddressBook which
+		have new and rearranged data.
+
+2002-10-23 [martin]	0.8.5claws50
+
+	* src/folderview.c
+	* src/summaryview.c
+	* src/utils.h
+	* src/utils.c
+		added length parameter to get_abbrev_newsgroup_name()
+		changed this function so that it abbreviates the newsgroup
+		names only so long it is smaller than the length parameter
+		(for better reading of some newsgroup names and space efficiency)
+
+2002-10-22 [colin]	0.8.5claws49
+
+	*src/foldersel.c
+		Revert Alfons' last modification (after voting ;-))
+
+2002-10-21 [alfons]	0.8.5claws48
+
+	* src/foldersel.c
+		folder view in folder selection dialog reflects state of
+		folder view in main window
+
+2002-10-18 [alfons]	0.8.5claws47
+
+	* src/mbox.c
+		drop imported messages in folder selected by user,
+		and not in the inbox
+		(closes bug [ 625424 ] Import mbox always to "Inbox" folder)
+
+2002-10-18 [alfons]	0.8.5claws46
+
+	* src/compose.c
+		make automagic reply work correctly for email accounts 
+		(whether it's viable to do a full sync with Hiro's 
+		compose.c is still under discussion)
+
+2002-10-18 [melvin]	0.8.5claws45
+
+	* src/prefs_actions.c
+		Fixed bug #622275 where asynchroneous actions left 
+		zombies processes
+		Made (synchroneous) actions' input be displayed live.
+
+2002-10-18 [christoph]	0.8.5claws44
+
+	* src/textview.c
+		don't add a newline in the textview in front of the
+		first textpart if header display is disabled
+		(closes bug [ 603385 ] disabled header display leaves blank
+		 lin)
+
+2002-10-18 [christoph]	0.8.5claws43
+
+	* src/folder.[ch]
+	* src/imap.c
+	* src/mbox_folder.c
+	* src/mh.c
+	* src/news.c
+		folder->get_num_list now returns an error code
+		(closes bug [ 609424 ] News cache cleared on failure)
+		
+2002-10-17 [colin] 	0.8.5claws42
+	
+	* src/news.c
+		Changed a printf by debug_print
+
+2002-10-16 [paul]	
+
+	* tools/OOo2sylpheed.pl
+		allow for spaces in the name of the
+		file to be attached.
+
+2002-10-16 [colin]	0.8.5claws41
+
+	* src/main.c
+		Use a tristate to change online mode
+
+2002-10-16 [paul]	0.8.5claws40
+
+	* po/es.po
+		updated by Ricardo Mones Lastra
+
+2002-10-16 [colin]	0.8.5claws39
+
+	* src/main.c
+	  src/mainwindow.[ch]
+		Added --online and --offline command-line
+		switches
+
+2002-10-15 [christoph]	0.8.5claws38
+
+	* src/procmime.c
+		set mimeinfo->name to NULL after g_free to
+		avoid double freeing with g_free
+
+2002-10-14 [christoph]	0.8.5claws37
+
+	* src/compose.c
+	* src/filtering.c
+	* src/summaryview.c
+		remove calls to folder->change_flags that are now
+		done by procmsg flag functions (seems it is not
+		used by any foldertype anyway)
+	* src/folder.c
+		init folder->change_flags with NULL
+
+2002-10-14 [christoph]	0.8.5claws36
+
+	* src/folder.[ch]
+	* src/imap.[ch]
+		use virtual functions for folder item new and destroy
+		functions
+
+2002-10-14 [melvin]	0.8.5claws35
+
+	* src/compose.c
+		Added a test to not run the spell checker if no default
+		dictionary is available. No dialog is displayed though.
+
+2002-10-14 [melvin]	0.8.5claws34
+
+	* src/gtkaspell.c
+		Fixed bug in dictionary list context menu where
+		"More..." pointed to an emtpy submenu if the
+		number of dictionaries is a multiple of 15
+		Removed unneeded code in suggestions list creation
+
+2002-10-14 [paul]	0.8.5claws33
+
+	* po/bg.po
+		updated by George Danchev
+
+2002-10-13 [hoa]	0.8.5claws32
+
+	* src/matcher.[ch]
+	  src/matcher_parser_parser.y
+	  	removed the escaped string from internal structure
+		of matcher.
+
+2002-10-12 [colin]	0.8.5claws31
+
+	* src/gtksctree.[ch]
+	  src/summaryview.c
+	  	Removed useless function gtksctree_reanchor
+
+2002-10-12 [alfons]	0.8.5claws30
+	
+	* sync with remaining main changes 2002-10-09 - 2002-10-11
+	- drop changes to src/compose.c (requires claws specific changes)
+	
+2002-10-12 [alfons]	0.8.5claws29
+	
+	* sync with main changes of 2002-10-08
+	- drop changes to src/compose.c (requires claws specific changes)
+        - drop changes to src/summaryview.c (requires changes to compose.c)	
+
+2002-10-12 [alfons]	0.8.5claws28
+	
+	* sync with main changes of 2002-10-07
+
+2002-10-12 [alfons]	0.8.5claws27
+
+	* sync with main changes of 2002-10-04
+	- drop changes to src/compose.c (requires claws specific changes)
+	- drop changes to src/prefs_folder_item.c (claws implementation
+	  seems to be working)
+
+2002-10-12 [colin]	0.8.5claws26
+
+	* src/mainwindow.c
+		Fix folder-flicker when space-reading, introduced 
+		in claws22.
+
+2002-10-12 [colin]	0.8.5claws25
+
+	* src/compose.c
+		Save account address when saving as draft.
+		(closes bug 621838)
+
+2002-10-12 [colin]	0.8.5claws24
+
+	* src/summaryview.c
+		Fix the problem consisting of no message selected
+		after the last message in a folder has been moved.
+
+2002-10-12 [paul]	0.8.5claws23
+
+	* src/compose.c
+	  src/prefs_template.c
+	  src/template.[ch]
+	  	add Cc and Bcc to templates. Patch submitted by
+		John L. Males.
+
+2002-10-12 [colin]	0.8.5claws22
+
+	* src/folderview.c
+		Fix a bug after "Check for new messages":
+		If a folder was opened, it was still selected at
+		the end of the check, but displayed empty.
+	* src/mainwindow.c
+		Remove unnecessary check
+
+2002-10-12 [paul]
+
+	* tools/README
+		be more verbose in the description of
+		OOo2sylpheed.pl
+		
+
+2002-10-11 [colin]	0.8.5claws21
+
+	* src/mainwindow.c
+		Make space work (better) when no mail is selected
+
+2002-10-11 [colin]	0.8.5claws20
+
+	* src/inc.c
+	  src/news.c
+		fix warnings
+
+2002-10-11 [colin]	0.8.5claws19
+
+	* src/mainwindow.c
+		revert 0.8.5claws6 changes as i couldn't get to
+		anything satisfying
+
+2002-10-11 [melvin]	0.8.5claws18
+
+	* src/compose.c
+		Removed buggy and unused macro (should have been committed in
+		0.8.5claws17)
+
+2002-10-11 [melvin]	0.8.5claws17
+
+	* src/compose.c
+		Fixed memory leak from bug #622040 (thanks to Martin Kluge)
+
+2002-10-11 [thorsten]	0.8.5claws16 
+
+	* src/folderview.c
+		remove rescan warning
+
+2002-10-11 [colin]	0.8.5claws15 
+
+	* src/procheader.c
+		fix a segfault that happens if conv_unmime_header
+		fails (should be better to find out why it fails)
+
+2002-10-11 [christoph]	0.8.5claws14
+
+	* src/summaryview.c
+		update folderview stats after ignore/unignore thread
+
+2002-10-11 [hoa]	0.8.5claws13
+
+	* src/quote_fmt_parse.y
+		Fixed a yacc/bison syntax error
+	* src/matcher.c
+		Escaping of string is fixed.
+
+2002-10-11 [colin]	0.8.5claws12
+
+	* src/imageview.c
+		Resize images to fit
+
+2002-10-11 [paul]	0.8.5claws11
+
+	* po/es.po
+		updated by Ricardo Mones Lastra
+
+2002-10-10 [alfons]	0.8.5claws10
+
+	* src/compose.c
+		allow dropping files by "moving" files from a file manager,
+		not only by the more cumbersome "copying". the latter 
+		mostly implies holding down the Control button
+
+2002-10-10 [christoph]	0.8.5claws9
+
+	* src/summaryview.c
+		update folders after thread building for ignored threads
+
+2002-10-10 [christoph]	0.8.5claws8
+
+	* config/.cvsignore
+		added Makefile
+	* src/filtering.[ch]
+	* src/folder.[ch]
+	* src/folderview.[ch]
+	* src/import.c
+	* src/inc.[ch]
+	* src/mbox.[ch]
+	* src/procmsg.c
+	* src/summaryview.[ch]
+		o added new flag need_update to FolderItem
+		o removed folder_table from various functions from tracking
+		  folder updates
+		o set need_update flags in folder.c's move, copy and delete
+		  functions and procmsg's flags functions
+		o added function folderview_update_items_when_required that
+		  updates all folders with need_update set
+		o call folderview_update_items_when_required instead of
+		  folderview_update_item_foreach
+
+2002-10-09 [sergey]	0.8.5claws7
+
+	* src/compose.c
+		Strip CRs whel loading the text into editor in reedit mode.
+
+2002-10-09 [colin]	0.8.5claws6
+
+	* src/mainwindow.c
+		Make Space work when no mail is selected
+
+2002-10-09 [colin]	0.8.5claws5
+
+	* src/gtksctree.[ch]
+		Fix range_select
+		Add gtk_sctree_reanchor() 
+	* src/summaryview.c
+	  	Use gtk_sctree_reanchor() - better fix for 
+		bug 60413
+
+2002-10-09 [colin]	0.8.5claws4
+
+	* src/summaryview.c
+		Fix shift-click select after delete problem
+		(closes bug 60413)
+
+2002-10-08 [thorsten]	0.8.5claws3
+
+	* src/summaryview.c
+		exclude current msg from -hide read messages-
+
+2002-10-08 [colin]	0.8.5claws2
+
+	* src/inc.[ch]
+	  src/pop.c
+	  src/recv.c
+		Differentiate socket errors from disk full
+		errors
+
+2002-10-08 [christoph]	0.8.5claws1
+
+	* Makefile.am
+	* configure.in
+		modifications for new config directory
+
+	* config.guess	** REMOVED **
+	* config.sub	** REMOVED **
+	* install-sh	** REMOVED **
+	* ltmain.sh	** REMOVED **
+	* missing	** REMOVED **
+	* mkinstalldirs	** REMOVED **
+		these files are autogenerated by automake
+		when you run autogen.sh
+
+	* config/.cvsignore	** NEW FILE **
+	* config/Makefile.am	** NEW FILE **
+		ignore autogenerated files
+		create a Makefile in this directory
+
+2002-10-08 [paul]	0.8.5claws
+
+	* 0.8.5claws release
+	
+	* src/compose.c
+	  src/procheader.c
+	  src/procmsg.c
+	  	fix quote reply format for newsgroups reply bug
+		(thanks to Hoa)
+		
+	* po/en_GB.po
+	  po/pl.po
+		updated by me and Witold Wladyslaw Wojciech Wilk
+		repectively
+
+2002-10-07 [paul]	0.8.3claws53
+
+	* po/it.po
+	  po/pt_BR.po
+	  po/sr.po
+	  	updated messages catalogs, submitted by
+		Alessandro Maestri, Fabio Jr.Beneditto 
+		and Urke MMI, respectively.
+
+2002-10-07 [christoph]	0.8.3claws52
+
+	* src/folder.[ch]
+	* src/folderview.c
+	* src/mainwindow.c
+		fix new folder ghost message bug
+		(closes bug [ 619722 ] wrong count for newly created folders)
+
+2002-10-07 [christoph]	0.8.3claws51
+
+	* src/compose.c
+		fix news posting problem
+
+2002-10-07 [melvin]	0.8.3claws50
+
+	* po/fr.po
+		Updated French translation
+
+2002-10-05 [christoph]	0.8.3claws49
+
+	* src/gtkstext.c
+		check if line_start_cache is set in gtk_stext_update_text
+		(closes bug [ 618119 ] crash while doing search in folder)
+
+2002-10-05 [christoph]	0.8.3claws48
+
+	* src/imap.c
+	* src/news.c
+	* src/utils.c
+	* src/utils.h
+		implement cache cleanups for claws' folder system
+		(closes bug [ 595916 ] imapcache not cleaned up)
+
+2002-10-05 [melvin]	0.8.3claws47
+
+	* src/prefs_actions.c
+		Made the help text more clear for the %p token
+
+2002-10-04 [paul]	0.8.3claws46
+
+	* sync with 0.8.5
+		see ChangeLog 2002-10-02 and 2002-10-03
+
+2002-10-04 [christoph]	0.8.3claws45
+
+	* src/inc.c
+		fix segfault caused by pop before smtp
+		call to inc_account_mail with NULL
+		pointer for mainwin
+
+2002-10-04 [paul]	0.8.3claws44
+
+	* configure.in
+		sync the LDAP detection from 0.8.5cvs1
+
+2002-10-02 [christoph]	0.8.3claws43
+
+	* po/de.po
+		fix small spelling error
+
+2002-10-02 [melvin]	0.8.3claws42
+
+	* ac/aspell.m4
+		Behave better and say "no" when test program cannot be run.
+
+2002-10-02 [paul]	0.8.3claws41
+
+	* sync with 0.8.4cvs1
+		see ChangeLog 2002-09-30, 2002-10-01, 2002-10-02
+		
+	* src/summaryview.c
+		toggle the behavior of Reply menuitem between
+	  	normal reply and reply-to-list
+
+2002-10-01 [sergey]	0.8.3claws40
+
+	* src/compose.c
+		Convert newlines in the message text to the canonical form
+		before base64 encoding (RFC2045 compliance, fixes some
+		interoperability issues with Evolution 1.0.3)
+
+2002-09-29 [colin]	0.8.3claws39
+
+	* src/summaryview.c
+		Fix an unwanted copy/paste
+
+2002-09-29 [colin]	0.8.3claws38
+
+	* src/mainwindow.c
+		Renamed "Custom toolbar" to "Customize toolbar"
+		Renamed "Show all header" to "Show all headers"
+		Renamed "Set diplay item" to "Set displayed items"
+	* src/prefs_common.c
+		Renamed "Show all header" to "Show all headers"
+	* src/prefs_summary_column.c
+		Renamed "diplay item" to "displayed items"
+
+2002-09-29 [colin]	0.8.3claws37
+
+	* src/mainwindow.[ch]
+		online/offline status pixmaps follow theme
+		changes
+	* src/summaryview.[ch]
+		quicksearch pixmap follows theme changes
+
+2002-09-29 [thorsten]	0.8.3claws36
+
+	* src/compose.c
+	  src/prefs_folder_item.[ch]
+		add default_reply_to folder option (closes patch 581044)
+
+2002-09-29 [christoph]	0.8.3claws35
+
+	* acconfig.h	** REMOVED **
+	* configure.in
+	* ac/aspell.m4
+	* ac/check-type.m4
+	* ac/gnupg-check-typedef.m4
+		fix autoheader 2.50 warning
+
+2002-09-29 [christoph]	0.8.3claws34
+
+	* major code cleanup (part 2)
+	
+		- unused variables removed
+		- unused functions removed
+		- uninitialized variables checked
+		- missing return statements added
+		- missing function return types added
+		- added parentheses around assignment
+	          when suggested by gcc
+
+2002-09-29 [alfons]	0.8.3claws33
+
+	* src/logwindow.c
+		log_window_clear(): only bracket gtk_text_forward_delete() 
+		with gtk_text_freeze() / gtk_text_thaw() (see if this
+		works around GTK text bug)
+
+2002-09-29 [paul]	0.8.3claws32
+
+	* po/bg.po
+	  po/sr.po
+	  	updated by George Danchev and Urke MMI
+		respectively
+
+2002-09-27 [christoph]	0.8.3claws31
+
+	* doc-src/readme.txt
+	* doc-src/rfc1806.txt	** REMOVED **
+	* doc-src/rfc2183.txt	** NEW FILE **
+	* doc-src/rfc2980.txt	** NEW FILE **
+		update rfcs
+
+2002-09-27 [melvin]	0.8.3claws30
+
+	* ac/aspell.m4
+		Fixed typo which could break linking
+
+2002-09-27 [melvin]	0.8.3claws29
+
+	* ac/aspell.m4
+		Improved GNU/aspell checking. 
+		Fixed bug #614490
+
+2002-09-27 [paul]	0.8.3claws28
+
+	* sync with 0.8.3cvs8
+		see ChangeLog 2002-09-27
+
+2002-09-26 [colin]	0.8.3claws27
+
+	* src/toolbar.[ch]
+	  src/mainwindow.[ch]
+		Add "Reply to Mailing-list" to the toolbar
+
+2002-09-26 [christoph]	0.8.3claws26
+
+	* src/summaryview.c
+		Fix wrong message counts in summaryview status
+
+2002-09-26 [paul]	0.8.3claws25
+
+	* sync with 0.8.3cvs7
+		see ChangeLog 2002-09-26
+
+2002-09-26 [paul]	0.8.3claws24
+
+	* sync with 0.8.3cvs6
+		see ChangeLog 2002-09-25
+
+2002-09-25 [christoph]	0.8.3claws23
+
+	* src/prefs_common.c
+	* src/prefs_folder_item.c
+	* src/prefs_scoring.c
+		Renamed "kill score" to "hide score" in GUI
+		and prefs files
+
+2002-09-25 [paul]	0.8.3claws22
+
+	* sync with 0.8.3cvs5
+		see ChangeLog 2002-09-24
+
+2002-09-24 [alfons]	0.8.3claws21
+
+	patch by Satoshi Nagayasu: allows appending / saving multiple 
+	selected files (closes "[ 612279 ] save multiple mesg(s) in 
+	'Save as ...'")
+
+	* AUTHORS
+		add Satoshi Nagayasu
+	* src/summaryview.c
+		summary_save_as(): allow saving selected files to
+		one file
+		summary_set_menu_sensitive: enable "Save As..." when
+		multiple files are selected
+	* src/utils.[ch]
+		append_file(): new function
+
+2002-09-24 [colin]	0.8.3claws20
+
+	* src/procmime.c
+		Fix segfault when mimeinfo doesn't have a 
+		content_type. 
+
+2002-09-24 [colin]	0.8.3claws19
+
+	* src/prefs_common.[ch]
+		Add a preference to display send dialog or not
+	* src/send.c
+		Display send dialog according to preference
+
+2002-09-24 [colin]	0.8.3claws18
+
+	* src/compose.[ch]
+		Disable user actions when sending
+
+2002-09-24 [colin]	0.8.3claws17
+
+	* src/procmime.c
+		Do not display name or filename for attachments
+		with an application/pgp-signature type
+		(security flaw, see bug 537413)
+
+2002-09-23 [colin]	0.8.3claws16
+
+	* src/editaddress.c
+		Initialize entry_email, entry_alias and 
+		entry_remarks to first email address of the list
+
+2002-09-23 [colin]	0.83claws15
+
+	* src/compose.c
+		Drop pgp-signature when reediting a signed queued
+		message
+
+2002-09-23 [melvin]	0.8.3claws14
+
+	* po/fr.po
+		Updated French translation
+
+2002-09-23 [melvin]	0.8.3claws13
+
+	* src/mainwindow.c
+		Made custom toolbar menu labels more consistent
+	* src/prefs_toolbar.c
+		Made custom toolbar window title more consistent
+
 2002-09-22 [colin]	0.8.3claws12
 
 	* src/inc.c
@@ -34,25 +1143,25 @@
 		actions callback from compose toolbar
 	* src/folderview.c
 		remove include toolbar.h
-		
+
 2002-09-22 [oliver]	0.8.3claws7
 	
 	* src/prefs_toolbar.[ch]
 		custom toolbar for compose
 		- generic prefs_toolbar handles both
 		  Mainwin's toolbar as well as Compose toolbar		
-		
+
 2002-09-22 [oliver]	0.8.3claws6
 	
 	* src/toolbar.[ch]
 		custom toolbar for compose
 		restructure toolbar.[ch]
-		
+
 2002-09-22 [oliver]	0.8.3claws5
 
 	* src/compose.[ch]
 		custom toolbar for compose
-		
+
 2002-09-22 [oliver]	0.8.3claws4
 	
 	* src/mainwindow.[ch]

@@ -285,13 +285,21 @@ gchar **strsplit_with_quote		(const gchar	*str,
 					 const gchar	*delim,
 					 gint		 max_tokens);
 
-gchar *get_abbrev_newsgroup_name	(const gchar	*group);
+gchar *get_abbrev_newsgroup_name	(const gchar	*group,
+					 gint            len);
+
 gchar *trim_string			(const gchar	*str,
 					 gint		 len);
 
 GList *uri_list_extract_filenames	(const gchar	*uri_list);
 void decode_uri				(gchar		*decoded_uri,
 					 const gchar	*encoded_uri);
+gint scan_mailto_url			(const gchar	*mailto,
+					 gchar	       **to,
+					 gchar	       **cc,
+					 gchar	       **bcc,
+					 gchar	       **subject,
+					 gchar	       **body);
 
 /* return static strings */
 gchar *get_home_dir		(void);
@@ -326,10 +334,15 @@ gint remove_all_files		(const gchar	*dir);
 gint remove_numbered_files	(const gchar	*dir,
 				 guint		 first,
 				 guint		 last);
+gint remove_numbered_files_not_in_list(const gchar *dir,
+				       GSList *numberlist);
 gint remove_all_numbered_files	(const gchar	*dir);
 gint remove_expired_files	(const gchar	*dir,
 				 guint		 hours);
 gint remove_dir_recursive	(const gchar	*dir);
+gint append_file		(const gchar	*src,
+				 const gchar	*dest,
+				 gboolean	 keep_backup);
 gint copy_file			(const gchar	*src,
 				 const gchar	*dest,
 				 gboolean	 keep_backup);
@@ -346,6 +359,8 @@ gint canonicalize_file_replace	(const gchar	*file);
 gint change_file_mode_rw	(FILE		*fp,
 				 const gchar	*file);
 FILE *my_tmpfile		(void);
+FILE *get_tmpfile_in_dir	(const gchar 	*dir,
+				 gchar	       **filename);
 FILE *str_open_as_stream	(const gchar	*str);
 gint str_write_to_file		(const gchar	*str,
 				 const gchar	*file);

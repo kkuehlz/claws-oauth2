@@ -121,6 +121,7 @@ static struct Compose {
 	GtkWidget *checkbtn_forward_account_autosel;
 	GtkWidget *checkbtn_reedit_account_autosel;
 	GtkWidget *checkbtn_quote;
+	GtkWidget *checkbtn_default_reply_list;
 	GtkWidget *checkbtn_forward_as_attachment;
 	GtkWidget *checkbtn_redirect_keep_from;
 	GtkWidget *checkbtn_smart_wrapping;
@@ -216,6 +217,7 @@ static struct Interface {
 	GtkWidget *checkbtn_immedexec;
 	GtkWidget *checkbtn_addaddrbyclick;
 	GtkWidget *optmenu_recvdialog;
+	GtkWidget *optmenu_senddialog;
 	GtkWidget *checkbtn_no_recv_err_panel;
 	GtkWidget *checkbtn_close_recv_dialog;
  	GtkWidget *optmenu_nextunreadmsgdialog;
@@ -263,6 +265,8 @@ static void prefs_common_recv_dialog_newmail_notify_toggle_cb	(GtkWidget *w,
 								 gpointer data);
 static void prefs_common_recv_dialog_set_data_from_optmenu(PrefParam *pparam);
 static void prefs_common_recv_dialog_set_optmenu(PrefParam *pparam);
+static void prefs_common_send_dialog_set_data_from_optmenu(PrefParam *pparam);
+static void prefs_common_send_dialog_set_optmenu(PrefParam *pparam);
 static void prefs_nextunreadmsgdialog_set_data_from_optmenu(PrefParam *pparam);
 static void prefs_nextunreadmsgdialog_set_optmenu(PrefParam *pparam);
 
@@ -428,6 +432,10 @@ static PrefParam param[] = {
 	{"reedit_account_autoselect", "TRUE",
 	 &prefs_common.reedit_account_autosel, P_BOOL,
 	 &compose.checkbtn_reedit_account_autosel,
+	 prefs_set_data_from_toggle, prefs_set_toggle},
+
+	{"default_reply_list", "TRUE", &prefs_common.default_reply_list, P_BOOL,
+	 &compose.checkbtn_default_reply_list,
 	 prefs_set_data_from_toggle, prefs_set_toggle},
 
 	{"show_ruler", "TRUE", &prefs_common.show_ruler, P_BOOL,
@@ -745,6 +753,10 @@ static PrefParam param[] = {
 	 &interface.optmenu_recvdialog,
 	 prefs_common_recv_dialog_set_data_from_optmenu,
 	 prefs_common_recv_dialog_set_optmenu},
+	{"send_dialog_mode", "0", &prefs_common.send_dialog_mode, P_ENUM,
+	 &interface.optmenu_senddialog,
+	 prefs_common_send_dialog_set_data_from_optmenu,
+	 prefs_common_send_dialog_set_optmenu},
 	{"no_receive_error_panel", "FALSE", &prefs_common.no_recv_err_panel,
 	 P_BOOL, &interface.checkbtn_no_recv_err_panel,
 	 prefs_set_data_from_toggle, prefs_set_toggle},
@@ -788,7 +800,7 @@ static PrefParam param[] = {
 	{"work_offline", "FALSE", &prefs_common.work_offline, P_BOOL,
 	 NULL, NULL, NULL},
 
-	{"kill_score", "-9999", &prefs_common.kill_score, P_INT,
+	{"hide_score", "-9999", &prefs_common.kill_score, P_INT,
 	 NULL, NULL, NULL},
 	{"important_score", "1", &prefs_common.important_score, P_INT,
 	 NULL, NULL, NULL},
@@ -811,8 +823,10 @@ static PrefParam param[] = {
 static void prefs_common_create		(void);
 static void prefs_receive_create	(void);
 static void prefs_send_create		(void);
-static void prefs_compose_create	(void);
+#ifdef USE_ASPELL
 static void prefs_spelling_create	(void);
+#endif
+static void prefs_compose_create	(void);
 static void prefs_quote_create		(void);
 static void prefs_display_create	(void);
 static void prefs_message_create	(void);
@@ -889,7 +903,6 @@ static void prefs_common_apply		(void);
 static void prefs_common_cancel		(void);
 
 void prefs_common_init() {
-	prefs_common.fltlist = NULL;
 	prefs_common.disphdr_list = NULL;
 }
 
@@ -1726,6 +1739,8 @@ static void prefs_compose_create(void)
 	GtkWidget *checkbtn_autowrap;
 	GtkWidget *checkbtn_wrapatsend;
 
+	GtkWidget *checkbtn_default_reply_list;
+
 	GtkWidget *checkbtn_forward_as_attachment;
 	GtkWidget *checkbtn_redirect_keep_from;
 	GtkWidget *checkbtn_smart_wrapping;
@@ -1783,6 +1798,9 @@ static void prefs_compose_create(void)
 	vbox2 = gtk_vbox_new (FALSE, 0);
 	gtk_widget_show (vbox2);
 	gtk_box_pack_start (GTK_BOX (vbox1), vbox2, FALSE, FALSE, 0);
+
+	PACK_CHECK_BUTTON (vbox2, checkbtn_default_reply_list,
+			   _("Reply button invokes mailing list reply"));
 
 	PACK_CHECK_BUTTON (vbox2, checkbtn_autoextedit,
 			   _("Automatically launch the external editor"));
@@ -1910,7 +1928,7 @@ static void prefs_compose_create(void)
 		checkbtn_smart_wrapping;
 	compose.checkbtn_block_cursor   =
 		checkbtn_block_cursor;
-
+	compose.checkbtn_default_reply_list = checkbtn_default_reply_list;
 }
 
 static void prefs_quote_create(void)
@@ -2280,7 +2298,7 @@ static void prefs_display_create(void)
 	gtk_box_pack_start (GTK_BOX (vbox2), hbox1, FALSE, TRUE, 0);
 
 	button_dispitem = gtk_button_new_with_label
-		(_(" Set display item of summary... "));
+		(_(" Set displayed items of summary... "));
 	gtk_widget_show (button_dispitem);
 	gtk_box_pack_start (GTK_BOX (hbox1), button_dispitem, FALSE, TRUE, 0);
 	gtk_signal_connect (GTK_OBJECT (button_dispitem), "clicked",
@@ -2585,7 +2603,9 @@ static void prefs_interface_create(void)
 	GtkWidget *checkbtn_immedexec;
 	GtkWidget *hbox1;
 	GtkWidget *label;
+	GtkWidget *dialogs_table;
 	GtkWidget *optmenu_recvdialog;
+	GtkWidget *optmenu_senddialog;
 	GtkWidget *menu;
 	GtkWidget *menuitem;
 	GtkWidget *checkbtn_no_recv_err_panel;
@@ -2660,18 +2680,41 @@ static void prefs_interface_create(void)
 
 	PACK_VSPACER(vbox2, vbox3, VSPACING_NARROW);
 
-	hbox1 = gtk_hbox_new (FALSE, 8);
-	gtk_widget_show (hbox1);
-	gtk_box_pack_start (GTK_BOX (vbox2), hbox1, FALSE, FALSE, 0);
+	dialogs_table = gtk_table_new (2, 2, FALSE);
+	gtk_widget_show (dialogs_table);
+	gtk_container_add (GTK_CONTAINER (vbox2), dialogs_table);
+	gtk_container_set_border_width (GTK_CONTAINER (dialogs_table), 8);
+	gtk_table_set_row_spacings (GTK_TABLE (dialogs_table), VSPACING_NARROW);
+	gtk_table_set_col_spacings (GTK_TABLE (dialogs_table), 8);
+
+	label = gtk_label_new (_("Show send dialog"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+	gtk_widget_show (label);
+	gtk_table_attach (GTK_TABLE (dialogs_table), label, 0, 1, 0, 1,
+			  GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+
+
+	optmenu_senddialog = gtk_option_menu_new ();
+	gtk_widget_show (optmenu_senddialog);
+	gtk_table_attach (GTK_TABLE (dialogs_table), optmenu_senddialog, 1, 2, 0, 1,
+			  GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+	
+	menu = gtk_menu_new ();
+	MENUITEM_ADD (menu, menuitem, _("Always"), SEND_DIALOG_ALWAYS);
+	MENUITEM_ADD (menu, menuitem, _("Never"), SEND_DIALOG_NEVER);
+
+	gtk_option_menu_set_menu (GTK_OPTION_MENU (optmenu_senddialog), menu);
 
 	label = gtk_label_new (_("Show receive dialog"));
+	gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
 	gtk_widget_show (label);
-	gtk_box_pack_start (GTK_BOX (hbox1), label, FALSE, FALSE, 0);
+	gtk_table_attach (GTK_TABLE (dialogs_table), label, 0, 1, 1, 2,
+			  GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
 
 	optmenu_recvdialog = gtk_option_menu_new ();
 	gtk_widget_show (optmenu_recvdialog);
-	gtk_box_pack_start (GTK_BOX (hbox1), optmenu_recvdialog,
-			    FALSE, FALSE, 0);
+	gtk_table_attach (GTK_TABLE (dialogs_table), optmenu_recvdialog, 1, 2, 1, 2,
+			  GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
 
 	menu = gtk_menu_new ();
 	MENUITEM_ADD (menu, menuitem, _("Always"), RECV_DIALOG_ALWAYS);
@@ -2781,6 +2824,7 @@ static void prefs_interface_create(void)
 	interface.checkbtn_openinbox          = checkbtn_openinbox;
 	interface.checkbtn_immedexec          = checkbtn_immedexec;
 	interface.optmenu_recvdialog	      = optmenu_recvdialog;
+	interface.optmenu_senddialog	      = optmenu_senddialog;
 	interface.checkbtn_no_recv_err_panel  = checkbtn_no_recv_err_panel;
 	interface.checkbtn_close_recv_dialog  = checkbtn_close_recv_dialog;
 	interface.checkbtn_addaddrbyclick     = checkbtn_addaddrbyclick;
@@ -2913,6 +2957,9 @@ static void prefs_other_create(void)
 	gtk_box_pack_start (GTK_BOX (hbox_cliplog), loglength_entry,
 			    FALSE, TRUE, 0);
 	gtk_widget_show (GTK_WIDGET (loglength_entry));
+	loglength_label = gtk_label_new (_("(0 to stop logging in the log window)"));
+	gtk_box_pack_start (GTK_BOX (hbox_cliplog), loglength_label,
+			    FALSE, TRUE, 0);
 	SET_TOGGLE_SENSITIVITY(checkbtn_cliplog, loglength_entry);
 
 	/* On Exit */
@@ -3771,15 +3818,16 @@ static void prefs_keybind_apply_clicked(GtkWidget *widget)
 		"(menu-path \"<Main>/View/Go to/Other folder...\" \"G\")\n"
 		"(menu-path \"<Main>/View/Open in new window\" \"<control><alt>N\")\n"
 		"(menu-path \"<Main>/View/View source\" \"<control>U\")\n"
-		"(menu-path \"<Main>/View/Show all header\" \"<control>H\")\n"
+		"(menu-path \"<Main>/View/Show all headers\" \"<control>H\")\n"
 		"(menu-path \"<Main>/View/Update\" \"<control><alt>U\")\n"
 
 		"(menu-path \"<Main>/Message/Get new mail\" \"<control>I\")\n"
 		"(menu-path \"<Main>/Message/Get from all accounts\" \"<shift><control>I\")\n"
 		"(menu-path \"<Main>/Message/Compose an email message\" \"<control>M\")\n"
 		"(menu-path \"<Main>/Message/Reply\" \"<control>R\")\n"
-		"(menu-path \"<Main>/Message/Reply to sender\" \"\")\n"
-		"(menu-path \"<Main>/Message/Reply to all\" \"<shift><control>R\")\n"
+		"(menu-path \"<Main>/Message/Reply to/all\" \"<shift><control>R\")\n"
+		"(menu-path \"<Main>/Message/Reply to/sender\" \"\")\n"
+		"(menu-path \"<Main>/Message/Reply to/mailing list\" \"<control>L\")\n"
 		"(menu-path \"<Main>/Message/Forward\" \"<control><alt>F\")\n"
 		/* "(menu-path \"<Main>/Message/Forward as attachment\" \"\")\n" */
 		"(menu-path \"<Main>/Message/Move...\" \"<control>O\")\n"
@@ -3792,7 +3840,7 @@ static void prefs_keybind_apply_clicked(GtkWidget *widget)
 
 		"(menu-path \"<Main>/Tools/Address book\" \"<shift><control>A\")\n"
 		"(menu-path \"<Main>/Tools/Execute\" \"X\")\n"
-		"(menu-path \"<Main>/Tools/Log window\" \"<control>L\")\n"
+		"(menu-path \"<Main>/Tools/Log window\" \"<shift><control>L\")\n"
 
 		"(menu-path \"<Compose>/File/Close\" \"<control>W\")\n"
 		"(menu-path \"<Compose>/Edit/Select all\" \"<control>A\")\n"
@@ -3823,15 +3871,16 @@ static void prefs_keybind_apply_clicked(GtkWidget *widget)
 		"(menu-path \"<Main>/View/Go to/Other folder...\" \"G\")\n"
 		"(menu-path \"<Main>/View/Open in new window\" \"<control><alt>N\")\n"
 		"(menu-path \"<Main>/View/View source\" \"<control>U\")\n"
-		"(menu-path \"<Main>/View/Show all header\" \"<shift>H\")\n"
+		"(menu-path \"<Main>/View/Show all headers\" \"<shift>H\")\n"
 		"(menu-path \"<Main>/View/Update\" \"<shift>S\")\n"
 
 		"(menu-path \"<Main>/Message/Get new mail\" \"<control>I\")\n"
 		"(menu-path \"<Main>/Message/Get from all accounts\" \"<shift><control>I\")\n"
 		"(menu-path \"<Main>/Message/Compose an email message\" \"W\")\n"
 		"(menu-path \"<Main>/Message/Reply\" \"<control>R\")\n"
-		"(menu-path \"<Main>/Message/Reply to sender\" \"\")\n"
-		"(menu-path \"<Main>/Message/Reply to all\" \"<shift>A\")\n"
+		"(menu-path \"<Main>/Message/Reply to/all\" \"<shift>A\")\n"
+		"(menu-path \"<Main>/Message/Reply to/sender\" \"\")\n"
+		"(menu-path \"<Main>/Message/Reply to/mailing list\" \"<control>L\")\n"
 		"(menu-path \"<Main>/Message/Forward\" \"F\")\n"
 		/* "(menu-path \"<Main>/Message/Forward as attachment\" \"<shift>F\")\n" */
 		"(menu-path \"<Main>/Message/Move...\" \"O\")\n"
@@ -3844,7 +3893,7 @@ static void prefs_keybind_apply_clicked(GtkWidget *widget)
 
 		"(menu-path \"<Main>/Tools/Address book\" \"<shift><control>A\")\n"
 		"(menu-path \"<Main>/Tools/Execute\" \"X\")\n"
-		"(menu-path \"<Main>/Tools/Log window\" \"<control>L\")\n"
+		"(menu-path \"<Main>/Tools/Log window\" \"<shift><control>L\")\n"
 
 		"(menu-path \"<Compose>/File/Close\" \"<alt>W\")\n"
 		"(menu-path \"<Compose>/Edit/Select all\" \"\")\n"
@@ -3874,15 +3923,16 @@ static void prefs_keybind_apply_clicked(GtkWidget *widget)
 		"(menu-path \"<Main>/View/Go to/Other folder...\" \"C\")\n"
 		"(menu-path \"<Main>/View/Open in new window\" \"<control><alt>N\")\n"
 		"(menu-path \"<Main>/View/View source\" \"<control>U\")\n"
-		"(menu-path \"<Main>/View/Show all header\" \"<control>H\")\n"
+		"(menu-path \"<Main>/View/Show all headers\" \"<control>H\")\n"
 		"(menu-path \"<Main>/View/Update\" \"<control><alt>U\")\n"
 
 		"(menu-path \"<Main>/Message/Get new mail\" \"<control>I\")\n"
 		"(menu-path \"<Main>/Message/Get from all accounts\" \"<shift><control>I\")\n"
 		"(menu-path \"<Main>/Message/Compose new message\" \"M\")\n"
 		"(menu-path \"<Main>/Message/Reply\" \"R\")\n"
-		"(menu-path \"<Main>/Message/Reply to all\" \"G\")\n"
-		"(menu-path \"<Main>/Message/Reply to sender\" \"\")\n"
+		"(menu-path \"<Main>/Message/Reply to/all\" \"G\")\n"
+		"(menu-path \"<Main>/Message/Reply to/sender\" \"\")\n"
+		"(menu-path \"<Main>/Message/Reply to/mailing list\" \"<control>L\")\n"
 		"(menu-path \"<Main>/Message/Forward\" \"F\")\n"
 		"(menu-path \"<Main>/Message/Forward as attachment\" \"\")\n"
 		"(menu-path \"<Main>/Message/Move...\" \"<control>O\")\n"
@@ -3895,7 +3945,7 @@ static void prefs_keybind_apply_clicked(GtkWidget *widget)
 
 		"(menu-path \"<Main>/Tools/Address book\" \"<shift><control>A\")\n"
 		"(menu-path \"<Main>/Tools/Execute\" \"X\")\n"
-		"(menu-path \"<Main>/Tools/Log window\" \"<control>L\")\n"
+		"(menu-path \"<Main>/Tools/Log window\" \"<shift><control>L\")\n"
 
 		"(menu-path \"<Compose>/File/Close\" \"<alt>W\")\n"
 		"(menu-path \"<Compose>/Edit/Select all\" \"\")\n"
@@ -3926,15 +3976,16 @@ static void prefs_keybind_apply_clicked(GtkWidget *widget)
 		"(menu-path \"<Main>/View/Go to/Other folder...\" \"<alt>G\")\n"
 		"(menu-path \"<Main>/View/Open in new window\" \"<shift><control>N\")\n"
 		"(menu-path \"<Main>/View/View source\" \"<control>U\")\n"
-		"(menu-path \"<Main>/View/Show all header\" \"<control>H\")\n"
+		"(menu-path \"<Main>/View/Show all headers\" \"<control>H\")\n"
 		"(menu-path \"<Main>/View/Update\" \"<alt>U\")\n"
 
 		"(menu-path \"<Main>/Message/Get new mail\" \"<alt>I\")\n"
 		"(menu-path \"<Main>/Message/Get from all accounts\" \"<shift><alt>I\")\n"
 		"(menu-path \"<Main>/Message/Compose an email message\" \"<alt>N\")\n"
 		"(menu-path \"<Main>/Message/Reply\" \"<alt>R\")\n"
-		"(menu-path \"<Main>/Message/Reply to sender\" \"<control><alt>R\")\n"
-		"(menu-path \"<Main>/Message/Reply to all\" \"<shift><alt>R\")\n"
+		"(menu-path \"<Main>/Message/Reply to/all\" \"<shift><alt>R\")\n"
+		"(menu-path \"<Main>/Message/Reply to/sender\" \"<control><alt>R\")\n"
+		"(menu-path \"<Main>/Message/Reply to/mailing list\" \"<control>L\")\n"
 		"(menu-path \"<Main>/Message/Forward\" \"<shift><alt>F\")\n"
 		/* "(menu-path \"<Main>/Message/Forward as attachment\" \"<shift><control>F\")\n" */
 		"(menu-path \"<Main>/Message/Move...\" \"<alt>O\")\n"
@@ -3978,15 +4029,16 @@ static void prefs_keybind_apply_clicked(GtkWidget *widget)
 		"(menu-path \"<Main>/View/Go to/Other folder...\" \"\")\n"
 		"(menu-path \"<Main>/View/Open in new window\" \"\")\n"
 		"(menu-path \"<Main>/View/View source\" \"\")\n"
-		"(menu-path \"<Main>/View/Show all header\" \"\")\n"
+		"(menu-path \"<Main>/View/Show all headers\" \"\")\n"
 		"(menu-path \"<Main>/View/Update\" \"\")\n"
 
 		"(menu-path \"<Main>/Message/Get new mail\" \"\")\n"
 		"(menu-path \"<Main>/Message/Get from all accounts\" \"\")\n"
 		"(menu-path \"<Main>/Message/Compose an email message\" \"\")\n"
 		"(menu-path \"<Main>/Message/Reply\" \"\")\n"
-		"(menu-path \"<Main>/Message/Reply to sender\" \"\")\n"
-		"(menu-path \"<Main>/Message/Reply to all\" \"\")\n"
+		"(menu-path \"<Main>/Message/Reply to/all\" \"\")\n"
+		"(menu-path \"<Main>/Message/Reply to/sender\" \"\")\n"
+		"(menu-path \"<Main>/Message/Reply to/mailing list\" \"\")\n"
 		"(menu-path \"<Main>/Message/Forward\" \"\")\n"
 		/* "(menu-path \"<Main>/Message/Forward as attachment\" \"\")\n" */
 		"(menu-path \"<Main>/Message/Move...\" \"\")\n"
@@ -4045,30 +4097,20 @@ static void prefs_common_charset_set_data_from_optmenu(PrefParam *pparam)
 
 static void prefs_common_charset_set_optmenu(PrefParam *pparam)
 {
-	GList *cur;
 	GtkOptionMenu *optmenu = GTK_OPTION_MENU(*pparam->widget);
-	GtkWidget *menu;
-	GtkWidget *menuitem;
-	gchar *charset;
-	gint n = 0;
+	gint index;
 
 	g_return_if_fail(optmenu != NULL);
 	g_return_if_fail(*((gchar **)pparam->data) != NULL);
 
-	menu = gtk_option_menu_get_menu(optmenu);
-	for (cur = GTK_MENU_SHELL(menu)->children;
-	     cur != NULL; cur = cur->next) {
-		menuitem = GTK_WIDGET(cur->data);
-		charset = gtk_object_get_user_data(GTK_OBJECT(menuitem));
-		if (!strcmp(charset, *((gchar **)pparam->data))) {
-			gtk_option_menu_set_history(optmenu, n);
-			return;
-		}
-		n++;
+	index = menu_find_option_menu_index(optmenu, *((gchar **)pparam->data),
+					    (GCompareFunc)strcmp);
+	if (index >= 0)
+		gtk_option_menu_set_history(optmenu, index);
+	else {
+		gtk_option_menu_set_history(optmenu, 0);
+		prefs_common_charset_set_data_from_optmenu(pparam);
 	}
-
-	gtk_option_menu_set_history(optmenu, 0);
-	prefs_common_charset_set_data_from_optmenu(pparam);
 }
 
 static void prefs_common_recv_dialog_set_data_from_optmenu(PrefParam *pparam)
@@ -4098,6 +4140,40 @@ static void prefs_common_recv_dialog_set_optmenu(PrefParam *pparam)
 		break;
 	case RECV_DIALOG_NEVER:
 		gtk_option_menu_set_history(optmenu, 2);
+		break;
+	default:
+		break;
+	}
+
+	menu = gtk_option_menu_get_menu(optmenu);
+	menuitem = gtk_menu_get_active(GTK_MENU(menu));
+	gtk_menu_item_activate(GTK_MENU_ITEM(menuitem));
+}
+
+static void prefs_common_send_dialog_set_data_from_optmenu(PrefParam *pparam)
+{
+	GtkWidget *menu;
+	GtkWidget *menuitem;
+
+	menu = gtk_option_menu_get_menu(GTK_OPTION_MENU(*pparam->widget));
+	menuitem = gtk_menu_get_active(GTK_MENU(menu));
+	*((SendDialogMode *)pparam->data) = GPOINTER_TO_INT
+		(gtk_object_get_user_data(GTK_OBJECT(menuitem)));
+}
+
+static void prefs_common_send_dialog_set_optmenu(PrefParam *pparam)
+{
+	SendDialogMode mode = *((SendDialogMode *)pparam->data);
+	GtkOptionMenu *optmenu = GTK_OPTION_MENU(*pparam->widget);
+	GtkWidget *menu;
+	GtkWidget *menuitem;
+
+	switch (mode) {
+	case SEND_DIALOG_ALWAYS:
+		gtk_option_menu_set_history(optmenu, 0);
+		break;
+	case SEND_DIALOG_NEVER:
+		gtk_option_menu_set_history(optmenu, 1);
 		break;
 	default:
 		break;

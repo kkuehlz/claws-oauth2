@@ -60,6 +60,9 @@ typedef enum
 	COMPOSE_REPLY_TO_ALL,
 	COMPOSE_REPLY_TO_ALL_WITH_QUOTE,
 	COMPOSE_REPLY_TO_ALL_WITHOUT_QUOTE,
+	COMPOSE_REPLY_TO_LIST,
+	COMPOSE_REPLY_TO_LIST_WITH_QUOTE,
+	COMPOSE_REPLY_TO_LIST_WITHOUT_QUOTE,
 	COMPOSE_FORWARD,
 	COMPOSE_FORWARD_AS_ATTACH,
 	COMPOSE_FORWARD_INLINE,
@@ -147,7 +150,8 @@ struct _Compose
 	gchar	*bcc;
 	gchar	*newsgroups;
 	gchar	*followup_to;
-	gchar	*mailinglist;
+
+	gchar	*ml_post;
 
 	gchar	*inreplyto;
 	gchar	*references;
@@ -158,16 +162,20 @@ struct _Compose
 	gboolean use_cc;
 	gboolean use_bcc;
 	gboolean use_replyto;
+	gboolean use_newsgroups;
 	gboolean use_followupto;
-	gboolean use_mailinglist;
 	gboolean use_attach;
 
 	/* privacy settings */
 	gboolean use_signing;
 	gboolean use_encryption;
+	
+	gint gnupg_mode;
 
 	gboolean modified;
 
+	gboolean sending;
+	
 	gboolean return_receipt;
 	gboolean paste_as_quotation;
 
@@ -175,7 +183,6 @@ struct _Compose
 	GSList *newsgroup_list;
 
 	PrefsAccount *account;
-	PrefsAccount *orig_account;
 
 	UndoMain *undostruct;
 
@@ -238,6 +245,7 @@ void compose_followup_and_reply_to	(MsgInfo	*msginfo,
 void compose_reply			(MsgInfo	*msginfo,
 					 gboolean	 quote,
 					 gboolean	 to_all,
+					 gboolean	 to_ml,
 					 gboolean	 ignore_replyto,
 					 const gchar	*body);
 Compose *compose_forward		(PrefsAccount *account,
@@ -265,5 +273,6 @@ void compose_reflect_prefs_all			(void);
 void compose_reflect_prefs_pixmap_theme	(void);
 
 void compose_destroy_all                (void);
+void compose_draft	                (gpointer data);
 
 #endif /* __COMPOSE_H__ */

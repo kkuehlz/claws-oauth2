@@ -68,13 +68,6 @@ static void add_buffer(const gchar *s)
 	bufsize += len;
 }
 
-static void flush_buffer(void)
-{
-	if (buffer != NULL)
-		*buffer = '\0';
-	bufsize = 0;
-}
-
 gchar *quote_fmt_get_buffer(void)
 {
 	if (error != 0)
@@ -167,7 +160,7 @@ character_or_special_or_insert_or_query:
 	{
 		INSERT_CHARACTER($1);
 	}
-	| query ;
+	| query
 	| insert ;
 
 character:
@@ -579,7 +572,7 @@ insert:
 			FILE *file;
 			char buffer[256];
 			
-			if(file = fopen($3, "rb")) {
+			if((file = fopen($3, "rb")) != NULL) {
 				while(fgets(buffer, sizeof(buffer), file)) {
 					INSERT(buffer);
 				}
@@ -593,7 +586,7 @@ insert:
 			FILE *file;
 			char buffer[256];
 
-			if(file = popen($3, "r")) {
+			if((file = popen($3, "r")) != NULL) {
 				while(fgets(buffer, sizeof(buffer), file)) {
 					INSERT(buffer);
 				}

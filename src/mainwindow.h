@@ -114,6 +114,8 @@ struct _MainWindow
 	GtkWidget *ac_menu;
 	GtkWidget *online_switch;
 	GtkWidget *offline_switch;
+	GtkWidget *online_pixmap;
+	GtkWidget *offline_pixmap;
 
 	/* context IDs for status bar */
 	gint mainwin_cid;
@@ -154,6 +156,7 @@ struct _MainToolbar {
 	GtkWidget *reply_btn;
 	GtkWidget *replysender_btn;
 	GtkWidget *replyall_btn;
+	GtkWidget *replylist_btn;
 
 	GtkWidget *fwd_btn;
 
@@ -166,6 +169,7 @@ struct _MainToolbar {
 	/* for the reply buttons */
 	GtkWidget *reply_popup;
 	GtkWidget *replyall_popup;
+	GtkWidget *replylist_popup;
 	GtkWidget *replysender_popup;
 	
 	/* the forward button similar to the reply buttons*/
@@ -216,4 +220,8 @@ void toolbar_set_sensitive                    (MainWindow *mainwin);
 void toolbar_set_compose_button               (MainToolbar        *toolbar, 
 					       ComposeButtonType  compose_btn_type);
 void main_window_destroy_all                  (void);
+
+void main_window_toggle_work_offline          (MainWindow        *mainwin, 
+                                               gboolean           offline);
+
 #endif /* __MAINWINDOW_H__ */

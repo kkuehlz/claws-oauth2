@@ -141,7 +141,7 @@ void account_read_config_all(void)
 	/* read config data from file */
 	cur_account = NULL;
 	for (cur = ac_label_list; cur != NULL; cur = cur->next) {
-		ac_prefs = g_new0(PrefsAccount, 1);
+		ac_prefs = prefs_account_new();
 		prefs_account_read_config(ac_prefs, (gchar *)cur->data);
 		account_list = g_list_append(account_list, ac_prefs);
 		if (ac_prefs->is_default)
@@ -169,6 +169,33 @@ void account_save_config_all(void)
 	prefs_account_save_config_all(account_list);
 }
 
+/*
+ * account_find_all_from_address:
+ * @ac_list: initial list of accounts. NULL to create a new one.
+ * Accounts found in the @address will be appended to this list.
+ * @address: Email address string.
+ *
+ * Find all the mail (not news) accounts within the specified address.
+ *
+ * Return value: the original accounts list with the found accounts appended.
+ */
+GList *account_find_all_from_address(GList *ac_list, const gchar *address)
+{
+	GList *cur;
+	PrefsAccount *ac;
+
+	if (address == NULL)
+		return ac_list;
+
+	for (cur = account_list; cur != NULL; cur = cur->next) {
+		ac = (PrefsAccount *)cur->data;
+		if (ac->protocol != A_NNTP && ac->address &&
+		    strcasestr(address, ac->address) != NULL)
+			ac_list = g_list_append(ac_list, ac);
+	}
+	return ac_list;
+}
+	
 PrefsAccount *account_find_from_smtp_server(const gchar *address,
 					    const gchar *smtp_server)
 {
@@ -227,33 +254,29 @@ PrefsAccount *account_find_from_id(gint id)
 	return NULL;
 }
 
-/*
- * account_find_all_from_address:
- * @ac_list: initial list of accounts. NULL to create a new one.
- * Accounts found in the @address will be appended to this list.
- * @address: Email address string.
- *
- * Find all the mail (not news) accounts within the specified address.
- *
- * Return value: the original accounts list with the found accounts appended.
- */
-GList *account_find_all_from_address(GList *ac_list, const gchar *address)
+PrefsAccount *account_find_from_item(FolderItem *item)
 {
-	GList *cur;
 	PrefsAccount *ac;
 
-	if (address == NULL)
-		return ac_list;
+	g_return_val_if_fail(item != NULL, NULL);
 
-	for (cur = account_list; cur != NULL; cur = cur->next) {
-		ac = (PrefsAccount *)cur->data;
-		if (ac->protocol != A_NNTP && ac->address &&
-		    strcasestr(address, ac->address) != NULL)
-			ac_list = g_list_append(ac_list, ac);
+	ac = item->account;
+	if (!ac) {
+		FolderItem *cur_item = item->parent;
+		while (cur_item != NULL) {
+			if (cur_item->account && cur_item->apply_sub) {
+				ac = cur_item->account;
+				break;
+			}				
+			cur_item = cur_item->parent;
+		}
 	}
-	return ac_list;
+	if (!ac)
+		ac = item->folder->account;
+
+	return ac;
 }
-	
+
 void account_set_menu(void)
 {
 	main_window_set_account_menu(account_list);
@@ -333,6 +356,33 @@ void account_add(void)
 	}
 }
 
+void account_open(PrefsAccount *ac_prefs)
+{
+	gboolean prev_default;
+	gchar *ac_name;
+
+	g_return_if_fail(ac_prefs != NULL);
+
+	prev_default = ac_prefs->is_default;
+	Xstrdup_a(ac_name, ac_prefs->account_name ? ac_prefs->account_name : "",
+		  return);
+
+	prefs_account_open(ac_prefs);
+
+	if (!prev_default && ac_prefs->is_default)
+		account_set_as_default(ac_prefs);
+
+	if (ac_prefs->folder && strcmp2(ac_name, ac_prefs->account_name) != 0) {
+		folder_set_name(FOLDER(ac_prefs->folder),
+				ac_prefs->account_name);
+		folderview_set_all();
+	}
+
+	account_save_config_all();
+	account_set_menu();
+	main_window_reflect_prefs_all();
+}
+
 void account_set_as_default(PrefsAccount *ac_prefs)
 {
 	PrefsAccount *ap;
@@ -396,7 +446,14 @@ FolderItem *account_get_special_folder(PrefsAccount *ac_prefs,
 
 	g_return_val_if_fail(ac_prefs != NULL, NULL);
 
-	if (type == F_OUTBOX) {
+	switch (type) {
+	case F_INBOX:
+		if (ac_prefs->folder)
+			item = FOLDER(ac_prefs->folder)->inbox;
+		if (!item)
+			item = folder_get_default_inbox();
+		break;
+	case F_OUTBOX:
 		if (ac_prefs->set_sent_folder && ac_prefs->sent_folder) {
 			item = folder_find_item_from_identifier
 				(ac_prefs->sent_folder);
@@ -407,7 +464,8 @@ FolderItem *account_get_special_folder(PrefsAccount *ac_prefs,
 			if (!item)
 				item = folder_get_default_outbox();
 		}
-	} else if (type == F_DRAFT) {
+		break;
+	case F_DRAFT:
 		if (ac_prefs->set_draft_folder && ac_prefs->draft_folder) {
 			item = folder_find_item_from_identifier
 				(ac_prefs->draft_folder);
@@ -418,12 +476,14 @@ FolderItem *account_get_special_folder(PrefsAccount *ac_prefs,
 			if (!item)
 				item = folder_get_default_draft();
 		}
-	} else if (type == F_QUEUE) {
+		break;
+	case F_QUEUE:
 		if (ac_prefs->folder)
 			item = FOLDER(ac_prefs->folder)->queue;
 		if (!item)
 			item = folder_get_default_queue();
-	} else if (type == F_TRASH) {
+		break;
+	case F_TRASH:
 		if (ac_prefs->set_trash_folder && ac_prefs->trash_folder) {
 			item = folder_find_item_from_identifier
 				(ac_prefs->trash_folder);
@@ -434,6 +494,9 @@ FolderItem *account_get_special_folder(PrefsAccount *ac_prefs,
 			if (!item)
 				item = folder_get_default_trash();
 		}
+		break;
+	default:
+		break;
 	}
 
 	return item;
@@ -442,6 +505,8 @@ FolderItem *account_get_special_folder(PrefsAccount *ac_prefs,
 void account_destroy(PrefsAccount *ac_prefs)
 {
 	g_return_if_fail(ac_prefs != NULL);
+
+	folder_unref_account_all(ac_prefs);
 
 	prefs_account_free(ac_prefs);
 	account_list = g_list_remove(account_list, ac_prefs);
@@ -625,29 +690,13 @@ static void account_edit_prefs(void)
 	GtkCList *clist = GTK_CLIST(edit_account.clist);
 	PrefsAccount *ac_prefs;
 	gint row;
-	gboolean prev_default;
-	gchar *ac_name;
 
 	if (!clist->selection) return;
 
 	row = GPOINTER_TO_INT(clist->selection->data);
 	ac_prefs = gtk_clist_get_row_data(clist, row);
-	prev_default = ac_prefs->is_default;
-	Xstrdup_a(ac_name, ac_prefs->account_name ? ac_prefs->account_name : "",
-		  return);
-
-	prefs_account_open(ac_prefs);
-
-	if (!prev_default && ac_prefs->is_default)
-		account_set_as_default(ac_prefs);
-
-	if ((ac_prefs->protocol == A_IMAP4 || ac_prefs->protocol == A_NNTP) &&
-	    ac_prefs->folder && strcmp2(ac_name, ac_prefs->account_name) != 0) {
-		folder_set_name(FOLDER(ac_prefs->folder),
-				ac_prefs->account_name);
-		folderview_set_all();
-	}
-
+	account_open(ac_prefs);
+	
 	account_clist_set();
 }
 
@@ -669,6 +718,8 @@ static gboolean account_delete_references_func(GNode *node, gpointer data)
 	item->prefs->enable_default_account = FALSE;
 	item->prefs->default_account = 0;
 	prefs_folder_item_save_config(item);
+
+	return FALSE;
 }
 
 static void account_delete(void)

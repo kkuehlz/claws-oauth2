@@ -47,7 +47,7 @@ static gchar * mbox_get_new_path(FolderItem * parent, gchar * name);
 static gchar * mbox_get_folderitem_name(gchar * name);
 
 MsgInfo *mbox_fetch_msginfo(Folder *folder, FolderItem *item, gint num);
-GSList *mbox_get_num_list(Folder *folder, FolderItem *item);
+gint mbox_get_num_list(Folder *folder, FolderItem *item, GSList **list);
 gboolean mbox_check_msgnum_validity(Folder *folder, FolderItem *item);
 
 Folder *mbox_folder_new(const gchar *name, const gchar *path)
@@ -88,11 +88,12 @@ static void mbox_folder_init(Folder *folder, const gchar *name, const gchar *pat
 	folder->create_folder       = mbox_create_folder;
 	folder->rename_folder       = mbox_rename_folder;
 	folder->remove_folder       = mbox_remove_folder;
+	folder->destroy		    = mbox_folder_destroy;
 	folder->check_msgnum_validity
 				    = mbox_check_msgnum_validity;
 }
 
-static gchar * mbox_folder_create_parent(const gchar * path)
+static void mbox_folder_create_parent(const gchar * path)
 {
 	if (!is_file_exist(path)) {
 		gchar * new_path;
@@ -183,6 +184,7 @@ static gboolean mbox_file_lock_file(gchar * base)
 			g_warning(_("can't create %s\n"), lockfile);
 			unlink(lockfile);
 			g_free(lockfile);
+			g_free(locklink);
 			return -1;
 		}
 		if (retry == 0)
@@ -193,7 +195,8 @@ static gboolean mbox_file_lock_file(gchar * base)
 	}
 	unlink(lockfile);
 	g_free(lockfile);
-
+	g_free(locklink);
+	
 	return TRUE;
 }
 
@@ -539,7 +542,7 @@ static mailfile * mailfile_init_from_file(FILE * f, gchar * filename)
 	mf->count = msgnum;
 
 	mailfile_error = MAILFILE_ERROR_NO_ERROR;
-
+	
 	return mf;
 }
 
@@ -758,11 +761,6 @@ static void mbox_cache_init()
 	mbox_cache_table = g_hash_table_new(g_str_hash, g_str_equal);
 }
 
-static void mbox_cache_done()
-{
-	g_hash_table_destroy(mbox_cache_table);
-}
-
 static void mbox_cache_free_mbox(mboxcache * cache)
 {
 	g_hash_table_remove(mbox_cache_table, cache->filename);
@@ -907,16 +905,6 @@ static gint mbox_cache_get_count(gchar * filename)
 	return cache->mf->count;
 }
 
-static gint mbox_cache_get_mtime(gchar * filename)
-{
-	mboxcache * cache;
-
-	cache = mbox_cache_get_mbox(filename);
-	if (cache == NULL)
-		return -1;
-	return cache->mtime;
-}
-
 static GList * mbox_cache_get_msg_list(gchar * filename)
 {
 	mboxcache * cache;
@@ -982,8 +970,6 @@ static void mbox_cache_synchronize(gchar * filename, gboolean sync)
 	}
 
 	if (scan_new) {
-		GList * l;
-
 		/*		
 		if (strstr(filename, "trash") == 0)
 			printf("old_cache: %p %s\n", old_cache, filename);
@@ -1648,9 +1634,6 @@ gint mbox_copy_msg(Folder *folder, FolderItem *dest, MsgInfo *msginfo)
 	Folder * src_folder;
 	gchar * filename;
 	gint num;
-	gchar * destdir;
-	gchar * mbox_path;
-	struct _message * msg;
 	CopyFlagsInfo * flags_info;
 
 	src_folder = msginfo->folder->folder;
@@ -1947,6 +1930,7 @@ void mbox_change_flags(Folder * folder, FolderItem * item, MsgInfo * info)
 	msg->flags = info->flags;
 
 	cache->modification = TRUE;
+		
 }
 
 
@@ -2010,6 +1994,7 @@ static gboolean mbox_rewrite(gchar * mbox)
 		fclose(new_fp);
 		mbox_unlock_file(mbox_fp, mbox);
 		fclose(mbox_fp);
+		g_free(new);
 		return -1;
 	}
 
@@ -2035,6 +2020,8 @@ static gboolean mbox_rewrite(gchar * mbox)
 
 	mbox_cache_synchronize(mbox, FALSE);
 
+	g_free(new);
+	
 	return result;
 }
 
@@ -2106,6 +2093,7 @@ static gboolean mbox_purge_deleted(gchar * mbox)
 		fclose(new_fp);
 		mbox_unlock_file(mbox_fp, mbox);
 		fclose(mbox_fp);
+		g_free(new);
 		return -1;
 	}
 
@@ -2125,7 +2113,7 @@ static gboolean mbox_purge_deleted(gchar * mbox)
 	debug_print("%i messages written - %s\n", count, mbox);
 
 	mbox_cache_synchronize(mbox, FALSE);
-
+	g_free(new);
 	return result;
 }
 
@@ -2268,19 +2256,17 @@ gint mbox_remove_folder(Folder *folder, FolderItem *item)
 	return 0;
 }
 
-GSList *mbox_get_num_list(Folder *folder, FolderItem *item)
+gint mbox_get_num_list(Folder *folder, FolderItem *item, GSList **mlist)
 {
-	GSList *mlist;
 	GList * l;
 	FILE * fp;
 	gchar * mbox_path;
-
-	mlist = NULL;
+	gint nummsgs = 0;
 
 	mbox_path = mbox_folder_get_path(item);
 
 	if (mbox_path == NULL)
-		return NULL;
+		return -1;
 
 	mbox_purge_deleted(mbox_path);
 
@@ -2288,7 +2274,7 @@ GSList *mbox_get_num_list(Folder *folder, FolderItem *item)
 	
 	if (fp == NULL) {
 		g_free(mbox_path);
-		return NULL;
+		return -1;
 	}
 
 	mbox_lockread_file(fp, mbox_path);
@@ -2304,7 +2290,8 @@ GSList *mbox_get_num_list(Folder *folder, FolderItem *item)
 		msg = (struct _message *) l->data;
 
 		if (MSG_IS_INVALID(msg->flags) || !MSG_IS_REALLY_DELETED(msg->flags)) {
-			mlist = g_slist_append(mlist, GINT_TO_POINTER(msg->msgnum));
+			*mlist = g_slist_append(*mlist, GINT_TO_POINTER(msg->msgnum));
+			nummsgs++;
 		} else {
 			MSG_SET_PERM_FLAGS(msg->flags, MSG_REALLY_DELETED);
 		}
@@ -2316,7 +2303,7 @@ GSList *mbox_get_num_list(Folder *folder, FolderItem *item)
 
 	fclose(fp);
 
-	return mlist;
+	return nummsgs;
 }
 
 MsgInfo *mbox_fetch_msginfo(Folder *folder, FolderItem *item, gint num)

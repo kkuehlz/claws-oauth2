@@ -17,25 +17,9 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#ifndef __PREFS_FILTER_H__
-#define __PREFS_FILTER_H__
+#ifndef __PRIVACY_H__
+#define __PRIVACY_H__
 
-typedef enum
-{
-	FILTER_BY_NONE,
-	FILTER_BY_AUTO,
-	FILTER_BY_FROM,
-	FILTER_BY_TO,
-	FILTER_BY_SUBJECT
-} PrefsFilterType;
+#include <glib.h>
 
-void prefs_filter_read_config	(void);
-void prefs_filter_write_config	(void);
-void prefs_filter_open		(const gchar	*header,
-				 const gchar	*key);
-
-void prefs_filter_rename_path	(const gchar	*old_path,
-				 const gchar	*new_path);
-void prefs_filter_delete_path	(const gchar	*path);
-
-#endif /* __PREFS_FILTER_H__ */
+#endif /* __PRIVACY_H__ */

@@ -65,6 +65,11 @@ typedef enum {
 	SIGN_KEY_BY_FROM,
 	SIGN_KEY_CUSTOM
 } SignKeyType;
+
+typedef enum {
+	GNUPG_MODE_DETACH,
+	GNUPG_MODE_INLINE
+} DefaultGnuPGMode;
 #endif /* USE_GPGME */
 
 struct _PrefsAccount
@@ -146,8 +151,7 @@ struct _PrefsAccount
 	/* Privacy */
 	gboolean default_encrypt;
 	gboolean default_sign;
-	gboolean ascii_armored;
-	gboolean clearsign;
+	gboolean default_gnupg_mode;
 	SignKeyType sign_key;
 	gchar *sign_key_id;
 #endif /* USE_GPGME */
@@ -194,11 +198,14 @@ struct _PrefsAccount
 	RemoteFolder *folder;
 };
 
+PrefsAccount *prefs_account_new		(void);
+
 void prefs_account_read_config		(PrefsAccount	*ac_prefs,
 					 const gchar	*label);
-void prefs_account_save_config		(PrefsAccount	*ac_prefs);
 void prefs_account_save_config_all	(GList		*account_list);
+
 void prefs_account_free			(PrefsAccount	*ac_prefs);
+
 PrefsAccount *prefs_account_open	(PrefsAccount	*ac_prefs);
 
 #endif /* __PREFS_ACCOUNT_H__ */

@@ -61,7 +61,6 @@
 #include "sourcewindow.h"
 #include "prefs_common.h"
 #include "prefs_summary_column.h"
-#include "prefs_filter.h"
 #include "prefs_filtering.h"
 #include "account.h"
 #include "compose.h"
@@ -72,7 +71,6 @@
 #include "alertpanel.h"
 #include "inputdialog.h"
 #include "statusbar.h"
-#include "filter.h"
 #include "folder.h"
 #include "colorlabel.h"
 #include "inc.h"
@@ -84,6 +82,7 @@
 #include "filtering.h"
 #include "string_match.h"
 #include "toolbar.h"
+#include "news.h"
 
 #define SUMMARY_COL_MARK_WIDTH		10
 #define SUMMARY_COL_UNREAD_WIDTH	13
@@ -220,8 +219,8 @@ static void summary_execute_delete_func	(GtkCTree		*ctree,
 					 gpointer		 data);
 
 static void summary_thread_init		(SummaryView		*summaryview);
-static void summary_ignore_thread	(SummaryView  *summaryview);
-static void summary_unignore_thread	(SummaryView *summaryview);
+static void summary_ignore_thread	(SummaryView  		*summaryview);
+static void summary_unignore_thread	(SummaryView 		*summaryview);
 
 static void summary_unthread_for_exec		(SummaryView	*summaryview);
 static void summary_unthread_for_exec_func	(GtkCTree	*ctree,
@@ -387,9 +386,13 @@ GtkTargetEntry summary_drag_types[1] =
 static GtkItemFactoryEntry summary_popup_entries[] =
 {
 	{N_("/_Reply"),			NULL, summary_reply_cb,	COMPOSE_REPLY, NULL},
-	{N_("/Repl_y to sender"),	NULL, summary_reply_cb,	COMPOSE_REPLY_TO_SENDER, NULL},
+	{N_("/Repl_y to"),		NULL, NULL,		0, "<Branch>"},
+	{N_("/Repl_y to/_all"),		NULL, summary_reply_cb,	COMPOSE_REPLY_TO_ALL, NULL},
+	{N_("/Repl_y to/_sender"),	NULL, summary_reply_cb,	COMPOSE_REPLY_TO_SENDER, NULL},
+	{N_("/Repl_y to/mailing _list"),
+					NULL, summary_reply_cb,	COMPOSE_REPLY_TO_LIST, NULL},
 	{N_("/Follow-up and reply to"),	NULL, summary_reply_cb,	COMPOSE_FOLLOWUP_AND_REPLY_TO, NULL},
-	{N_("/Reply to a_ll"),		NULL, summary_reply_cb,	COMPOSE_REPLY_TO_ALL, NULL},
+	{N_("/---"),			NULL, NULL,		0, "<Separator>"},
 	{N_("/_Forward"),		NULL, summary_reply_cb, COMPOSE_FORWARD, NULL},
 	{N_("/Redirect"),	        NULL, summary_reply_cb, COMPOSE_REDIRECT, NULL},
 	{N_("/---"),			NULL, NULL,		0, "<Separator>"},
@@ -643,7 +646,7 @@ void summary_init(SummaryView *summaryview)
 		small_style = gtk_style_copy
 			(gtk_widget_get_style(summaryview->ctree));
 		if (!smallfont)
-			smallfont = gdk_fontset_load(SMALL_FONT);
+			smallfont = gtkut_font_load(SMALL_FONT);
 		small_style->font = smallfont;
 		small_marked_style = gtk_style_copy(small_style);
 		small_marked_style->fg[GTK_STATE_NORMAL] =
@@ -656,7 +659,7 @@ void summary_init(SummaryView *summaryview)
 		bold_style = gtk_style_copy
 			(gtk_widget_get_style(summaryview->ctree));
 		if (!boldfont)
-			boldfont = gdk_fontset_load(BOLD_FONT);
+			boldfont = gtkut_font_load(BOLD_FONT);
 		bold_style->font = boldfont;
 		bold_marked_style = gtk_style_copy(bold_style);
 		bold_marked_style->fg[GTK_STATE_NORMAL] =
@@ -682,6 +685,7 @@ void summary_init(SummaryView *summaryview)
 	pixmap = stock_pixmap_widget(summaryview->hbox, STOCK_PIXMAP_QUICKSEARCH);
 	gtk_container_add (GTK_CONTAINER(summaryview->toggle_search), pixmap);
 	gtk_widget_show(pixmap);
+	summaryview->quick_search_pixmap = pixmap;
 	
 	/* Init summaryview prefs */
 	summaryview->sort_key = SORT_BY_NONE;
@@ -758,6 +762,10 @@ GtkCTreeNode * summary_find_prev_important_score(SummaryView *summaryview,
 	else
 		return best_node;
 }
+
+#define CURRENTLY_DISPLAYED(m) \
+( (m->msgnum == displayed_msgnum) \
+  && (!g_strcasecmp(m->folder->name,item->name)) )
 
 gboolean summary_show(SummaryView *summaryview, FolderItem *item)
 {
@@ -882,7 +890,8 @@ gboolean summary_show(SummaryView *summaryview, FolderItem *item)
 			
 			if ((MSG_IS_UNREAD(msginfo->flags)
 			     || MSG_IS_MARKED(msginfo->flags)
-			     || MSG_IS_LOCKED(msginfo->flags))
+			     || MSG_IS_LOCKED(msginfo->flags)
+			     || CURRENTLY_DISPLAYED(msginfo))
 			     && !MSG_IS_IGNORE_THREAD(msginfo->flags))
 			    not_killed = g_slist_append(not_killed, msginfo);
 			else
@@ -1019,6 +1028,8 @@ gboolean summary_show(SummaryView *summaryview, FolderItem *item)
 	return TRUE;
 }
 
+#undef CURRENTLY_DISPLAYED
+
 void summary_clear_list(SummaryView *summaryview)
 {
 	GtkCList *clist = GTK_CLIST(summaryview->ctree);
@@ -1051,10 +1062,6 @@ void summary_clear_list(SummaryView *summaryview)
 		summaryview->subject_table = NULL;
 	}
 	summaryview->mlist = NULL;
-	if (summaryview->folder_table) {
-		g_hash_table_destroy(summaryview->folder_table);
-		summaryview->folder_table = NULL;
-	}
 
 	gtk_clist_clear(clist);
 	if (summaryview->col_pos[S_COL_SUBJECT] == N_SUMMARY_COLS - 1) {
@@ -1155,8 +1162,10 @@ static void summary_set_menu_sensitive(SummaryView *summaryview)
 
 	sens = (selection == SUMMARY_SELECTED_MULTIPLE) ? FALSE : TRUE;
 	menu_set_sensitive(ifactory, "/Reply",			  sens);
-	menu_set_sensitive(ifactory, "/Reply to sender",	  sens);
-	menu_set_sensitive(ifactory, "/Reply to all",		  sens);
+	menu_set_sensitive(ifactory, "/Reply to",		  sens);
+	menu_set_sensitive(ifactory, "/Reply to/all",		  sens);
+	menu_set_sensitive(ifactory, "/Reply to/sender",	  sens);
+	menu_set_sensitive(ifactory, "/Reply to/mailing list",	  sens);
 	menu_set_sensitive(ifactory, "/Forward",		  TRUE);
 	menu_set_sensitive(ifactory, "/Redirect",		  sens);
 
@@ -1174,7 +1183,7 @@ static void summary_set_menu_sensitive(SummaryView *summaryview)
 	else
 		menu_set_sensitive(ifactory, "/Re-edit", FALSE);
 
-	menu_set_sensitive(ifactory, "/Save as...", sens);
+	menu_set_sensitive(ifactory, "/Save as...", TRUE);
 	menu_set_sensitive(ifactory, "/Print...",   TRUE);
 
 	menu_set_sensitive(ifactory, "/Select all", TRUE);
@@ -1784,7 +1793,7 @@ static void summary_status_show(SummaryView *summaryview)
 	    prefs_common.ng_abbrev_len < strlen(summaryview->folder_item->path)) {
 		gchar *group;
 		group = get_abbrev_newsgroup_name
-			(g_basename(summaryview->folder_item->path));
+			(g_basename(summaryview->folder_item->path), prefs_common.ng_abbrev_len);
 		gtk_label_set(GTK_LABEL(summaryview->statlabel_folder), group);
 		g_free(group);
 	} else {
@@ -2120,6 +2129,8 @@ static void summary_set_ctree_from_list(SummaryView *summaryview,
 
 		g_node_destroy(root);
 
+		folder_update_items_when_required(FALSE);
+
 		summary_thread_init(summaryview);
 	} else {
 		gchar *text[N_SUMMARY_COLS];
@@ -2270,14 +2281,6 @@ static void summary_set_header(SummaryView *summaryview, gchar *text[],
 			_("(No Subject)");
 }
 
-#define CHANGE_FLAGS(msginfo) \
-{ \
-if (msginfo->folder->folder->change_flags != NULL) \
-msginfo->folder->folder->change_flags(msginfo->folder->folder, \
-				      msginfo->folder, \
-				      msginfo); \
-}
-
 static void summary_display_msg(SummaryView *summaryview, GtkCTreeNode *row)
 {
 	summary_display_msg_full(summaryview, row, FALSE, FALSE);
@@ -2311,13 +2314,14 @@ static void summary_display_msg_full(SummaryView *summaryview,
 	g_free(filename);
 
 	if (new_window || !prefs_common.mark_as_read_on_new_window) {
-		if (MSG_IS_NEW(msginfo->flags) && MSG_IS_IGNORE_THREAD(msginfo->flags))
+		if (MSG_IS_NEW(msginfo->flags) && !MSG_IS_IGNORE_THREAD(msginfo->flags))
 			summaryview->newmsgs--;
-		if (MSG_IS_UNREAD(msginfo->flags) && MSG_IS_IGNORE_THREAD(msginfo->flags))
+		if (MSG_IS_UNREAD(msginfo->flags) && !MSG_IS_IGNORE_THREAD(msginfo->flags))
 			summaryview->unread--;
 		if (MSG_IS_NEW(msginfo->flags) || MSG_IS_UNREAD(msginfo->flags)) {
 			procmsg_msginfo_unset_flags
 				(msginfo, MSG_NEW | MSG_UNREAD, 0);
+			folder_update_item(msginfo->folder, FALSE);
 			summary_set_row_marks(summaryview, row);
 			gtk_clist_thaw(GTK_CLIST(ctree));
 			summary_status_show(summaryview);
@@ -2440,6 +2444,12 @@ void summary_step(SummaryView *summaryview, GtkScrollType type)
 
 	gtk_signal_emit_by_name(GTK_OBJECT(ctree), "scroll_vertical",
 				type, 0.0);
+
+	if (GTK_CLIST(ctree)->selection)
+		gtk_sctree_set_anchor_row
+			(GTK_SCTREE(ctree),
+			 GTK_CTREE_NODE(GTK_CLIST(ctree)->selection->data));
+
 }
 
 void summary_toggle_view(SummaryView *summaryview)
@@ -2637,7 +2647,7 @@ static void summary_mark_row(SummaryView *summaryview, GtkCTreeNode *row)
 	if (changed && !prefs_common.immediate_exec) {
 		msginfo->to_folder->op_count--;
 		if (msginfo->to_folder->op_count == 0)
-			folderview_update_item(msginfo->to_folder, 0);
+			folder_update_item(msginfo->to_folder, FALSE);
 	}
 	msginfo->to_folder = NULL;
 	procmsg_msginfo_unset_flags(msginfo, MSG_DELETED, MSG_MOVE | MSG_COPY);
@@ -2667,7 +2677,7 @@ static void summary_lock_row(SummaryView *summaryview, GtkCTreeNode *row)
 	if (changed && !prefs_common.immediate_exec) {
 		msginfo->to_folder->op_count--;
 		if (msginfo->to_folder->op_count == 0)
-			folderview_update_item(msginfo->to_folder, 0);
+			folder_update_item(msginfo->to_folder, FALSE);
 	}
 	msginfo->to_folder = NULL;
 	procmsg_msginfo_unset_flags(msginfo, MSG_DELETED, MSG_MOVE | MSG_COPY);
@@ -2718,6 +2728,7 @@ void summary_mark_as_read(SummaryView *summaryview)
 	for (cur = GTK_CLIST(ctree)->selection; cur != NULL; cur = cur->next)
 		summary_mark_row_as_read(summaryview,
 					 GTK_CTREE_NODE(cur->data));
+	folder_update_items_when_required(FALSE);
 
 	summary_status_show(summaryview);
 }
@@ -2738,6 +2749,7 @@ void summary_mark_all_read(SummaryView *summaryview)
 			summary_set_row_marks(summaryview, node);
 	}
 	gtk_clist_thaw(clist);
+	folder_update_items_when_required(FALSE);
 
 	summary_status_show(summaryview);
 }
@@ -2774,6 +2786,7 @@ void summary_mark_as_unread(SummaryView *summaryview)
 	for (cur = GTK_CLIST(ctree)->selection; cur != NULL; cur = cur->next)
 		summary_mark_row_as_unread(summaryview,
 					   GTK_CTREE_NODE(cur->data));
+	folder_update_items_when_required(FALSE);
 
 	summary_status_show(summaryview);
 }
@@ -2853,7 +2866,7 @@ static void summary_delete_row(SummaryView *summaryview, GtkCTreeNode *row)
 	if (changed && !prefs_common.immediate_exec) {
 		msginfo->to_folder->op_count--;
 		if (msginfo->to_folder->op_count == 0)
-			folderview_update_item(msginfo->to_folder, 0);
+			folder_update_item(msginfo->to_folder, FALSE);
 	}
 	msginfo->to_folder = NULL;
 	procmsg_msginfo_unset_flags(msginfo, MSG_MARKED, MSG_MOVE | MSG_COPY);
@@ -3009,7 +3022,7 @@ static void summary_unmark_row(SummaryView *summaryview, GtkCTreeNode *row)
 	if (changed && !prefs_common.immediate_exec) {
 		msginfo->to_folder->op_count--;
 		if (msginfo->to_folder->op_count == 0)
-			folderview_update_item(msginfo->to_folder, 0);
+			folder_update_item(msginfo->to_folder, FALSE);
 	}
 	msginfo->to_folder = NULL;
 	procmsg_msginfo_unset_flags(msginfo, MSG_MARKED | MSG_DELETED, MSG_MOVE | MSG_COPY);
@@ -3044,7 +3057,7 @@ static void summary_move_row_to(SummaryView *summaryview, GtkCTreeNode *row,
 		if (!prefs_common.immediate_exec) {
 			msginfo->to_folder->op_count--;
 			if (msginfo->to_folder->op_count == 0) {
-				folderview_update_item(msginfo->to_folder, 0);
+				folder_update_item(msginfo->to_folder, FALSE);
 				changed = TRUE;
 			}
 		}
@@ -3068,7 +3081,7 @@ static void summary_move_row_to(SummaryView *summaryview, GtkCTreeNode *row,
 		if (changed) {
 			msginfo->to_folder->op_count++;
 			if (msginfo->to_folder->op_count == 1)
-				folderview_update_item(msginfo->to_folder, 0);
+				folder_update_item(msginfo->to_folder, FALSE);
 		}
 	}
 
@@ -3103,8 +3116,16 @@ void summary_move_selected_to(SummaryView *summaryview, FolderItem *to_folder)
 	else {
 		summary_status_show(summaryview);
 
-		folderview_update_item(to_folder, 0);
+		folder_update_item(to_folder, FALSE);
 	}
+	
+	if (!summaryview->selected) { /* this was the last message */
+		GtkCTreeNode *node = gtk_ctree_node_nth (GTK_CTREE(summaryview->ctree), 
+							 GTK_CLIST(summaryview->ctree)->rows - 1);
+		if (node)
+			summary_select_node(summaryview, node, TRUE, TRUE);
+	}
+
 }
 
 void summary_move_to(SummaryView *summaryview)
@@ -3133,7 +3154,7 @@ static void summary_copy_row_to(SummaryView *summaryview, GtkCTreeNode *row,
 		if (!prefs_common.immediate_exec) {
 			msginfo->to_folder->op_count--;
 			if (msginfo->to_folder->op_count == 0) {
-				folderview_update_item(msginfo->to_folder, 0);
+				folder_update_item(msginfo->to_folder, FALSE);
 				changed = TRUE;
 			}
 		}
@@ -3157,7 +3178,7 @@ static void summary_copy_row_to(SummaryView *summaryview, GtkCTreeNode *row,
 		if (changed) {
 			msginfo->to_folder->op_count++;
 			if (msginfo->to_folder->op_count == 1)
-				folderview_update_item(msginfo->to_folder, 0);
+				folder_update_item(msginfo->to_folder, FALSE);
 		}
 	}
 
@@ -3192,7 +3213,7 @@ void summary_copy_selected_to(SummaryView *summaryview, FolderItem *to_folder)
 	else {
 		summary_status_show(summaryview);
 
-		folderview_update_item(to_folder, 0);
+		folder_update_item(to_folder, FALSE);
 	}
 }
 
@@ -3271,6 +3292,8 @@ void summary_save_as(SummaryView *summaryview)
 	gchar *filename = NULL;
 	gchar *src, *dest;
 
+	AlertValue aval;
+
 	if (!summaryview->selected) return;
 	msginfo = gtk_ctree_node_get_row_data(ctree, summaryview->selected);
 	if (!msginfo) return;
@@ -3282,20 +3305,41 @@ void summary_save_as(SummaryView *summaryview)
 	dest = filesel_select_file(_("Save as"), filename);
 	if (!dest) return;
 	if (is_file_exist(dest)) {
-		AlertValue aval;
-
-		aval = alertpanel(_("Overwrite"),
-				  _("Overwrite existing file?"),
-				  _("OK"), _("Cancel"), NULL);
-		if (G_ALERTDEFAULT != aval) return;
+		aval = alertpanel(_("Append or Overwrite"),
+				  _("Append or overwrite existing file?"),
+				  _("Append"), _("Overwrite"), _("Cancel"));
+		if (aval!=0 && aval!=1) return;
 	}
 
 	src = procmsg_get_message_file(msginfo);
-	if (copy_file(src, dest, TRUE) < 0) {
-		alertpanel_error(_("Can't save the file `%s'."),
-				 g_basename(dest));
+	if ( aval==0 ) { /* append */
+		if (append_file(src, dest, TRUE) < 0) 
+			alertpanel_error(_("Can't save the file `%s'."),
+					 g_basename(dest));
+	} else { /* overwrite */
+		if (copy_file(src, dest, TRUE) < 0)
+			alertpanel_error(_("Can't save the file `%s'."),
+					 g_basename(dest));
 	}
 	g_free(src);
+
+	
+	/*
+	 * If two or more msgs are selected,
+	 * append them to the output file.
+	 */
+	if (GTK_CLIST(ctree)->selection->next) {
+		GList *item;
+		for (item = GTK_CLIST(ctree)->selection->next; item != NULL; item=item->next) {
+			msginfo = gtk_ctree_node_get_row_data(ctree, (GtkCTreeNode*)item->data);
+			if (!msginfo) break;
+			src = procmsg_get_message_file(msginfo);
+			if (append_file(src, dest, TRUE) < 0)
+				alertpanel_error(_("Can't save the file `%s'."),
+						 g_basename(dest));
+		}
+		g_free(src);
+	}
 }
 
 void summary_print(SummaryView *summaryview)
@@ -3396,8 +3440,6 @@ static void summary_execute_move(SummaryView *summaryview)
 	GtkCTree *ctree = GTK_CTREE(summaryview->ctree);
 	GSList *cur;
 
-	summaryview->folder_table = g_hash_table_new(NULL, NULL);
-
 	/* search moving messages and execute */
 	gtk_ctree_pre_recursive(ctree, NULL, summary_execute_move_func,
 				summaryview);
@@ -3405,7 +3447,7 @@ static void summary_execute_move(SummaryView *summaryview)
 	if (summaryview->mlist) {
 		procmsg_move_messages(summaryview->mlist);
 
-		folderview_update_item_foreach(summaryview->folder_table, FALSE);
+		folder_update_items_when_required(FALSE);
 
 		for (cur = summaryview->mlist; cur != NULL; cur = cur->next)
 			procmsg_msginfo_free((MsgInfo *)cur->data);
@@ -3413,9 +3455,7 @@ static void summary_execute_move(SummaryView *summaryview)
 		summaryview->mlist = NULL;
 	}
 
-	folderview_update_item(summaryview->folder_item, FALSE);
-	g_hash_table_destroy(summaryview->folder_table);
-	summaryview->folder_table = NULL;
+	folder_update_item(summaryview->folder_item, FALSE);
 }
 
 static void summary_execute_move_func(GtkCTree *ctree, GtkCTreeNode *node,
@@ -3430,9 +3470,6 @@ static void summary_execute_move_func(GtkCTree *ctree, GtkCTreeNode *node,
 		if (!prefs_common.immediate_exec &&
 		    msginfo->to_folder->op_count > 0)
                 	msginfo->to_folder->op_count--;
-
-		g_hash_table_insert(summaryview->folder_table,
-				    msginfo->to_folder, GINT_TO_POINTER(1));
 
 		summaryview->mlist =
 			g_slist_append(summaryview->mlist, msginfo);
@@ -3450,8 +3487,6 @@ static void summary_execute_copy(SummaryView *summaryview)
 {
 	GtkCTree *ctree = GTK_CTREE(summaryview->ctree);
 
-	summaryview->folder_table = g_hash_table_new(NULL, NULL);
-
 	/* search copying messages and execute */
 	gtk_ctree_pre_recursive(ctree, NULL, summary_execute_copy_func,
 				summaryview);
@@ -3459,15 +3494,11 @@ static void summary_execute_copy(SummaryView *summaryview)
 	if (summaryview->mlist) {
 		procmsg_copy_messages(summaryview->mlist);
 
-		/* folder_item_scan_foreach(summaryview->folder_table); */
-		folderview_update_item_foreach(summaryview->folder_table, FALSE);
+		folder_update_items_when_required(FALSE);
 
 		g_slist_free(summaryview->mlist);
 		summaryview->mlist = NULL;
 	}
-
-	g_hash_table_destroy(summaryview->folder_table);
-	summaryview->folder_table = NULL;
 }
 
 static void summary_execute_copy_func(GtkCTree *ctree, GtkCTreeNode *node,
@@ -3482,9 +3513,6 @@ static void summary_execute_copy_func(GtkCTree *ctree, GtkCTreeNode *node,
 		if (!prefs_common.immediate_exec &&
 		    msginfo->to_folder->op_count > 0)
                 	msginfo->to_folder->op_count--;
-
-		g_hash_table_insert(summaryview->folder_table,
-				    msginfo->to_folder, GINT_TO_POINTER(1));
 
 		summaryview->mlist =
 			g_slist_append(summaryview->mlist, msginfo);
@@ -3524,9 +3552,9 @@ static void summary_execute_delete(SummaryView *summaryview)
 	summaryview->mlist = NULL;
 
 	if ((summaryview->folder_item != trash) && (trash != NULL)) {
-		folderview_update_item(trash, FALSE);
+		folder_update_item(trash, FALSE);
 	}
-	folderview_update_item(summaryview->folder_item, FALSE);
+	folder_update_item(summaryview->folder_item, FALSE);
 }
 
 static void summary_execute_delete_func(GtkCTree *ctree, GtkCTreeNode *node,
@@ -3787,7 +3815,7 @@ void summary_collapse_threads(SummaryView *summaryview)
 
 void summary_filter(SummaryView *summaryview)
 {
-	if (!prefs_common.fltlist && !global_processing) {
+	if (!global_processing) {
 		alertpanel_error(_("No filter rules defined."));
 		return;
 	}
@@ -3815,19 +3843,13 @@ void summary_filter(SummaryView *summaryview)
 			summary_status_show(summaryview);
 	}
 	else {
-		summaryview->folder_table = g_hash_table_new(NULL, NULL);
-
 		gtk_ctree_pre_recursive(GTK_CTREE(summaryview->ctree), NULL,
 					GTK_CTREE_FUNC(summary_filter_func),
 					summaryview);
 
 		gtk_clist_thaw(GTK_CLIST(summaryview->ctree));
 
-		/* folder_item_scan_foreach(summaryview->folder_table); */
-		folderview_update_item_foreach(summaryview->folder_table, FALSE);
-
-		g_hash_table_destroy(summaryview->folder_table);
-		summaryview->folder_table = NULL;
+		folder_update_items_when_required(FALSE);
 	}
 
 	debug_print("done.\n");
@@ -3853,17 +3875,7 @@ static void summary_filter_func(GtkCTree *ctree, GtkCTreeNode *node,
 	gchar *file;
 	FolderItem *dest;
 
-	if (global_processing == NULL) {
-		/* old filtering */
-		file = procmsg_get_message_file(msginfo);
-		dest = filter_get_dest_folder(prefs_common.fltlist, file);
-		g_free(file);
-
-		if (dest && strcmp2(dest->path, FILTER_NOT_RECEIVE) != 0 &&
-		    summaryview->folder_item != dest)
-			summary_move_row_to(summaryview, node, dest);
-	} else 
-		filter_message_by_msginfo(global_processing, msginfo, summaryview->folder_table);
+	filter_message_by_msginfo(global_processing, msginfo);
 }
 
 void summary_filter_open(SummaryView *summaryview, PrefsFilterType type)
@@ -3911,14 +3923,8 @@ void summary_filter_open(SummaryView *summaryview, PrefsFilterType type)
 					      summaryview->selected);
 	if (!msginfo) return;
 
-	if (global_processing) {
-		header_offset = 1;
-		hentry_offset = 5;
-	}
-	else {
-		header_offset = 0;
-		hentry_offset = 0;
-	}
+	header_offset = 1;
+	hentry_offset = 5;
 
 	switch (type) {
 	case FILTER_BY_NONE:
@@ -3982,10 +3988,7 @@ void summary_filter_open(SummaryView *summaryview, PrefsFilterType type)
 	 * and have set entries. Otherwise we're hosed.  
 	 */
 
-	if (global_processing)
-		prefs_filtering_open(NULL, header, key);
-	else
-		prefs_filter_open(header, key);
+	prefs_filtering_open(NULL, header, key);
 }
 
 void summary_reply(SummaryView *summaryview, ComposeMode mode)
@@ -4011,18 +4014,28 @@ void summary_reply(SummaryView *summaryview, ComposeMode mode)
 	
 	switch (mode) {
 	case COMPOSE_REPLY:
-		compose_reply(msginfo, prefs_common.reply_with_quote,
-			      FALSE, FALSE, text);
+		if (prefs_common.default_reply_list)
+			compose_reply(msginfo, prefs_common.reply_with_quote,
+			    	      FALSE, TRUE, FALSE, text);
+		else
+			compose_reply(msginfo, prefs_common.reply_with_quote,
+				      FALSE, FALSE, FALSE, text);
 		break;
 	case COMPOSE_REPLY_WITH_QUOTE:
-		compose_reply(msginfo, TRUE, FALSE, FALSE, text);
+		if (prefs_common.default_reply_list)
+			compose_reply(msginfo, TRUE, FALSE, TRUE, FALSE, text);
+		else
+			compose_reply(msginfo, TRUE, FALSE, FALSE, FALSE, text);
 		break;
 	case COMPOSE_REPLY_WITHOUT_QUOTE:
-		compose_reply(msginfo, FALSE, FALSE, FALSE, NULL);
+		if (prefs_common.default_reply_list)
+			compose_reply(msginfo, FALSE, FALSE, TRUE, FALSE, NULL);
+		else
+			compose_reply(msginfo, FALSE, FALSE, FALSE, FALSE, NULL);
 		break;
 	case COMPOSE_REPLY_TO_SENDER:
 		compose_reply(msginfo, prefs_common.reply_with_quote,
-			      FALSE, TRUE, text);
+			      FALSE, FALSE, TRUE, text);
 		break;
 	case COMPOSE_FOLLOWUP_AND_REPLY_TO:
 		compose_followup_and_reply_to(msginfo,
@@ -4030,20 +4043,30 @@ void summary_reply(SummaryView *summaryview, ComposeMode mode)
 					      FALSE, TRUE, text);
 		break;
 	case COMPOSE_REPLY_TO_SENDER_WITH_QUOTE:
-		compose_reply(msginfo, TRUE, FALSE, TRUE, text);
+		compose_reply(msginfo, TRUE, FALSE, FALSE, TRUE, text);
 		break;
 	case COMPOSE_REPLY_TO_SENDER_WITHOUT_QUOTE:
-		compose_reply(msginfo, FALSE, FALSE, TRUE, NULL);
+		compose_reply(msginfo, FALSE, FALSE, FALSE, TRUE, NULL);
 		break;
 	case COMPOSE_REPLY_TO_ALL:
 		compose_reply(msginfo, prefs_common.reply_with_quote,
-			      TRUE, FALSE, text);
+			      TRUE, FALSE, FALSE, text);
 		break;
 	case COMPOSE_REPLY_TO_ALL_WITH_QUOTE:
-		compose_reply(msginfo, TRUE, TRUE, FALSE, text);
+		compose_reply(msginfo, TRUE, TRUE, FALSE, FALSE, text);
 		break;
 	case COMPOSE_REPLY_TO_ALL_WITHOUT_QUOTE:
-		compose_reply(msginfo, FALSE, TRUE, FALSE, NULL);
+		compose_reply(msginfo, FALSE, TRUE, FALSE, FALSE, NULL);
+		break;
+	case COMPOSE_REPLY_TO_LIST:
+		compose_reply(msginfo, prefs_common.reply_with_quote,
+			      FALSE, TRUE, FALSE, text);
+		break;
+	case COMPOSE_REPLY_TO_LIST_WITH_QUOTE:
+		compose_reply(msginfo, TRUE, FALSE, TRUE, FALSE, text);
+		break;
+	case COMPOSE_REPLY_TO_LIST_WITHOUT_QUOTE:
+		compose_reply(msginfo, FALSE, FALSE, TRUE, FALSE, NULL);
 		break;
 	case COMPOSE_FORWARD:
 		if (prefs_common.forward_as_attachment) {
@@ -4499,7 +4522,7 @@ static void summary_key_pressed(GtkWidget *widget, GdkEventKey *event,
 	if (!summaryview->selected) {
 		node = gtk_ctree_node_nth(ctree, 0);
 		if (node)
-			gtk_ctree_select(ctree, node);
+			gtk_sctree_select(GTK_SCTREE(ctree), node);
 		else
 			return;
 	}
@@ -4996,6 +5019,7 @@ static void news_flag_crosspost(MsgInfo *msginfo)
 			debug_print(" <%s>", (gchar *)value);
 			if (MSG_IS_NEW(msginfo->flags) || MSG_IS_UNREAD(msginfo->flags)) {
 				procmsg_msginfo_unset_flags(msginfo, MSG_NEW | MSG_UNREAD, 0);
+				folder_update_item(msginfo->folder, FALSE);
 				procmsg_msginfo_set_flags(msginfo, mff->account->crosspost_col, 0);
 			}
 			g_hash_table_remove(mff->newsart, key);
@@ -5058,6 +5082,7 @@ static void summary_ignore_thread(SummaryView *summaryview)
 	for (cur = GTK_CLIST(ctree)->selection; cur != NULL; cur = cur->next) {
 		gtk_ctree_pre_recursive(ctree, GTK_CTREE_NODE(cur->data), GTK_CTREE_FUNC(summary_ignore_thread_func), summaryview);
 	}
+	folder_update_items_when_required(FALSE);
 
 	summary_status_show(summaryview);
 }
@@ -5089,6 +5114,7 @@ static void summary_unignore_thread(SummaryView *summaryview)
 	for (cur = GTK_CLIST(ctree)->selection; cur != NULL; cur = cur->next) {
 		gtk_ctree_pre_recursive(ctree, GTK_CTREE_NODE(cur->data), GTK_CTREE_FUNC(summary_unignore_thread_func), summaryview);
 	}
+	folder_update_items_when_required(FALSE);
 
 	summary_status_show(summaryview);
 }
@@ -5203,6 +5229,13 @@ void summary_reflect_prefs_pixmap_theme(SummaryView *summaryview)
 	gtk_box_reorder_child(GTK_BOX(summaryview->hbox), pixmap, 1); /* search_toggle before */
 	gtk_widget_show(pixmap);
 	summaryview->folder_pixmap = pixmap; 
+
+	pixmap = stock_pixmap_widget(summaryview->hbox, STOCK_PIXMAP_QUICKSEARCH);
+	gtk_container_remove (GTK_CONTAINER(summaryview->toggle_search), 
+			      summaryview->quick_search_pixmap);
+	gtk_container_add(GTK_CONTAINER(summaryview->toggle_search), pixmap);
+	gtk_widget_show(pixmap);
+	summaryview->quick_search_pixmap = pixmap;
 
 	folderview_unselect(summaryview->folderview);
 	folderview_select(summaryview->folderview, summaryview->folder_item);

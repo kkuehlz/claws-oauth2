@@ -104,14 +104,18 @@ static void news_delete_expired_caches	 (GSList	*alist,
 static gint news_remove_msg		 (Folder	*folder, 
 					  FolderItem	*item, 
 					  gint		 num);
-GSList *news_get_num_list		 (Folder 	*folder, 
-					  FolderItem 	*item);
+gint news_get_num_list		 	 (Folder 	*folder, 
+					  FolderItem 	*item,
+					  GSList       **list);
 MsgInfo *news_fetch_msginfo		 (Folder 	*folder, 
 					  FolderItem 	*item,
 					  gint 		 num);
 GSList *news_fetch_msginfos		 (Folder 	*folder,
 					  FolderItem 	*item,
 					  GSList 	*msgnum_list);
+
+gint news_post_stream			 (Folder 	*folder, 
+					  FILE 		*fp);
 
 Folder *news_folder_new(const gchar *name, const gchar *path)
 {
@@ -585,7 +589,6 @@ void news_remove_group_list_cache(Folder *folder)
 
 gint news_post(Folder *folder, const gchar *file)
 {
-	NNTPSession *session;
 	FILE *fp;
 	gint ok;
 
@@ -593,23 +596,37 @@ gint news_post(Folder *folder, const gchar *file)
 	g_return_val_if_fail(folder->type == F_NEWS, -1);
 	g_return_val_if_fail(file != NULL, -1);
 
-	session = news_session_get(folder);
-	if (!session) return -1;
-
 	if ((fp = fopen(file, "rb")) == NULL) {
 		FILE_OP_ERROR(file, "fopen");
 		return -1;
 	}
+
+	ok = news_post_stream(folder, fp);
+
+	fclose(fp);
+
+	statusbar_pop_all();
+
+	return ok;
+}
+
+gint news_post_stream(Folder *folder, FILE *fp)
+{
+	NNTPSession *session;
+	gint ok;
+
+	g_return_val_if_fail(folder != NULL, -1);
+	g_return_val_if_fail(folder->type == F_NEWS, -1);
+	g_return_val_if_fail(fp != NULL, -1);
+
+	session = news_session_get(folder);
+	if (!session) return -1;
 
 	ok = nntp_post(session->nntp_sock, fp);
 	if (ok != NN_SUCCESS) {
 		log_warning(_("can't post article.\n"));
 		return -1;
 	}
-
-	fclose(fp);
-
-	statusbar_pop_all();
 
 	return 0;
 }
@@ -640,7 +657,7 @@ static gint news_remove_msg(Folder *folder, FolderItem *item, gint num)
 	gint r;
 
 	dir = folder_item_get_path(item);
-	printf("removing %d in %s\n",num,dir);
+	debug_print("news_remove_msg: removing msg %d in %s\n",num,dir);
 	r = remove_numbered_files(dir, num, num);
 	g_free(dir);
 
@@ -1031,35 +1048,42 @@ gint news_cancel_article(Folder * folder, MsgInfo * msginfo)
 	return 0;
 }
 
-GSList *news_get_num_list(Folder *folder, FolderItem *item)
+gint news_get_num_list(Folder *folder, FolderItem *item, GSList **msgnum_list)
 {
 	NNTPSession *session;
-	gint i, ok, num, first, last;
-	GSList *msgnum_list = NULL;
+	gint i, ok, num, first, last, nummsgs = 0;
+	gchar *dir;
+
+	g_return_val_if_fail(item != NULL, -1);
+	g_return_val_if_fail(item->folder != NULL, -1);
+	g_return_val_if_fail(item->folder->type == F_NEWS, -1);
 
 	session = news_session_get(folder);
-	g_return_val_if_fail(session != NULL, NULL);
-	g_return_val_if_fail(item != NULL, NULL);
-	g_return_val_if_fail(item->folder != NULL, NULL);
-	g_return_val_if_fail(item->folder->type == F_NEWS, NULL);
+	g_return_val_if_fail(session != NULL, -1);
 
 	ok = news_select_group(session, item->path, &num, &first, &last);
 	if (ok != NN_SUCCESS) {
 		log_warning(_("can't set group: %s\n"), item->path);
-		return NULL;
+		return -1;
 	}
 
 	if(last < first) {
 		log_warning(_("invalid article range: %d - %d\n"),
 			    first, last);
-		return NULL;
+		return 0;
 	}
 
 	for(i = first; i <= last; i++) {
-		msgnum_list = g_slist_prepend(msgnum_list, GINT_TO_POINTER(i));
+		*msgnum_list = g_slist_prepend(*msgnum_list, GINT_TO_POINTER(i));
+		nummsgs++;
 	}
 
-	return msgnum_list;
+	dir = folder_item_get_path(item);
+	debug_print("removing old messages from %d to %d in %s\n", first, last, dir);
+	remove_numbered_files(dir, 1, first - 1);
+	g_free(dir);
+
+	return nummsgs;
 }
 
 #define READ_TO_LISTEND(hdr) \

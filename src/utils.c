@@ -1249,24 +1249,27 @@ gchar **strsplit_with_quote(const gchar *str, const gchar *delim,
 	return str_array;
 }
 
-gchar *get_abbrev_newsgroup_name(const gchar *group)
+gchar *get_abbrev_newsgroup_name(const gchar *group, gint len)
 {
 	gchar *abbrev_group;
 	gchar *ap;
 	const gchar *p = group;
+	gint  count = 0;
 
 	abbrev_group = ap = g_malloc(strlen(group) + 1);
 
 	while (*p) {
 		while (*p == '.')
 			*ap++ = *p++;
-		if (strchr(p, '.')) {
+
+		if ((strlen( p) + count) > len && strchr(p, '.')) {
 			*ap++ = *p++;
 			while (*p != '.') p++;
 		} else {
-			strcpy(ap, p);
+			strcpy( ap, p);
 			return abbrev_group;
 		}
+		count = count + 2;
 	}
 
 	*ap = '\0';
@@ -1347,6 +1350,63 @@ GList *uri_list_extract_filenames(const gchar *uri_list)
 	} else { \
 		val = 0; \
 	} \
+}
+
+gint scan_mailto_url(const gchar *mailto, gchar **to, gchar **cc, gchar **bcc,
+		     gchar **subject, gchar **body)
+{
+	gchar *tmp_mailto;
+	gchar *p;
+
+	Xstrdup_a(tmp_mailto, mailto, return -1);
+
+	if (!strncmp(tmp_mailto, "mailto:", 7))
+		tmp_mailto += 7;
+
+	p = strchr(tmp_mailto, '?');
+	if (p) {
+		*p = '\0';
+		p++;
+	}
+
+	if (to && !*to)
+		*to = g_strdup(tmp_mailto);
+
+	while (p) {
+		gchar *field, *value;
+
+		field = p;
+
+		p = strchr(p, '=');
+		if (!p) break;
+		*p = '\0';
+		p++;
+
+		value = p;
+
+		p = strchr(p, '&');
+		if (p) {
+			*p = '\0';
+			p++;
+		}
+
+		if (*value == '\0') continue;
+
+		if (cc && !*cc && !g_strcasecmp(field, "cc")) {
+			*cc = g_strdup(value);
+		} else if (bcc && !*bcc && !g_strcasecmp(field, "bcc")) {
+			*bcc = g_strdup(value);
+		} else if (subject && !*subject &&
+			   !g_strcasecmp(field, "subject")) {
+			*subject = g_malloc(strlen(value) + 1);
+			decode_uri(*subject, value);
+		} else if (body && !*body && !g_strcasecmp(field, "body")) {
+			*body = g_malloc(strlen(value) + 1);
+			decode_uri(*body, value);
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -1770,6 +1830,51 @@ gint remove_numbered_files(const gchar *dir, guint first, guint last)
 	return 0;
 }
 
+gint remove_numbered_files_not_in_list(const gchar *dir, GSList *numberlist)
+{
+	DIR *dp;
+	struct dirent *d;
+	gchar *prev_dir;
+	gint fileno;
+
+	prev_dir = g_get_current_dir();
+
+	if (chdir(dir) < 0) {
+		FILE_OP_ERROR(dir, "chdir");
+		g_free(prev_dir);
+		return -1;
+	}
+
+	if ((dp = opendir(".")) == NULL) {
+		FILE_OP_ERROR(dir, "opendir");
+		g_free(prev_dir);
+		return -1;
+	}
+
+	while ((d = readdir(dp)) != NULL) {
+		fileno = to_number(d->d_name);
+		if (fileno >= 0 && (g_slist_find(numberlist, GINT_TO_POINTER(fileno)) == NULL)) {
+			debug_print("removing unwanted file %d from %s\n", fileno, dir);
+			if (is_dir_exist(d->d_name))
+				continue;
+			if (unlink(d->d_name) < 0)
+				FILE_OP_ERROR(d->d_name, "unlink");
+		}
+	}
+
+	closedir(dp);
+
+	if (chdir(prev_dir) < 0) {
+		FILE_OP_ERROR(prev_dir, "chdir");
+		g_free(prev_dir);
+		return -1;
+	}
+
+	g_free(prev_dir);
+
+	return 0;
+}
+
 gint remove_all_numbered_files(const gchar *dir)
 {
 	return remove_numbered_files(dir, 0, UINT_MAX);
@@ -1999,6 +2104,65 @@ gint copy_file(const gchar *src, const gchar *dest)
 	return 0;
 }
 #endif
+
+
+/*
+ * Append src file body to the tail of dest file.
+ * Now keep_backup has no effects.
+ */
+gint append_file(const gchar *src, const gchar *dest, gboolean keep_backup)
+{
+	FILE *src_fp, *dest_fp;
+	gint n_read;
+	gchar buf[BUFSIZ];
+
+	gboolean err = FALSE;
+
+	if ((src_fp = fopen(src, "rb")) == NULL) {
+		FILE_OP_ERROR(src, "fopen");
+		return -1;
+	}
+	
+	if ((dest_fp = fopen(dest, "ab")) == NULL) {
+		FILE_OP_ERROR(dest, "fopen");
+		fclose(src_fp);
+		return -1;
+	}
+
+	if (change_file_mode_rw(dest_fp, dest) < 0) {
+		FILE_OP_ERROR(dest, "chmod");
+		g_warning(_("can't change file mode\n"));
+	}
+
+	while ((n_read = fread(buf, sizeof(gchar), sizeof(buf), src_fp)) > 0) {
+		if (n_read < sizeof(buf) && ferror(src_fp))
+			break;
+		if (fwrite(buf, n_read, 1, dest_fp) < 1) {
+			g_warning(_("writing to %s failed.\n"), dest);
+			fclose(dest_fp);
+			fclose(src_fp);
+			unlink(dest);
+			return -1;
+		}
+	}
+
+	if (ferror(src_fp)) {
+		FILE_OP_ERROR(src, "fread");
+		err = TRUE;
+	}
+	fclose(src_fp);
+	if (fclose(dest_fp) == EOF) {
+		FILE_OP_ERROR(dest, "fclose");
+		err = TRUE;
+	}
+
+	if (err) {
+		unlink(dest);
+		return -1;
+	}
+
+	return 0;
+}
 
 gint copy_file(const gchar *src, const gchar *dest, gboolean keep_backup)
 {

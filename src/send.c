@@ -50,6 +50,8 @@
 #include "procheader.h"
 #include "utils.h"
 #include "gtkutils.h"
+#include "statusbar.h"
+#include "inc.h"
 
 typedef struct _SendProgressDialog	SendProgressDialog;
 
@@ -119,13 +121,14 @@ gint send_message_queue(const gchar *file)
 				       {"AID:", NULL, FALSE},
 				       {NULL,   NULL, FALSE}};
 	FILE *fp;
-	gint val;
+	gint val = 0;
 	gchar *from = NULL;
 	gchar *server = NULL;
 	GSList *to_list = NULL;
 	gchar buf[BUFFSIZE];
 	gint hnum;
-	PrefsAccount *ac = NULL;
+	glong fpos;
+	PrefsAccount *ac = NULL, *mailac = NULL, *newsac = NULL;
 
 	g_return_val_if_fail(file != NULL, -1);
 
@@ -156,36 +159,59 @@ gint send_message_queue(const gchar *file)
 		}
 	}
 
-	if (!to_list || !from) {
+	if (((!ac || (ac && ac->protocol != A_NNTP)) && !to_list) || !from) {
 		g_warning(_("Queued message header is broken.\n"));
 		val = -1;
-	} else if (ac && ac->use_mail_command && ac->mail_command &&
-		   (*ac->mail_command)) {
-		val = send_message_local(ac->mail_command, fp);
 	} else if (prefs_common.use_extsend && prefs_common.extsend_cmd) {
 		val = send_message_local(prefs_common.extsend_cmd, fp);
 	} else {
-		if (!ac) {
+		if (ac && ac->protocol == A_NNTP) {
+			newsac = ac;
+
+			/* search mail account */
+			mailac = account_find_from_address(from);
+			if (!mailac) {
+				if (cur_account &&
+				    cur_account->protocol != A_NNTP)
+					mailac = cur_account;
+				else {
+					mailac = account_get_default();
+					if (mailac->protocol == A_NNTP)
+						mailac = NULL;
+				}
+			}
+		} else if (ac) {
+			mailac = ac;
+		} else {
 			ac = account_find_from_smtp_server(from, server);
 			if (!ac) {
 				g_warning(_("Account not found. "
 					    "Using current account...\n"));
 				ac = cur_account;
+				if (ac && ac->protocol != A_NNTP)
+					mailac = ac;
 			}
 		}
 
-		if (ac)
-			val = send_message_smtp(ac, to_list, fp);
-		else {
-			PrefsAccount tmp_ac;
+		fpos = ftell(fp);
+		if (to_list) {
+			if (mailac)
+				val = send_message_smtp(mailac, to_list, fp);
+			else {
+				PrefsAccount tmp_ac;
 
-			g_warning(_("Account not found.\n"));
+				g_warning(_("Account not found.\n"));
 
-			memset(&tmp_ac, 0, sizeof(PrefsAccount));
-			tmp_ac.address = from;
-			tmp_ac.smtp_server = server;
-			tmp_ac.smtpport = SMTP_PORT;
-			val = send_message_smtp(&tmp_ac, to_list, fp);
+				memset(&tmp_ac, 0, sizeof(PrefsAccount));
+				tmp_ac.address = from;
+				tmp_ac.smtp_server = server;
+				tmp_ac.smtpport = SMTP_PORT;
+				val = send_message_smtp(&tmp_ac, to_list, fp);
+			}
+		}
+		if (val == 0 && newsac) {
+			fseek(fp, fpos, SEEK_SET);
+			val = news_post_stream(FOLDER(newsac->folder), fp);
 		}
 	}
 
@@ -363,7 +389,7 @@ gint send_message_smtp(PrefsAccount *ac_prefs, GSList *to_list,
 	    && (ac_prefs->protocol == A_APOP || ac_prefs->protocol == A_POP3)
 	    && (time(NULL) - ac_prefs->last_pop_login_time) > (60 * ac_prefs->pop_before_smtp_timeout)) {
 		g_snprintf(buf, sizeof(buf), _("Doing POP before SMTP..."));
-		log_message("%s\n", buf);
+		statusbar_puts_all(buf);
 		progress_dialog_set_label(dialog->dialog, buf);
 		gtk_clist_set_text(clist, 0, 2, _("POP before SMTP"));
 		GTK_EVENTS_FLUSH();
@@ -390,6 +416,7 @@ gint send_message_smtp(PrefsAccount *ac_prefs, GSList *to_list,
 #endif
 
 	progress_dialog_set_label(dialog->dialog, _("Sending MAIL FROM..."));
+	statusbar_puts_all(_("Sending MAIL FROM..."));
 	gtk_clist_set_text(clist, 0, 2, _("Sending"));
 	GTK_EVENTS_FLUSH();
 
@@ -399,6 +426,7 @@ gint send_message_smtp(PrefsAccount *ac_prefs, GSList *to_list,
 		 "sending MAIL FROM");
 
 	progress_dialog_set_label(dialog->dialog, _("Sending RCPT TO..."));
+	statusbar_puts_all(_("Sending RCPT TO..."));
 	GTK_EVENTS_FLUSH();
 
 	for (cur = to_list; cur != NULL; cur = cur->next)
@@ -406,6 +434,7 @@ gint send_message_smtp(PrefsAccount *ac_prefs, GSList *to_list,
 				   "sending RCPT TO");
 
 	progress_dialog_set_label(dialog->dialog, _("Sending DATA..."));
+	statusbar_puts_all(_("Sending DATA..."));
 	GTK_EVENTS_FLUSH();
 
 	SEND_EXIT_IF_NOTOK(smtp_data(session->sock), "sending DATA");
@@ -416,10 +445,13 @@ gint send_message_smtp(PrefsAccount *ac_prefs, GSList *to_list,
 		 "sending data");
 
 	progress_dialog_set_label(dialog->dialog, _("Quitting..."));
+	statusbar_puts_all(_("Quitting..."));
 	GTK_EVENTS_FLUSH();
 
 	SEND_EXIT_IF_NOTOK(smtp_eom(session->sock), "terminating data");
 	SEND_EXIT_IF_NOTOK(smtp_quit(session->sock), "sending QUIT");
+
+	statusbar_pop_all();
 
 	session_destroy(session);
 	send_progress_dialog_destroy(dialog);
@@ -451,6 +483,7 @@ gint send_message_smtp(PrefsAccount *ac_prefs, GSList *to_list,
 			   _("Sending message (%d / %d bytes)"), \
 			   bytes, size); \
 		progress_dialog_set_label(dialog->dialog, str); \
+		statusbar_puts_all(str); \
 		progress_dialog_set_percentage \
 			(dialog->dialog, (gfloat)bytes / (gfloat)size); \
 		GTK_EVENTS_FLUSH(); \
@@ -545,8 +578,10 @@ static SendProgressDialog *send_progress_dialog_create(void)
 
 	progress_dialog_set_value(progress, 0.0);
 
-	gtk_widget_show_now(progress->window);
-
+	if (prefs_common.send_dialog_mode == SEND_DIALOG_ALWAYS) {
+		gtk_widget_show_now(progress->window);
+	}
+	
 	dialog->dialog = progress;
 	dialog->queue_list = NULL;
 	dialog->cancelled = FALSE;
@@ -557,8 +592,9 @@ static SendProgressDialog *send_progress_dialog_create(void)
 static void send_progress_dialog_destroy(SendProgressDialog *dialog)
 {
 	g_return_if_fail(dialog != NULL);
-
-	progress_dialog_destroy(dialog->dialog);
+	if (prefs_common.send_dialog_mode == SEND_DIALOG_ALWAYS) {
+		progress_dialog_destroy(dialog->dialog);
+	}
 	g_free(dialog);
 }
 

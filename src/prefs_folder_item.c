@@ -39,6 +39,7 @@
 #include "addr_compl.h"
 #include "prefs_scoring.h"
 #include "gtkutils.h"
+#include "filtering.h"
 
 PrefsFolderItem tmp_prefs;
 
@@ -51,6 +52,8 @@ struct PrefsFolderItemDialog
 	GtkWidget *checkbtn_save_copy_to_folder;
 	GtkWidget *checkbtn_default_to;
 	GtkWidget *entry_default_to;
+	GtkWidget *checkbtn_default_reply_to;
+	GtkWidget *entry_default_reply_to;
 	GtkWidget *checkbtn_simplify_subject;
 	GtkWidget *entry_simplify_subject;
 	GtkWidget *checkbtn_folder_chmod;
@@ -80,7 +83,7 @@ static PrefParam param[] = {
 	 NULL, NULL, NULL},
 	/*{"enable_thread", "TRUE", &tmp_prefs.enable_thread, P_BOOL,
 	 NULL, NULL, NULL},*/
-	{"kill_score", "-9999", &tmp_prefs.kill_score, P_INT,
+	{"hide_score", "-9999", &tmp_prefs.kill_score, P_INT,
 	 NULL, NULL, NULL},
 	{"important_score", "1", &tmp_prefs.important_score, P_INT,
 	 NULL, NULL, NULL},
@@ -90,6 +93,10 @@ static PrefParam param[] = {
 	{"enable_default_to", "", &tmp_prefs.enable_default_to, P_BOOL,
 	 NULL, NULL, NULL},
 	{"default_to", "", &tmp_prefs.default_to, P_STRING,
+	 NULL, NULL, NULL},
+	{"enable_default_reply_to", "", &tmp_prefs.enable_default_reply_to, P_BOOL,
+	 NULL, NULL, NULL},
+	{"default_reply_to", "", &tmp_prefs.default_reply_to, P_STRING,
 	 NULL, NULL, NULL},
 	{"enable_simplify_subject", "", &tmp_prefs.enable_simplify_subject, P_BOOL,
 	 NULL, NULL, NULL},
@@ -206,6 +213,8 @@ PrefsFolderItem * prefs_folder_item_new(void)
 	tmp_prefs.request_return_receipt = FALSE;
 	tmp_prefs.enable_default_to = FALSE;
 	tmp_prefs.default_to = NULL;
+	tmp_prefs.enable_default_reply_to = FALSE;
+	tmp_prefs.default_reply_to = NULL;
 	tmp_prefs.enable_simplify_subject = FALSE;
 	tmp_prefs.simplify_subject_regexp = NULL;
 	tmp_prefs.enable_folder_chmod = FALSE;
@@ -227,6 +236,8 @@ void prefs_folder_item_free(PrefsFolderItem * prefs)
 {
 	if (prefs->default_to) 
 		g_free(prefs->default_to);
+	if (prefs->default_reply_to) 
+		g_free(prefs->default_reply_to);
 	if (prefs->scoring != NULL)
 		prefs_scoring_free(prefs->scoring);
 	g_free(prefs);
@@ -266,6 +277,8 @@ void prefs_folder_item_create(void *folderview, FolderItem *item)
 	GtkWidget *checkbtn_save_copy_to_folder;
 	GtkWidget *checkbtn_default_to;
 	GtkWidget *entry_default_to;
+	GtkWidget *checkbtn_default_reply_to;
+	GtkWidget *entry_default_reply_to;
 	GtkWidget *checkbtn_simplify_subject;
 	GtkWidget *entry_simplify_subject;
 	GtkWidget *checkbtn_folder_chmod;
@@ -291,7 +304,7 @@ void prefs_folder_item_create(void *folderview, FolderItem *item)
 	/* Window */
 	window = gtk_window_new (GTK_WINDOW_DIALOG);
 	gtk_window_set_title (GTK_WINDOW(window),
-			      _("Folder Property"));
+			      _("Folder Properties"));
 	gtk_container_set_border_width (GTK_CONTAINER (window), 8);
 	gtk_window_position (GTK_WINDOW (window), GTK_WIN_POS_CENTER);
 	gtk_window_set_policy (GTK_WINDOW (window), FALSE, TRUE, FALSE);
@@ -308,7 +321,7 @@ void prefs_folder_item_create(void *folderview, FolderItem *item)
 
 	/* Label */
 	folder_identifier = folder_item_get_identifier(item);
-	infotext = g_strconcat(_("Folder Property for "), folder_identifier, NULL);
+	infotext = g_strconcat(_("Folder Properties for "), folder_identifier, NULL);
 	infolabel = gtk_label_new(infotext);
 	gtk_table_attach(GTK_TABLE(table), infolabel, 0, 2, rowcount, 
 			 rowcount + 1, GTK_SHRINK | GTK_FILL, GTK_SHRINK, 0, 0);
@@ -352,6 +365,23 @@ void prefs_folder_item_create(void *folderview, FolderItem *item)
 	SET_TOGGLE_SENSITIVITY(checkbtn_default_to, entry_default_to);
 	gtk_entry_set_text(GTK_ENTRY(entry_default_to), SAFE_STRING(item->prefs->default_to));
 	address_completion_register_entry(GTK_ENTRY(entry_default_to));
+
+	rowcount++;
+
+	/* Default Reply-To */
+	checkbtn_default_reply_to = gtk_check_button_new_with_label(_("Default Reply-To: "));
+	gtk_widget_show(checkbtn_default_reply_to);
+	gtk_table_attach(GTK_TABLE(table), checkbtn_default_reply_to, 0, 1, 
+			 rowcount, rowcount + 1, GTK_SHRINK | GTK_FILL, GTK_SHRINK, 0, 0);
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbtn_default_reply_to), 
+				     item->prefs->enable_default_reply_to);
+
+	entry_default_reply_to = gtk_entry_new();
+	gtk_widget_show(entry_default_reply_to);
+	gtk_table_attach_defaults(GTK_TABLE(table), entry_default_reply_to, 1, 2, rowcount, rowcount + 1);
+	SET_TOGGLE_SENSITIVITY(checkbtn_default_reply_to, entry_default_reply_to);
+	gtk_entry_set_text(GTK_ENTRY(entry_default_reply_to), SAFE_STRING(item->prefs->default_reply_to));
+	address_completion_register_entry(GTK_ENTRY(entry_default_reply_to));
 
 	rowcount++;
 
@@ -482,6 +512,8 @@ void prefs_folder_item_create(void *folderview, FolderItem *item)
 	dialog->checkbtn_save_copy_to_folder = checkbtn_save_copy_to_folder;
 	dialog->checkbtn_default_to = checkbtn_default_to;
 	dialog->entry_default_to = entry_default_to;
+	dialog->checkbtn_default_reply_to = checkbtn_default_reply_to;
+	dialog->entry_default_reply_to = entry_default_reply_to;
 	dialog->checkbtn_simplify_subject = checkbtn_simplify_subject;
 	dialog->entry_simplify_subject = entry_simplify_subject;
 	dialog->checkbtn_folder_chmod = checkbtn_folder_chmod;
@@ -501,6 +533,7 @@ void prefs_folder_item_create(void *folderview, FolderItem *item)
 void prefs_folder_item_destroy(struct PrefsFolderItemDialog *dialog) 
 {
 	address_completion_unregister_entry(GTK_ENTRY(dialog->entry_default_to));
+	address_completion_unregister_entry(GTK_ENTRY(dialog->entry_default_reply_to));
 	address_completion_end(dialog->window);
 	gtk_widget_destroy(dialog->window);
 	g_free(dialog);
@@ -547,6 +580,12 @@ void prefs_folder_item_ok_cb(GtkWidget *widget,
 	prefs->default_to = 
 	    gtk_editable_get_chars(GTK_EDITABLE(dialog->entry_default_to), 0, -1);
 
+	prefs->enable_default_reply_to = 
+	    gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialog->checkbtn_default_reply_to));
+	g_free(prefs->default_reply_to);
+	prefs->default_reply_to = 
+	    gtk_editable_get_chars(GTK_EDITABLE(dialog->entry_default_reply_to), 0, -1);
+
 	prefs->enable_simplify_subject =
 	    gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialog->checkbtn_simplify_subject));
 	prefs->simplify_subject_regexp = 
@@ -574,7 +613,7 @@ void prefs_folder_item_ok_cb(GtkWidget *widget,
 	prefs->color = dialog->item->prefs->color;
 	/* update folder view */
 	if (prefs->color > 0)
-		folderview_update_item(dialog->item, FALSE);
+		folder_update_item(dialog->item, FALSE);
 
 	prefs_folder_item_save_config(dialog->item);
 	prefs_folder_item_destroy(dialog);
@@ -672,3 +711,56 @@ static void folder_color_set_dialog_key_pressed(GtkWidget *widget,
 	gtk_widget_destroy(color_dialog);
 }
 
+void prefs_folder_item_copy_prefs(FolderItem * src, FolderItem * dest)
+{
+	GSList *tmp_prop_list = NULL, *tmp_scor_list = NULL, *tmp;
+	prefs_folder_item_read_config(src);
+
+	tmp_prefs.directory			= g_strdup(src->prefs->directory);
+	tmp_prefs.sort_by_number		= src->prefs->sort_by_number;
+	tmp_prefs.sort_by_size			= src->prefs->sort_by_size;
+	tmp_prefs.sort_by_date			= src->prefs->sort_by_date;
+	tmp_prefs.sort_by_from			= src->prefs->sort_by_from;
+	tmp_prefs.sort_by_subject		= src->prefs->sort_by_subject;
+	tmp_prefs.sort_by_score			= src->prefs->sort_by_score;
+	tmp_prefs.sort_descending		= src->prefs->sort_descending;
+	tmp_prefs.enable_thread			= src->prefs->enable_thread;
+	tmp_prefs.kill_score			= src->prefs->kill_score;
+	tmp_prefs.important_score		= src->prefs->important_score;
+
+	prefs_matcher_read_config();
+	for (tmp = src->prefs->scoring; tmp != NULL && tmp->data != NULL;) {
+		ScoringProp *prop = (ScoringProp *)tmp->data;
+		
+		tmp_scor_list = g_slist_append(tmp_scor_list,
+					   scoringprop_copy(prop));
+		tmp = tmp->next;
+	}
+	tmp_prefs.scoring			= tmp_scor_list;
+
+	for (tmp = src->prefs->processing; tmp != NULL && tmp->data != NULL;) {
+		FilteringProp *prop = (FilteringProp *)tmp->data;
+		
+		tmp_prop_list = g_slist_append(tmp_prop_list,
+					   filteringprop_copy(prop));
+		tmp = tmp->next;
+	}
+	tmp_prefs.processing			= tmp_prop_list;
+	
+	tmp_prefs.request_return_receipt	= src->prefs->request_return_receipt;
+	tmp_prefs.enable_default_to		= src->prefs->enable_default_to;
+	tmp_prefs.default_to			= g_strdup(src->prefs->default_to);
+	tmp_prefs.enable_default_reply_to	= src->prefs->enable_default_reply_to;
+	tmp_prefs.default_reply_to		= src->prefs->default_reply_to;
+	tmp_prefs.enable_simplify_subject	= src->prefs->enable_simplify_subject;
+	tmp_prefs.simplify_subject_regexp	= g_strdup(src->prefs->simplify_subject_regexp);
+	tmp_prefs.enable_folder_chmod		= src->prefs->enable_folder_chmod;
+	tmp_prefs.folder_chmod			= src->prefs->folder_chmod;
+	tmp_prefs.enable_default_account	= src->prefs->enable_default_account;
+	tmp_prefs.default_account		= src->prefs->default_account;
+	tmp_prefs.save_copy_to_folder		= src->prefs->save_copy_to_folder;
+	tmp_prefs.color				= src->prefs->color;
+
+	*dest->prefs = tmp_prefs;
+	prefs_folder_item_save_config(dest);
+}

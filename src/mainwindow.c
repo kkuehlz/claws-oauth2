@@ -60,7 +60,6 @@
 #include "import.h"
 #include "export.h"
 #include "prefs_common.h"
-#include "prefs_filter.h"
 #include "prefs_actions.h"
 #include "prefs_filtering.h"
 #include "prefs_scoring.h"
@@ -238,6 +237,9 @@ static void toolbar_reply_cb	        (GtkWidget	*widget,
 static void toolbar_reply_to_all_cb	(GtkWidget	*widget,
 				         gpointer	 data);
 
+static void toolbar_reply_to_list_cb	(GtkWidget	*widget,
+				         gpointer	 data);
+
 static void toolbar_reply_to_sender_cb	(GtkWidget	*widget,
 					 gpointer	 data);
 
@@ -265,6 +267,14 @@ static void toolbar_reply_to_all_popup_cb      (GtkWidget	*widget,
 						gpointer	 data);
 
 static void toolbar_reply_to_all_popup_closed_cb
+					(GtkMenuShell	*menu_shell,
+					 gpointer	 data);
+
+static void toolbar_reply_to_list_popup_cb       (GtkWidget	*widget,
+						GdkEventButton  *event,
+						gpointer	 data);
+
+static void toolbar_reply_to_list_popup_closed_cb
 					(GtkMenuShell	*menu_shell,
 					 gpointer	 data);
 
@@ -444,9 +454,6 @@ static void create_filter_cb	 (MainWindow	*mainwin,
 static void prefs_common_open_cb	(MainWindow	*mainwin,
 					 guint		 action,
 					 GtkWidget	*widget);
-static void prefs_filter_open_cb	(MainWindow	*mainwin,
-					 guint		 action,
-					 GtkWidget	*widget);
 static void prefs_template_open_cb	(MainWindow	*mainwin,
 					 guint		 action,
 					 GtkWidget	*widget);
@@ -474,9 +481,6 @@ static void online_switch_clicked(GtkButton     *btn,
 				  gpointer data);
 
 static void manual_open_cb	 (MainWindow	*mainwin,
-				  guint		 action,
-				  GtkWidget	*widget);
-static void faq_open_cb		 (MainWindow	*mainwin,
 				  guint		 action,
 				  GtkWidget	*widget);
 
@@ -580,7 +584,7 @@ static GtkItemFactoryEntry mainwin_entries[] =
 	{N_("/_View/E_xpand all threads"),	NULL, expand_threads_cb, 0, NULL},
 	{N_("/_View/Co_llapse all threads"),	NULL, collapse_threads_cb, 0, NULL},
 	{N_("/_View/_Hide read messages"),	NULL, hide_read_messages, 0, "<ToggleItem>"},
-	{N_("/_View/Set display _item..."),	NULL, set_display_item_cb, 0, NULL},
+	{N_("/_View/Set displayed _items..."),	NULL, set_display_item_cb, 0, NULL},
 
 	{N_("/_View/---"),			NULL, NULL, 0, "<Separator>"},
 	{N_("/_View/_Go to"),			NULL, NULL, 0, "<Branch>"},
@@ -691,7 +695,7 @@ static GtkItemFactoryEntry mainwin_entries[] =
 	{N_("/_View/---"),			NULL, NULL, 0, "<Separator>"},
 	{N_("/_View/Open in new _window"),	"<control><alt>N", open_msg_cb, 0, NULL},
 	{N_("/_View/Mess_age source"),		"<control>U", view_source_cb, 0, NULL},
-	{N_("/_View/Show all _header"),		"<control>H", show_all_header_cb, 0, "<ToggleItem>"},
+	{N_("/_View/Show all _headers"),	"<control>H", show_all_header_cb, 0, "<ToggleItem>"},
 	{N_("/_View/---"),			NULL, NULL, 0, "<Separator>"},
 	{N_("/_View/_Update summary"),		"<control><alt>U", update_summary_cb,  0, NULL},
 
@@ -706,9 +710,13 @@ static GtkItemFactoryEntry mainwin_entries[] =
 	{N_("/_Message/Compose a_n email message"),	"<control>M", compose_mail_cb, 0, NULL},
 	{N_("/_Message/Compose a news message"),	NULL,	compose_news_cb, 0, NULL},
 	{N_("/_Message/_Reply"),		"<control>R", 	reply_cb, COMPOSE_REPLY, NULL},
-	{N_("/_Message/Repl_y to sender"),	"<control><alt>R", reply_cb, COMPOSE_REPLY_TO_SENDER, NULL},
-	{N_("/_Message/Follow-up and reply to"), NULL, reply_cb, COMPOSE_FOLLOWUP_AND_REPLY_TO, NULL},
-	{N_("/_Message/Reply to a_ll"),		"<shift><control>R", reply_cb, COMPOSE_REPLY_TO_ALL, NULL},
+	{N_("/_Message/Repl_y to"),		NULL, NULL, 0, "<Branch>"},
+	{N_("/_Message/Repl_y to/_all"),	"<shift><control>R", reply_cb, COMPOSE_REPLY_TO_ALL, NULL},
+	{N_("/_Message/Repl_y to/_sender"),	NULL, reply_cb, COMPOSE_REPLY_TO_SENDER, NULL},
+	{N_("/_Message/Repl_y to/mailing _list"),
+						"<control>L", reply_cb, COMPOSE_REPLY_TO_LIST, NULL},
+	{N_("/_Message/Follow-up and reply to"),NULL, reply_cb, COMPOSE_FOLLOWUP_AND_REPLY_TO, NULL},
+	{N_("/_Message/---"),			NULL, NULL, 0, "<Separator>"},
 	{N_("/_Message/_Forward"),		"<control><alt>F", reply_cb, COMPOSE_FORWARD, NULL},
 	{N_("/_Message/Redirect"),		NULL, reply_cb, COMPOSE_REDIRECT, NULL},
 	{N_("/_Message/---"),			NULL, NULL, 0, "<Separator>"},
@@ -758,21 +766,17 @@ static GtkItemFactoryEntry mainwin_entries[] =
 	{N_("/_Tools/---"),			NULL, NULL, 0, "<Separator>"},
 	{N_("/_Tools/E_xecute"),		"X", execute_summary_cb, 0, NULL},
 	{N_("/_Tools/---"),			NULL, NULL, 0, "<Separator>"},
-	{N_("/_Tools/_Log window"),		"<control>L", log_window_show_cb, 0, NULL},
+	{N_("/_Tools/_Log window"),		"<shift><control>L", log_window_show_cb, 0, NULL},
 
 	{N_("/_Configuration"),			NULL, NULL, 0, "<Branch>"},
 	{N_("/_Configuration/_Common preferences..."),
 						NULL, prefs_common_open_cb, 0, NULL},
-	{N_("/_Configuration/C_ustom toolbar"),
+	{N_("/_Configuration/C_ustomize toolbar"),
 						NULL, NULL, 0, "<Branch>"},
-	{N_("/_Configuration/C_ustom toolbar/Main toolbar"),
+	{N_("/_Configuration/C_ustomize toolbar/_Main toolbar..."),
 						NULL, prefs_toolbar_cb, TOOLBAR_MAIN, NULL},
-	{N_("/_Configuration/C_ustom toolbar/Compose toolbar"),
+	{N_("/_Configuration/C_ustomize toolbar/_Compose toolbar..."),
 						NULL, prefs_toolbar_cb, TOOLBAR_COMPOSE, NULL},
-#if 0
-	{N_("/_Configuration/_Filter setting..."),
-						NULL, prefs_filter_open_cb, 0, NULL},
-#endif
 	{N_("/_Configuration/_Scoring..."),
 						NULL, prefs_scoring_open_cb, 0, NULL},
 	{N_("/_Configuration/_Filtering..."),
@@ -790,18 +794,12 @@ static GtkItemFactoryEntry mainwin_entries[] =
 						NULL, NULL, 0, "<Branch>"},
 
 	{N_("/_Help"),				NULL, NULL, 0, "<Branch>"},
-	{N_("/_Help/_Manual"),			NULL, NULL, 0, "<Branch>"},
-	{N_("/_Help/_Manual/_English"),		NULL, manual_open_cb, MANUAL_LANG_EN, NULL},
-	{N_("/_Help/_Manual/_German"),		NULL, manual_open_cb, MANUAL_LANG_DE, NULL},
-	{N_("/_Help/_Manual/_Spanish"),		NULL, manual_open_cb, MANUAL_LANG_ES, NULL},
-	{N_("/_Help/_Manual/_French"),		NULL, manual_open_cb, MANUAL_LANG_FR, NULL},
-	{N_("/_Help/_Manual/_Japanese"),	NULL, manual_open_cb, MANUAL_LANG_JA, NULL},
-	{N_("/_Help/_FAQ"),			NULL, NULL, 0, "<Branch>"},
-	{N_("/_Help/_FAQ/_English"),		NULL, faq_open_cb, MANUAL_LANG_EN, NULL},
-	{N_("/_Help/_FAQ/_German"),		NULL, faq_open_cb, MANUAL_LANG_DE, NULL},
-	{N_("/_Help/_FAQ/_Spanish"),		NULL, faq_open_cb, MANUAL_LANG_ES, NULL},
-	{N_("/_Help/_FAQ/_French"),		NULL, faq_open_cb, MANUAL_LANG_FR, NULL},
-	{N_("/_Help/_FAQ/_Italian"),		NULL, faq_open_cb, MANUAL_LANG_IT, NULL},
+	{N_("/_Help/_Manual (Local)"),		NULL, manual_open_cb, MANUAL_MANUAL_LOCAL, NULL},
+	{N_("/_Help/_Manual (Sylpheed Doc Homepage)"),
+						NULL, manual_open_cb, MANUAL_MANUAL_SYLDOC, NULL},
+	{N_("/_Help/_FAQ (Local)"),		NULL, manual_open_cb, MANUAL_FAQ_LOCAL, NULL},
+	{N_("/_Help/_FAQ (Sylpheed Doc Homepage)"),
+						NULL, manual_open_cb, MANUAL_FAQ_SYLDOC, NULL},
 	{N_("/_Help/---"),			NULL, NULL, 0, "<Separator>"},
 	{N_("/_Help/_About"),			NULL, about_show, 0, NULL}
 };
@@ -817,6 +815,11 @@ static GtkItemFactoryEntry replyall_popup_entries[] =
 {
 	{N_("/Reply to all with _quote"), "<shift>A", reply_cb, COMPOSE_REPLY_TO_ALL_WITH_QUOTE, NULL},
 	{N_("/_Reply to all without quote"), "a", reply_cb, COMPOSE_REPLY_TO_ALL_WITHOUT_QUOTE, NULL}
+};
+static GtkItemFactoryEntry replylist_popup_entries[] =
+{
+	{N_("/Reply to list with _quote"), NULL, reply_cb, COMPOSE_REPLY_TO_LIST_WITH_QUOTE, NULL},
+	{N_("/_Reply to list without quote"), NULL, reply_cb, COMPOSE_REPLY_TO_LIST_WITHOUT_QUOTE, NULL}
 };
 static GtkItemFactoryEntry replysender_popup_entries[] =
 {
@@ -843,8 +846,8 @@ MainWindow *main_window_create(SeparateType type)
 	GtkWidget *statuslabel;
 	GtkWidget *ac_button;
 	GtkWidget *ac_label;
- 	GtkWidget *online_status;
-	GtkWidget *offline_status;
+ 	GtkWidget *online_pixmap;
+	GtkWidget *offline_pixmap;
 	GtkWidget *online_switch;
 	GtkWidget *offline_switch;
 
@@ -902,6 +905,9 @@ MainWindow *main_window_create(SeparateType type)
 	gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, TRUE, 0);
 	ifactory = gtk_item_factory_from_widget(menubar);
 
+	menu_set_sensitive(ifactory, "/Help/Manual (Local)", manual_available(MANUAL_MANUAL_LOCAL));
+	menu_set_sensitive(ifactory, "/Help/FAQ (Local)", manual_available(MANUAL_FAQ_LOCAL));
+
 	handlebox = gtk_handle_box_new();
 	gtk_widget_show(handlebox);
 	gtk_box_pack_start(GTK_BOX(vbox), handlebox, FALSE, FALSE, 0);
@@ -928,15 +934,15 @@ MainWindow *main_window_create(SeparateType type)
 	gtk_widget_set_usize(progressbar, 120, 1);
 	gtk_box_pack_start(GTK_BOX(hbox_stat), progressbar, FALSE, FALSE, 0);
 
-	online_status = stock_pixmap_widget(hbox_stat, STOCK_PIXMAP_WORK_ONLINE);
-	offline_status = stock_pixmap_widget(hbox_stat, STOCK_PIXMAP_WORK_OFFLINE);
+	online_pixmap = stock_pixmap_widget(hbox_stat, STOCK_PIXMAP_WORK_ONLINE);
+	offline_pixmap = stock_pixmap_widget(hbox_stat, STOCK_PIXMAP_WORK_OFFLINE);
 	online_switch = gtk_button_new ();
 	offline_switch = gtk_button_new ();
-	gtk_container_add (GTK_CONTAINER(online_switch), online_status);
+	gtk_container_add (GTK_CONTAINER(online_switch), online_pixmap);
 	gtk_button_set_relief (GTK_BUTTON(online_switch), GTK_RELIEF_NONE);
 	gtk_signal_connect (GTK_OBJECT(online_switch), "clicked", (GtkSignalFunc)online_switch_clicked, mainwin);
 	gtk_box_pack_start (GTK_BOX(hbox_stat), online_switch, FALSE, FALSE, 0);
-	gtk_container_add (GTK_CONTAINER(offline_switch), offline_status);
+	gtk_container_add (GTK_CONTAINER(offline_switch), offline_pixmap);
 	gtk_button_set_relief (GTK_BUTTON(offline_switch), GTK_RELIEF_NONE);
 	gtk_signal_connect (GTK_OBJECT(offline_switch), "clicked", (GtkSignalFunc)online_switch_clicked, mainwin);
 	gtk_box_pack_start (GTK_BOX(hbox_stat), offline_switch, FALSE, FALSE, 0);
@@ -988,6 +994,8 @@ MainWindow *main_window_create(SeparateType type)
 	
 	mainwin->online_switch     = online_switch;
 	mainwin->offline_switch    = offline_switch;
+	mainwin->online_pixmap	   = online_pixmap;
+	mainwin->offline_pixmap    = offline_pixmap;
 	
 	/* set context IDs for status bar */
 	mainwin->mainwin_cid = gtk_statusbar_get_context_id
@@ -1176,6 +1184,7 @@ void main_window_reflect_prefs_all_real(gboolean pixmap_theme_changed)
 {
 	GList *cur;
 	MainWindow *mainwin;
+	GtkWidget *pixmap;
 
 	for (cur = mainwin_list; cur != NULL; cur = cur->next) {
 		mainwin = (MainWindow *)cur->data;
@@ -1190,6 +1199,19 @@ void main_window_reflect_prefs_all_real(gboolean pixmap_theme_changed)
 			set_toolbar_style(mainwin);
 			folderview_reflect_prefs_pixmap_theme(mainwin->folderview);
 			summary_reflect_prefs_pixmap_theme(mainwin->summaryview);
+
+			pixmap = stock_pixmap_widget(mainwin->hbox_stat, STOCK_PIXMAP_WORK_ONLINE);
+			gtk_container_remove(GTK_CONTAINER(mainwin->online_switch), 
+					     mainwin->online_pixmap);
+			gtk_container_add (GTK_CONTAINER(mainwin->online_switch), pixmap);
+			gtk_widget_show(pixmap);
+			mainwin->online_pixmap = pixmap;
+			pixmap = stock_pixmap_widget(mainwin->hbox_stat, STOCK_PIXMAP_WORK_OFFLINE);
+			gtk_container_remove(GTK_CONTAINER(mainwin->offline_switch), 
+					     mainwin->offline_pixmap);
+			gtk_container_add (GTK_CONTAINER(mainwin->offline_switch), pixmap);
+			gtk_widget_show(pixmap);
+			mainwin->offline_pixmap = pixmap;
 		}
 		
 		summary_redisplay_msg(mainwin->summaryview);
@@ -1440,7 +1462,7 @@ void main_window_empty_trash(MainWindow *mainwin, gboolean confirm)
 	for (list = folder_get_list(); list != NULL; list = list->next) {
 		folder = list->data;
 		if (folder && folder->trash) {
-			folderview_update_item(folder->trash, TRUE);
+			folder_update_item(folder->trash, TRUE);
 		}
 	}
 
@@ -1525,11 +1547,11 @@ void main_window_add_mbox(MainWindow *mainwin)
 	item->folder = folder;
 	folder->node = g_node_new(item);
 
-	folder->create_folder(folder, item, "inbox");
-	folder->create_folder(folder, item, "outbox");
-	folder->create_folder(folder, item, "queue");
-	folder->create_folder(folder, item, "draft");
-	folder->create_folder(folder, item, "trash");
+	folder_create_folder(item, "inbox");
+	folder_create_folder(item, "outbox");
+	folder_create_folder(item, "queue");
+	folder_create_folder(item, "draft");
+	folder_create_folder(item, "trash");
 
 	folderview_set(mainwin->folderview);
 }
@@ -1643,7 +1665,7 @@ void main_window_set_menu_sensitive(MainWindow *mainwin)
 		{"/View/Go to/Prev labeled message", M_MSG_EXIST},
 		{"/View/Go to/Next labeled message", M_MSG_EXIST},
 		{"/View/Open in new window"        , M_SINGLE_TARGET_EXIST},
-		{"/View/Show all header"           , M_SINGLE_TARGET_EXIST},
+		{"/View/Show all headers"          , M_SINGLE_TARGET_EXIST},
 		{"/View/Message source"            , M_SINGLE_TARGET_EXIST},
 
 		{"/Message/Get new mail"          , M_HAVE_ACCOUNT|M_UNLOCKED},
@@ -1651,8 +1673,7 @@ void main_window_set_menu_sensitive(MainWindow *mainwin)
 		{"/Message/Cancel receiving"      , M_INC_ACTIVE},
 		{"/Message/Compose a news message", M_HAVE_NEWS_ACCOUNT},
 		{"/Message/Reply"                 , M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST},
-		{"/Message/Reply to sender"       , M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST},
-		{"/Message/Reply to all"          , M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST},
+		{"/Message/Reply to"             , M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST},
 		{"/Message/Follow-up and reply to", M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST|M_NEWS},
 		{"/Message/Forward"               , M_HAVE_ACCOUNT|M_TARGET_EXIST},
         	{"/Message/Redirect"		  , M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST},
@@ -1741,7 +1762,7 @@ void main_window_set_menu_sensitive(MainWindow *mainwin)
 		menu_set_sensitive(ifactory, "/View/Sort/Descending", FALSE);
 	}
 
-	SET_CHECK_MENU_ACTIVE("/View/Show all header",
+	SET_CHECK_MENU_ACTIVE("/View/Show all headers",
 			      mainwin->messageview->textview->show_all_headers);
 	SET_CHECK_MENU_ACTIVE("/View/Thread view", (state & M_THREADED) != 0);
 
@@ -2296,10 +2317,16 @@ static void toolbar_reply_cb(GtkWidget   *widget,
 {
 	MainWindow *mainwin = (MainWindow *)data;
 
-	reply_cb(mainwin, 
-		 prefs_common.reply_with_quote ? COMPOSE_REPLY_WITH_QUOTE 
-		 : COMPOSE_REPLY_WITHOUT_QUOTE,
-		 NULL);
+	if (prefs_common.default_reply_list)
+		reply_cb(mainwin, 
+		 	 prefs_common.reply_with_quote ? COMPOSE_REPLY_TO_LIST_WITH_QUOTE 
+		 	 : COMPOSE_REPLY_TO_LIST_WITHOUT_QUOTE, 
+			 NULL);
+	else
+		reply_cb(mainwin, 
+		 	 prefs_common.reply_with_quote ? COMPOSE_REPLY_WITH_QUOTE 
+			 : COMPOSE_REPLY_WITHOUT_QUOTE,
+			 NULL);
 }
 
 static void toolbar_reply_to_all_cb(GtkWidget   *widget, 
@@ -2313,6 +2340,16 @@ static void toolbar_reply_to_all_cb(GtkWidget   *widget,
 		 NULL);
 }
 
+static void toolbar_reply_to_list_cb(GtkWidget   *widget, 
+				    gpointer     data)
+{
+	MainWindow *mainwin = (MainWindow *)data;
+
+	reply_cb(mainwin, 
+		 prefs_common.reply_with_quote ? COMPOSE_REPLY_TO_LIST_WITH_QUOTE 
+		 : COMPOSE_REPLY_TO_LIST_WITHOUT_QUOTE, 
+		 NULL);
+}
 
 static void toolbar_reply_to_sender_cb(GtkWidget   *widget, 
 				       gpointer     data)
@@ -2407,6 +2444,28 @@ static void toolbar_reply_to_all_popup_closed_cb(GtkMenuShell *menu_shell, gpoin
 	manage_window_focus_in(mainwin->window, NULL, NULL);
 }
 
+static void toolbar_reply_to_list_popup_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+	MainWindow *mainwindow = (MainWindow *) data;
+	
+	if (!event) return;
+
+	if (event->button == 3) {
+		gtk_button_set_relief(GTK_BUTTON(widget), GTK_RELIEF_NORMAL);
+		gtk_menu_popup(GTK_MENU(mainwindow->toolbar->replylist_popup), NULL, NULL,
+		       menu_button_position, widget,
+		       event->button, event->time);
+	}
+}
+
+static void toolbar_reply_to_list_popup_closed_cb(GtkMenuShell *menu_shell, gpointer data)
+{
+	MainWindow *mainwin = (MainWindow *)data;
+
+	gtk_button_set_relief(GTK_BUTTON(mainwin->toolbar->replylist_btn), GTK_RELIEF_NONE);
+	manage_window_focus_in(mainwin->window, NULL, NULL);
+}
+
 static void toolbar_reply_to_sender_popup_cb(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
 	MainWindow *mainwindow = (MainWindow *) data;
@@ -2489,6 +2548,7 @@ static void toolbar_buttons_cb(GtkWidget         *widget,
 		{ A_REPLY_MESSAGE,  toolbar_reply_cb           },
 		{ A_REPLY_SENDER,   toolbar_reply_to_sender_cb },
 		{ A_REPLY_ALL,      toolbar_reply_to_all_cb    },
+		{ A_REPLY_ML,       toolbar_reply_to_list_cb   },
 		{ A_FORWARD,        toolbar_forward_cb         },
 		{ A_DELETE,         toolbar_delete_cb          },
 		{ A_EXECUTE,        toolbar_exec_cb            },
@@ -2549,6 +2609,8 @@ void toolbar_set_sensitive(MainWindow *mainwin)
 			M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST);
 	SET_WIDGET_COND(toolbar->replyall_btn,
 			M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST);
+	SET_WIDGET_COND(toolbar->replylist_btn,
+			M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST);
 	SET_WIDGET_COND(toolbar->replysender_btn,
 			M_HAVE_ACCOUNT|M_SINGLE_TARGET_EXIST);
 	SET_WIDGET_COND(toolbar->fwd_btn, M_HAVE_ACCOUNT|M_TARGET_EXIST);
@@ -2605,6 +2667,7 @@ static void toolbar_update(MainWindow *mainwin)
 	mainwin->toolbar->compose_news_btn = NULL;
 	mainwin->toolbar->reply_btn        = NULL;	
 	mainwin->toolbar->replyall_btn     = NULL;	
+	mainwin->toolbar->replylist_btn     = NULL;	
 	mainwin->toolbar->replysender_btn  = NULL;	
 	mainwin->toolbar->fwd_btn    = NULL;	
 	mainwin->toolbar->delete_btn = NULL;	
@@ -2636,6 +2699,7 @@ static void toolbar_create(MainWindow *mainwin,
 	guint n_menu_entries;
 	GtkWidget *reply_popup;
 	GtkWidget *replyall_popup;
+	GtkWidget *replylist_popup;
 	GtkWidget *replysender_popup;
 	GtkWidget *fwd_popup;
 
@@ -2776,6 +2840,24 @@ static void toolbar_create(MainWindow *mainwin,
 					   GTK_SIGNAL_FUNC(toolbar_reply_to_all_popup_closed_cb), mainwin);
 			mainwin->toolbar->replyall_popup    = replyall_popup;
 			break;
+		case A_REPLY_ML:
+			mainwin->toolbar->replylist_btn = item;
+			gtk_tooltips_set_tip(GTK_TOOLTIPS(toolbar_tips), 
+					     mainwin->toolbar->replylist_btn,
+					   _("Reply to Mailing-list"), NULL);
+			gtk_signal_connect(GTK_OBJECT(mainwin->toolbar->replylist_btn), 
+					   "button_press_event",
+					   GTK_SIGNAL_FUNC(toolbar_reply_to_list_popup_cb),
+					   mainwin);
+			n_menu_entries = sizeof(replylist_popup_entries) /
+				sizeof(replylist_popup_entries[0]);
+			replylist_popup = popupmenu_create(mainwin->window, 
+							  replylist_popup_entries, n_menu_entries,
+							  "<ReplyMlPopup>", mainwin);
+			gtk_signal_connect(GTK_OBJECT(replylist_popup), "selection_done",
+					   GTK_SIGNAL_FUNC(toolbar_reply_to_list_popup_closed_cb), mainwin);
+			mainwin->toolbar->replylist_popup    = replylist_popup;
+			break;
 		case A_FORWARD:
 			mainwin->toolbar->fwd_btn = item;
 			gtk_tooltips_set_tip(GTK_TOOLTIPS(toolbar_tips), 
@@ -2900,13 +2982,17 @@ static void separate_widget_cb(MainWindow *mainwin, guint action,
 	prefs_common.sep_msg    = (type & SEPARATE_MESSAGE) != 0;
 }
 
-static void toggle_work_offline_cb(MainWindow *mainwin, guint action, GtkWidget *widget)
+void main_window_toggle_work_offline (MainWindow *mainwin, gboolean offline)
 {
-	if (GTK_CHECK_MENU_ITEM(widget)->active) {
+	if (offline)
 		online_switch_clicked (GTK_BUTTON(mainwin->online_switch), mainwin);
-	} else {
-		online_switch_clicked (GTK_BUTTON(mainwin->offline_switch), mainwin);		
-	}
+	else
+		online_switch_clicked (GTK_BUTTON(mainwin->offline_switch), mainwin);
+}
+
+static void toggle_work_offline_cb (MainWindow *mainwin, guint action, GtkWidget *widget)
+{
+	main_window_toggle_work_offline(mainwin, GTK_CHECK_MENU_ITEM(widget)->active);
 }
 
 static void online_switch_clicked (GtkButton *btn, gpointer data) 
@@ -3000,7 +3086,7 @@ void send_queue_cb(MainWindow *mainwin, guint action, GtkWidget *widget)
 				alertpanel_error(_("Some errors occurred while sending queued messages."));
 			statusbar_pop_all();
 			folder_item_scan(folder->queue);
-			folderview_update_item(folder->queue, TRUE);
+			folder_update_item(folder->queue, TRUE);
 		}
 	}
 }
@@ -3008,28 +3094,35 @@ void send_queue_cb(MainWindow *mainwin, guint action, GtkWidget *widget)
 void compose_mail_cb(MainWindow *mainwin, guint action,
 			    GtkWidget *widget)
 {
-	PrefsAccount * ac;
-	GList * list;
-	GList * cur;
+	PrefsAccount *ac = NULL;
+	FolderItem *item = mainwin->summaryview->folder_item;	
+        GList * list;
+        GList * cur;
 
-	if (mainwin->summaryview->folder_item) {
-		ac = mainwin->summaryview->folder_item->folder->account;
+	if (item) {
+		ac = account_find_from_item(item);
 		if (ac && ac->protocol != A_NNTP) {
-			compose_new_with_folderitem(ac, mainwin->summaryview->folder_item);
+			compose_new_with_folderitem(ac, item);		/* CLAWS */
 			return;
 		}
 	}
 
-	if(cur_account && (cur_account->protocol != A_NNTP)) {
-		compose_new_with_folderitem(cur_account, mainwin->summaryview->folder_item);
+	/*
+	 * CLAWS - use current account
+	 */
+	if (cur_account && (cur_account->protocol != A_NNTP)) {
+		compose_new_with_folderitem(cur_account, item);
 		return;
 	}
 
+	/*
+	 * CLAWS - just get the first one
+	 */
 	list = account_get_list();
-	for(cur = list ; cur != NULL ; cur = g_list_next(cur)) {
+	for (cur = list ; cur != NULL ; cur = g_list_next(cur)) {
 		ac = (PrefsAccount *) cur->data;
 		if (ac->protocol != A_NNTP) {
-			compose_new_with_folderitem(ac, mainwin->summaryview->folder_item);
+			compose_new_with_folderitem(ac, item);
 			return;
 		}
 	}
@@ -3371,12 +3464,6 @@ static void prefs_common_open_cb(MainWindow *mainwin, guint action,
 	prefs_common_open();
 }
 
-static void prefs_filter_open_cb(MainWindow *mainwin, guint action,
-				 GtkWidget *widget)
-{
-	prefs_filter_open(NULL, NULL);
-}
-
 static void prefs_scoring_open_cb(MainWindow *mainwin, guint action,
 				  GtkWidget *widget)
 {
@@ -3407,14 +3494,7 @@ static void prefs_account_open_cb(MainWindow *mainwin, guint action,
 	if (!cur_account) {
 		new_account_cb(mainwin, 0, widget);
 	} else {
-		gboolean prev_default = cur_account->is_default;
-
-		prefs_account_open(cur_account);
-		if (!prev_default && cur_account->is_default)
-			account_set_as_default(cur_account);
-		account_save_config_all();
-		account_set_menu();
-		main_window_reflect_prefs_all();
+		account_open(cur_account);
 	}
 }
 
@@ -3434,12 +3514,7 @@ static void account_menu_cb(GtkMenuItem	*menuitem, gpointer data)
 static void manual_open_cb(MainWindow *mainwin, guint action,
 			   GtkWidget *widget)
 {
-	manual_open((ManualLang)action);
-}
-
-static void faq_open_cb(MainWindow *mainwin, guint action, GtkWidget *widget)
-{
-	faq_open((ManualLang)action);
+	manual_open((ManualType)action);
 }
 
 static void scan_tree_func(Folder *folder, FolderItem *item, gpointer data)
@@ -3476,6 +3551,14 @@ static void key_pressed (GtkWidget *widget, GdkEventKey *event,	gpointer data)
 
 		app_exit_cb(mainwin, 0, NULL);
 		return;
+	case GDK_space:
+		if (mainwin->folderview && mainwin->summaryview
+		    && !mainwin->summaryview->displayed) {
+			summary_lock(mainwin->summaryview);
+			folderview_select_next_unread(mainwin->folderview);
+			summary_unlock(mainwin->summaryview);
+		}
+		break;
 	default:
 		break;
 	}

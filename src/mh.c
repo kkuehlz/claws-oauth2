@@ -83,8 +83,9 @@ gboolean mh_is_msg_changed	(Folder		*folder,
 
 gint    mh_scan_folder		(Folder		*folder,
 				 FolderItem	*item);
-GSList *mh_get_num_list		(Folder		*folder,
-				 FolderItem	*item);
+gint mh_get_num_list		(Folder		*folder,
+				 FolderItem	*item,
+				 GSList	       **list);
 void    mh_scan_tree		(Folder		*folder);
 
 gint    mh_create_tree		(Folder		*folder);
@@ -119,7 +120,7 @@ Folder *mh_folder_new(const gchar *name, const gchar *path)
 	return folder;
 }
 
-void mh_folder_destroy(MHFolder *folder)
+void mh_folder_destroy(Folder *folder)
 {
 	folder_local_folder_destroy(LOCAL_FOLDER(folder));
 }
@@ -191,43 +192,43 @@ void mh_get_last_num(Folder *folder, FolderItem *item)
 	item->last_num = max;
 }
 
-GSList *mh_get_num_list(Folder *folder, FolderItem *item)
+gint mh_get_num_list(Folder *folder, FolderItem *item, GSList **list)
 {
 
 	gchar *path;
 	DIR *dp;
 	struct dirent *d;
 	struct stat s;
-	gint num;
-	GSList *list = NULL;
+	gint num, nummsgs = 0;
 
-	g_return_val_if_fail(item != NULL, NULL);
+	g_return_val_if_fail(item != NULL, -1);
 
 	debug_print("mh_get_last_num(): Scanning %s ...\n", item->path);
 
 	path = folder_item_get_path(item);
-	g_return_val_if_fail(path != NULL, NULL);
+	g_return_val_if_fail(path != NULL, -1);
 	if (change_dir(path) < 0) {
 		g_free(path);
-		return NULL;
+		return -1;
 	}
 	g_free(path);
 
 	if ((dp = opendir(".")) == NULL) {
 		FILE_OP_ERROR(item->path, "opendir");
-		return NULL;
+		return -1;
 	}
 
 	while ((d = readdir(dp)) != NULL) {
 		if ((num = to_number(d->d_name)) >= 0 &&
 		    stat(d->d_name, &s) == 0 &&
 		    S_ISREG(s.st_mode)) {
-			list = g_slist_prepend(list, GINT_TO_POINTER(num));
+			*list = g_slist_prepend(*list, GINT_TO_POINTER(num));
+		    nummsgs++;
 		}
 	}
 	closedir(dp);
 
-	return list;
+	return nummsgs;
 }
 
 GSList *mh_get_msg_list(Folder *folder, FolderItem *item, gboolean use_cache)
@@ -913,9 +914,10 @@ FolderItem *mh_create_folder(Folder *folder, FolderItem *parent,
 	g_return_val_if_fail(name != NULL, NULL);
 
 	path = folder_item_get_path(parent);
-	if (!is_dir_exist(path))
-		make_dir_hier(path);
-
+	if (!is_dir_exist(path)) 
+		if (make_dir_hier(path) != 0)
+			return NULL;
+		
 	fullpath = g_strconcat(path, G_DIR_SEPARATOR_S, name, NULL);
 	g_free(path);
 

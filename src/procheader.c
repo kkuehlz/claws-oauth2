@@ -387,6 +387,7 @@ Header * procheader_parse_header(gchar * buf)
 	gchar tmp[BUFFSIZE];
 	gchar *p = buf;
 	Header * header;
+	gchar *backup;
 
 	if ((*buf == ':') || (*buf == ' '))
 		return NULL;
@@ -398,7 +399,10 @@ Header * procheader_parse_header(gchar * buf)
 			p++;
 			while (*p == ' ' || *p == '\t') p++;
 			conv_unmime_header(tmp, sizeof(tmp), p, NULL);
-			header->body = g_strdup(tmp);
+			if(tmp == NULL) 
+				header->body = g_strdup(p);
+			else	
+				header->body = g_strdup(tmp);
 			return header;
 		}
 	}
@@ -593,7 +597,7 @@ MsgInfo *procheader_parse_stream(FILE *fp, MsgFlags flags, gboolean full,
 					g_strconcat(p, ",", hp, NULL);
 				g_free(p);
 			} else
-				msginfo->newsgroups = g_strdup(buf + 12);
+				msginfo->newsgroups = g_strdup(hp);
 			break;
 		case H_SUBJECT:
 			if (msginfo->subject) break;

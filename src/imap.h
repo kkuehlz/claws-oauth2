@@ -70,14 +70,6 @@ struct _IMAPNameSpace
 	gchar separator;
 };
 
-struct _IMAPFolderItem
-{
-	FolderItem item;
-
-	guint lastuid;
-	GSList *uid_list;
-};
-
 #define IMAP_SUCCESS	0
 #define IMAP_SOCKET	2
 #define IMAP_AUTHFAIL	3
@@ -106,9 +98,6 @@ typedef enum
 Folder	*imap_folder_new		(const gchar	*name,
 					 const gchar	*path);
 void	 imap_folder_destroy		(Folder		*folder);
-
-FolderItem *imap_folder_item_new	();
-void imap_folder_item_destroy		(FolderItem *item);
 
 Session *imap_session_new		(const PrefsAccount *account);
 void imap_session_destroy		(Session	*session);
@@ -141,8 +130,12 @@ gint imap_copy_msgs_with_dest		(Folder		*folder,
 gint imap_remove_msg			(Folder		*folder,
 					 FolderItem	*item,
 					 gint		 uid);
+gint imap_remove_msgs			(Folder		*folder,
+					 FolderItem	*item,
+					 GSList		*msglist);
 gint imap_remove_all_msg		(Folder		*folder,
 					 FolderItem	*item);
+
 gboolean imap_is_msg_changed		(Folder		*folder,
 					 FolderItem	*item,
 					 MsgInfo	*msginfo);

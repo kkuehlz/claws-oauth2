@@ -1,3 +1,288 @@
+2002-11-07
+
+	* src/prefs_account.[ch]: 使われていないため
+	  prefs_account_save_config() を削除。
+	* src/procmime.[ch]: procmime_mimeinfo_free_all() が全ての場合に
+	  使えるため procmime_mimeinfo_free() を削除。
+
+2002-11-06
+
+	* src/account.c: account_get_special_folder(): F_INBOX に対応し、
+	  コードを整理。
+
+2002-11-06
+
+	* src/compose.[ch]: ComposeEntryType: COMPOSE_* を COMPOSE_ENTRY_*
+	  に変更し、 COMPOSE_ENTRY_{REPLY_TO,SUBJECT,FOLLOWUP_TO} を追加。
+	  compose_reply()
+	  compose_forward()
+	  compose_redirect(): FolderItem を引数に加え、 item の設定を反映
+	  させるようにした。
+	  compose_entry_set(): 新規。
+	  compose_entry_append(): コードの整理。
+	  compose_entries_set_from_item(): ComposeMode を引数にとるようにし、
+	  FolderItem::use_auto_to_on_reply が有効になるようにした。
+	* src/summaryview.c: summary_reply(): folder_item を
+	  compose_{reply,forward,redirect}() に渡すようにした。
+
+2002-11-05
+
+	* src/gtkutils.[ch]:
+	  gtkut_font_load(): 新規。現在の locale によって font または fontset
+	  を自動的に選択する。
+	  gtkut_font_load_from_fontset(): 新規。フォントセット文字列から
+	  フォントセットの代わりに単一のフォントの読み込みを試みる。
+	* src/alertpanel.c
+	  src/folderview.c
+	  src/headerview.c
+	  src/summaryview.c: C または POSIX locale で 8-bit 文字を表示
+	  できない問題に対処(fontset の代わりに font を使用)。
+	* src/compose.c
+	  src/sourcewindow.c
+	  src/textview.c: gtkut_font_load*() を使用してコードを整理。
+
+2002-10-29
+
+	* src/mh.c: mh_get_msginfo(): 正しいメッセージ番号をセット。
+
+2002-10-29
+
+	* src/folder.[ch]: 新規仮想メソッド Folder::get_msginfo() を追加。
+	  メッセージ番号に対応する新規 MsgInfo を返す。
+	  folder_item_get_msginfo(): 新規。
+	* src/imap.[ch]: imap_get_msginfo(): 新規。
+	* src/mh.[ch]: mh_get_msginfo(): 新規。
+	* src/news.[ch]: news_get_msginfo(): 新規。
+
+2002-10-28
+
+	* src/codeconv.c: conv_euctojis(): 不正なコードが出現したら無限
+	  ループに陥るバグを修正。
+
+2002-10-25
+
+	* src/codeconv.c: conv_codeset_strdup()
+	  src/html.[ch]: html_read_line(): 変換失敗の警告を出さないように
+	  した。
+	  enum HTMLState に HTML_CONV_FAILED を追加。
+
+2002-10-24
+
+	* フォルダ毎の自動指定アドレスを実装(まだ作業中)。
+	* src/compose.[ch]: compose_new(): 引数に FolderItem を追加し、
+	  (mailto が空であれば)それからエントリを設定。
+	  compose_entry_append(): 必要であればメニューを有効にするようにした。
+	  compose_entries_set_from_item(): 新規。
+	* src/folder.[ch]: auto_to, use_auto_to_on_reply, auto_cc, auto_bcc,
+	  auto_replyto を FolderItem に追加し、 apply_sub を ac_apply_sub
+	  に名称変更。
+	  folder_build_tree(), folder_read_folder_func(),
+	  folder_write_list_recursive(): 上記メンバを追加。
+	* src/prefs_folder_item.[ch]: 自動指定アドレスを追加。
+	* src/pop.[ch]: Pop3State::prev_folder を削除。
+
+2002-10-11
+
+	* src/compose.c: ファイルマネージャからファイルを「移動」することで
+	  ファイルをドロップできるようにした(Alfons さん thanks)。
+
+2002-10-10
+
+	* compose_reply_set_entry(): ML 返信のとき Reply-To を List-Post
+	  より優先させるようにした。
+
+2002-10-09
+
+	* src/gtksctree.[ch]: gtk_sctree_set_anchor_row(): 新規。
+	* src/summaryview.c: summary_step(): 正しいセレクションアンカーを
+	  失うバグを修正。
+	  summary_key_pressed(): gtk_ctree_select() の代わりに
+	  gtk_sctree_select() を使用。
+	* src/inc.[ch]
+	  src/pop.c
+	  src/recv.c: ディスクフルとソケットエラーを区別するようにした
+	  (Colin Leroy さん thanks)。
+
+2002-10-08
+
+	* src/account.c: account_edit_prefs(): 未使用の変数を削除。
+	* src/compose.[ch]: ComposeMode の WITH_QUOTE/WITHOUT_QUOTE フラグ
+	  を分離。
+	  compose_reply()
+	  compose_reply_set_entry(): 返信形式を一つの引数で受け取るように
+	  した。
+	* src/summaryview.c: summary_reply(): 条件分岐を削減。
+
+2002-10-08
+
+	* src/compose.c: compose_redirect(), compose_reedit(): 行終端から
+	  CR を取り除くようにした(Sergey Vlasov さん thanks)。
+	* src/folderview.c: 「フォルダツリーを再スキャン」を「フォルダツリー
+	  を再構築」に改名。
+
+2002-10-08
+
+	* src/folder.[ch]: 仮想メソッド Folder::remove_msgs() を追加。
+	* src/imap.[ch]: メッセージを一度に削除する imap_remove_msgs()
+	  を実装。
+
+2002-10-07
+
+	* src/account.[ch]: account_open(): 新規。アカウント設定ダイアログ
+	  を開き、終了時に UI に反映させる。
+	* src/folderview.c:
+	  folderview_button_pressed()
+	  folderview_property_cb(): リモートアカウントのルートフォルダの
+	  プロパティを要求されたらアカウント設定ダイアログを開くようにした。
+
+2002-10-07
+
+	* src/account.c: account_destroy(): フォルダ中のアカウント情報への
+	  参照を解除するようにした。
+	* src/folder.[ch]: folder_unref_account_all(): 新規。全フォルダ中
+	  の指定したアカウント情報への参照を解除する。
+	* src/folderview.c:
+	  folderview_rm_imap_server_cb()
+	  folderview_rm_news_server_cb(): folder_destroy() がアカウント情報
+	  を参照しているため Folder を先に削除するようにした。
+
+2002-10-04
+
+	* src/account.c: account_find_from_item(): 正しいアカウントを選択
+	  していなかったバグを修正。
+	* inc_pop3_session_do():
+	  SSL の初期化に失敗したときのリソースのリークを修正。
+	  キャンセルされたら一時的なイベントループからすぐに抜けるようにした。
+
+2002-10-04
+
+	* src/account.[ch]: account_find_from_item(): 新規。
+	* src/compose.c:
+	  compose_reply(), compose_forward(), compose_redirect()
+	  src/mainwindow.c: compose_cb(): 作成時に最適なアカウントを選択
+	  するようにした。
+	* src/folder.[ch]: FolderItem::apply_sub を追加。
+	* src/menu.[ch]: menu_find_option_menu_index(): 新規。指定した
+	  データを含むオプションメニューのインデックスを検索する。
+	* src/prefs_folder_item(): 作成タブと、フォルダアカウントの設定を
+	  追加。
+
+2002-10-04
+
+	* configure.in: lber ライブラリの検出に $LDAP_LIBS を追加。
+
+2002-10-03
+
+	* version 0.8.5
+
+2002-10-03
+
+	* src/procmsg.c: procmsg_msginfo_get_full_info(): メモリリークを
+	  修正し、エラーチェックを追加。
+
+2002-10-03
+
+	* src/compose.[ch]: フラグ Compose::use_newsgroups を追加し、
+	  Compose::orig_account を削除。
+	  compose_check_for_valid_recipient(): 有効なエントリのみをチェック。
+	  compose_write_headers()
+	  compose_redirect_write_headers(): エントリが有効になっている場合
+	  のみ Newsgroups ヘッダを追加。
+	  compose_send(): ニュースアカウントからメールアカウントを見つける
+	  方法を From アドレスをマッチさせるように変更。
+	* src/send.c: send_message_queue(): ニュースメッセージの送信待機
+	  を有効にした。
+	* src/news.[ch]: news_post_stream(): 新規。
+
+2002-10-03
+
+	* configure.in: lber を先にチェックし、 ldap のチェック時に
+	  $LDAP_LIBS を使用。
+
+2002-10-02
+
+	* po/*.po: クラッシュを引き起こす多くのフォーマット文字列のミス
+	  を修正(Sergey Vlasov さん thanks)。
+
+2002-10-02
+
+	* src/procheader.c: procheader_parse_stream(): 完全パースの対象
+	  に Cc ヘッダを追加。
+	* src/procmsg.[ch]: procmsg_msginfo_get_full_info(): 新規。指定
+	  された情報から完全なメッセージ情報を返す。
+	* src/compose.c: compose_reply(), compose_forward(): Cc ヘッダの
+	  ために完全なメッセージ情報を得るようにした。
+
+2002-10-02
+
+	* src/inc.c: inc_account_mail(), inc_all_account_mail(): IMAP4 と
+	  NNTP のアカウントをチェックした後それらのフォルダのサマリを更新
+	  するようにした。
+
+2002-10-01
+
+	* version 0.8.4
+
+2002-10-01
+
+	* src/prefs_common.c: prefs_compose_create(): 返信ボタンのオプション
+	  のラベルを修正。
+	* configure.in: LDAP ライブラリ検出の AC_CHECK_LIB() の5番目の引数
+	  に -lldap と -llber を追加。
+
+2002-09-30
+
+	* INSTALL
+	  INSTALL.jp: 更新。
+
+2002-09-30
+
+	* src/mainwindow.c: 返信ボタンの挙動を通常の返信と ML への返信
+	  とで切り替えるようにした。
+	* src/prefs_common.[ch]: 返信ボタンの機能を切り替えるオプション
+	  を追加。
+
+2002-09-27
+
+	* src/compose.c: compose_new(): 効果が無く、ハングを引き起こすだけ
+	  であるため XIM の workaround を削除。
+
+2002-09-26
+
+	* src/compose.[ch]: compose_reply(): ML への返信用のフラグを追加。
+	  compose_parse_header(): List-Post ヘッダもパース。
+	  compose_reply_set_entry(): ML への返信に対応(ML のアドレスが
+	  見つからなければ通常の返信に fallback する)。
+	* src/mainwindow.c
+	  src/prefs_common.c
+	  src/summaryview.c: 返信メニューを再構成し、「メーリングリストに
+	  返信」を追加。
+	* src/utils.[ch]: scan_mailto_url(): 新規。 mailto URL をスキャンし、
+	  新規に確保したパラメータを返す。
+
+2002-09-25
+
+	* src/account.c: account_read_config_all(): アカウント情報を設定
+	  ファイルで初期化する前にデフォルトに設定するようにした。
+	* src/prefs_account.[ch]: prefs_account_new(): 新規。デフォルトの
+	  設定で初期化されたアカウント情報構造体を新規に作成して返す。
+
+2002-09-24
+
+	* src/addr_compl.c:
+	  replace_address_in_edit(): newtext が NULL かどうかをチェック。
+	  completion_window_button_press(): メモリリークを修正。
+	* src/pop.c: LOOKUP_NEXT_MSG(): recv_time が RECV_TIME_KEEP である
+	  メッセージを期限切れにしないようにした。
+	  pop3_getrange_uidl_recv(): ac_prefs->getall がセットされている
+	  ときのみ get_all フラグをセット。
+	  pop3_retr_recv(): フィルタで受信されなかったメッセージを削除
+	  しないようにし、その場合 recv_time を RECV_TIME_KEEP に設定する
+	  ようにした。
+	* src/pop.h: enum RecvTime を追加。
+	* src/inc.c: inc_drop_message(): フィルタで受信されない場合一時
+	  メッセージファイルを unlink するようにした。
+
 2002-09-20
 
 	* src/mainwindow.c: 「編集/スレッドを選択」メニューを追加。

@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -39,6 +41,9 @@
 #	include <gnu/libc-version.h>
 #endif
 
+#ifdef SIGTERM
+#include "main.h"
+#endif
 #include "intl.h"
 #include "crash.h"
 #include "utils.h"
@@ -46,13 +51,8 @@
 #include "version.h"
 #include "prefs_common.h"
 
-#if 0
-#include "gtkutils.h"
-#include "pixmaps/notice_error.xpm"
-#endif
-
 /*
- * NOTE 1: the crash dialog is called when sylpheed is not 
+ * NOTE: the crash dialog is called when sylpheed is not 
  * initialized, so do not assume settings are available.
  * for example, loading / creating pixmaps seems not 
  * to be possible.
@@ -62,7 +62,7 @@
 
 static GtkWidget	*crash_dialog_show		(const gchar *text, 
 							 const gchar *debug_output);
-static gboolean		 crash_create_debugger_file	(void);
+static void		 crash_create_debugger_file	(void);
 static void		 crash_save_crash_log		(GtkButton *, const gchar *);
 static void		 crash_create_bug_report	(GtkButton *, const gchar *);
 static void		 crash_debug			(unsigned long crash_pid, 
@@ -111,6 +111,11 @@ void crash_install_handlers(void)
 #ifdef SIGABRT
 	signal(SIGABRT, crash_handler);
 	sigaddset(&mask, SIGABRT);
+#endif
+
+#ifdef SIGTERM
+	signal(SIGTERM, crash_handler);
+	sigaddset(&mask, SIGTERM);
 #endif
 
 	sigprocmask(SIG_UNBLOCK, &mask, 0);
@@ -171,9 +176,6 @@ static GtkWidget *crash_dialog_show(const gchar *text, const gchar *debug_output
 	GtkWidget *button3;
 	GtkWidget *button4;
 	GtkWidget *button5;
-	GtkWidget *pixwid;
-	GdkPixmap *pix;
-	GdkBitmap *msk;
 	gchar	  *crash_report;
 
 	window1 = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -192,13 +194,6 @@ static GtkWidget *crash_dialog_show(const gchar *text, const gchar *debug_output
 	gtk_widget_show(hbox1);
 	gtk_box_pack_start(GTK_BOX(vbox1), hbox1, FALSE, TRUE, 0);
 	gtk_container_set_border_width(GTK_CONTAINER(hbox1), 4);
-
-#if 0
-	PIXMAP_CREATE(window1, pix, msk, notice_error_xpm);
-	pixwid = gtk_pixmap_new(pix, msk);
-	gtk_widget_show(pixwid);
-	gtk_box_pack_start(GTK_BOX(hbox1), pixwid, TRUE, TRUE, 0);
-#endif	
 
 	label1 = gtk_label_new
 	    (g_strdup_printf(_("%s.\nPlease file a bug report and include the information below."), text));
@@ -279,7 +274,7 @@ static GtkWidget *crash_dialog_show(const gchar *text, const gchar *debug_output
  *		all the other options (creating temp files) looked too 
  *		convoluted.
  */
-static gboolean crash_create_debugger_file(void)
+static void crash_create_debugger_file(void)
 {
 	gchar *filespec = g_strconcat(get_rc_dir(), G_DIR_SEPARATOR_S, DEBUGGERRC, NULL);
 	
@@ -503,6 +498,11 @@ static void crash_handler(int sig)
 	if (crashed_) return;
 
 	crashed_++;
+
+#ifdef SIGTERM
+	if (sig == SIGTERM) 
+		clean_quit();
+#endif
 
 	/*
 	 * gnome ungrabs focus, and flushes gdk. mmmh, good idea.

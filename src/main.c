@@ -56,7 +56,6 @@
 #include "folderview.h"
 #include "summaryview.h"
 #include "prefs_common.h"
-#include "prefs_filter.h"
 #include "prefs_account.h"
 #include "prefs_actions.h"
 #include "scoring.h"
@@ -94,6 +93,14 @@ gboolean debug_mode = FALSE;
 static gint lock_socket = -1;
 static gint lock_socket_tag = 0;
 
+typedef enum 
+{
+	ONLINE_MODE_DONT_CHANGE,
+ 	ONLINE_MODE_ONLINE,
+	ONLINE_MODE_OFFLINE
+} OnlineMode;
+
+
 static struct Cmd {
 	gboolean receive;
 	gboolean receive_all;
@@ -103,6 +110,7 @@ static struct Cmd {
 	gboolean status;
 	gboolean send;
 	gboolean crash;
+	int online_mode;
 	gchar   *crash_params;
 } cmd;
 
@@ -150,6 +158,7 @@ _("File `%s' already exists.\n"
 	} \
 }
 
+static MainWindow *static_mainwindow;
 int main(int argc, char *argv[])
 {
 	gchar *userrc;
@@ -255,6 +264,7 @@ int main(int argc, char *argv[])
 	prefs_common_read_config();
 
 #if USE_GPGME
+	gpg_started = FALSE;
 	if (gpgme_check_engine()) {  /* Also does some gpgme init */
 		rfc2015_disable_all();
 		debug_print("gpgme_engine_version:\n%s\n",
@@ -270,7 +280,9 @@ int main(int argc, char *argv[])
 			if (val & G_ALERTDISABLE)
 				prefs_common.gpg_warning = FALSE;
 		}
-	}
+	} else
+		gpg_started = TRUE;
+
 	gpgme_register_idle(idle_function_for_gpgme);
 #endif
 
@@ -280,8 +292,6 @@ int main(int argc, char *argv[])
 	
 
 	prefs_common_save_config();
-	prefs_filter_read_config();
-	prefs_filter_write_config();
 	prefs_actions_read_config();
 	prefs_actions_write_config();
 	prefs_display_header_read_config();
@@ -356,6 +366,12 @@ int main(int argc, char *argv[])
 	if (cmd.send)
 		send_queue();
 
+	if (cmd.online_mode == ONLINE_MODE_OFFLINE)
+		main_window_toggle_work_offline(mainwin, TRUE);
+	if (cmd.online_mode == ONLINE_MODE_ONLINE)
+		main_window_toggle_work_offline(mainwin, FALSE);
+	
+	static_mainwindow = mainwin;
 	gtk_main();
 
 	addressbook_destroy();
@@ -414,6 +430,10 @@ static void parse_cmd_opt(int argc, char *argv[])
 			exit(0);
 		} else if (!strncmp(argv[i], "--status", 8)) {
 			cmd.status = TRUE;
+		} else if (!strncmp(argv[i], "--online", 8)) {
+			cmd.online_mode = ONLINE_MODE_ONLINE;
+		} else if (!strncmp(argv[i], "--offline", 9)) {
+			cmd.online_mode = ONLINE_MODE_OFFLINE;
 		} else if (!strncmp(argv[i], "--help", 6)) {
 			g_print(_("Usage: %s [OPTION]...\n"),
 				g_basename(argv[0]));
@@ -426,6 +446,8 @@ static void parse_cmd_opt(int argc, char *argv[])
 			puts(_("  --receive-all          receive new messages of all accounts"));
 			puts(_("  --send                 send all queued messages"));
 			puts(_("  --status               show the total number of messages"));
+			puts(_("  --online               switch to online mode"));
+			puts(_("  --offline              switch to offline mode"));
 			puts(_("  --debug                debug mode"));
 			puts(_("  --help                 display this help and exit"));
 			puts(_("  --version              output version information and exit"));
@@ -485,16 +507,52 @@ static void initial_processing(FolderItem *item, gpointer data)
 	main_window_cursor_normal(mainwin);
 }
 
+static void draft_all_messages(void)
+{
+	GList * compose_list = compose_get_compose_list();
+	GList * elem = NULL;
+	if(compose_list) {
+		for (elem = compose_list; elem != NULL && elem->data != NULL; elem = elem->next) {
+			Compose *c = (Compose*)elem->data;
+			compose_draft(c);
+		}
+	}	
+}
+
+void clean_quit(void)	
+{
+	draft_all_messages();
+
+	if (prefs_common.warn_queued_on_exit)
+	{	/* disable the popup */ 
+		prefs_common.warn_queued_on_exit = FALSE;	
+		app_will_exit(NULL, static_mainwindow);
+		prefs_common.warn_queued_on_exit = TRUE;
+		prefs_common_save_config();
+	} else {
+		app_will_exit(NULL, static_mainwindow);
+	}
+	exit(0);
+}
+
 void app_will_exit(GtkWidget *widget, gpointer data)
 {
 	MainWindow *mainwin = data;
 	gchar *filename;
-
+	
 	if (compose_get_compose_list()) {
-		if (alertpanel(_("Notice"),
-			       _("Composing message exists. Really quit?"),
-			       _("OK"), _("Cancel"), NULL) != G_ALERTDEFAULT)
-			return;
+		gint val = alertpanel(_("Notice"),
+			       _("Composing message exists."),
+			       _("Draft them"), _("Discard them"), _("Don't quit"));
+		switch (val) {
+			case G_ALERTOTHER:
+				return;
+			case G_ALERTALTERNATE:
+				break;
+			default:
+				draft_all_messages();
+		}
+		
 		manage_window_focus_in(mainwin->window, NULL, NULL);
 	}
 
@@ -531,7 +589,6 @@ void app_will_exit(GtkWidget *widget, gpointer data)
 	main_window_get_size(mainwin);
 	main_window_get_position(mainwin);
 	prefs_common_save_config();
-	prefs_filter_write_config();
 	account_save_config_all();
 	addressbook_export_to_file();
 
@@ -653,6 +710,10 @@ static gint prohibit_duplicate_launch(void)
 		g_free(compose_str);
 	} else if (cmd.send) {
 		fd_write(uxsock, "send\n", 5);
+	} else if (cmd.online_mode == ONLINE_MODE_ONLINE) {
+		fd_write(uxsock, "online\n", 6);
+	} else if (cmd.online_mode == ONLINE_MODE_OFFLINE) {
+		fd_write(uxsock, "offline\n", 7);
 	} else if (cmd.status) {
 		gchar buf[BUFFSIZE];
 
@@ -704,6 +765,10 @@ static void lock_socket_input_cb(gpointer data,
 		open_compose_new(buf + strlen("compose") + 1, NULL);
 	} else if (!strncmp(buf, "send", 4)) {
 		send_queue();
+	} else if (!strncmp(buf, "online", 6)) {
+		main_window_toggle_work_offline(mainwin, FALSE);
+	} else if (!strncmp(buf, "offline", 7)) {
+		main_window_toggle_work_offline(mainwin, TRUE);
 	} else if (!strncmp(buf, "status", 6)) {
 		guint new, unread, total;
 
@@ -743,9 +808,8 @@ static void send_queue(void)
 				alertpanel_error(_("Some errors occurred while sending queued messages."));
 			statusbar_pop_all();
 			folder_item_scan(folder->queue);
-			folderview_update_item(folder->queue, TRUE);
 			if (prefs_common.savemsg && folder->outbox) {
-				folderview_update_item(folder->outbox, TRUE);
+				folder_update_item(folder->outbox, TRUE);
 				if (folder->outbox == def_outbox)
 					def_outbox = NULL;
 			}
@@ -753,5 +817,5 @@ static void send_queue(void)
 	}
 
 	if (prefs_common.savemsg && def_outbox)
-		folderview_update_item(def_outbox, TRUE);
+		folder_update_item(def_outbox, TRUE);
 }

@@ -104,6 +104,9 @@ typedef void (*FolderDestroyNotify)	(Folder		*folder,
 					 gpointer	 data);
 typedef void (*FolderItemFunc)		(FolderItem	*item,
 					 gpointer	 data);
+typedef void (*FolderItemUpdateFunc)	(FolderItem	*item,
+					 gboolean	 contentchange,
+					 gpointer	 data);
 
 struct _Folder
 {
@@ -133,6 +136,9 @@ struct _Folder
 					 FolderItem	*item,
 					 gboolean	 use_cache);
 */
+	FolderItem *(*item_new)		(Folder		*folder);
+	void	 (*item_destroy)	(Folder		*folder,
+					 FolderItem	*item);
 	gchar *  (*fetch_msg)		(Folder		*folder,
 					 FolderItem	*item,
 					 gint		 num);
@@ -161,14 +167,18 @@ struct _Folder
 	gint     (*remove_msg)		(Folder		*folder,
 					 FolderItem	*item,
 					 gint		 num);
+	gint     (*remove_msgs)		(Folder		*folder,
+					 FolderItem	*item,
+					 GSList		*msglist);
 	gint     (*remove_all_msg)	(Folder		*folder,
 					 FolderItem	*item);
 	gboolean (*is_msg_changed)	(Folder		*folder,
 					 FolderItem	*item,
 					 MsgInfo	*msginfo);
 	gint     (*scan)		(Folder		*folder);
-	GSList	* (*get_num_list)	(Folder		*folder,
-					 FolderItem	*item);
+	gint	 (*get_num_list)	(Folder		*folder,
+					 FolderItem	*item,
+					 GSList	       **list);
 	void     (*scan_tree)		(Folder		*folder);
 
 	gint     (*create_tree)		(Folder		*folder);
@@ -219,7 +229,6 @@ struct _FolderItem
 
 	gchar *name;
 	gchar *path;
-	PrefsAccount *account;
 
 	time_t mtime;
 
@@ -241,6 +250,7 @@ struct _FolderItem
 
 	gint op_count;
 	guint opened    : 1; /* opened by summary view */
+	guint need_update    : 1; /* folderview for this folder should be updated */
 
 	FolderSortKey sort_key;
 	FolderSortType sort_type;
@@ -249,6 +259,10 @@ struct _FolderItem
 
 	Folder *folder;
 
+	PrefsAccount *account;
+
+	gboolean apply_sub;
+	
 	GSList *mark_queue;
 
 	gpointer data;
@@ -300,6 +314,7 @@ GList *folder_get_list		(void);
 gint   folder_read_list		(void);
 void   folder_write_list	(void);
 void   folder_scan_tree		(Folder *folder);
+FolderItem *folder_create_folder(FolderItem	*parent, const gchar *name);
 void   folder_update_op_count		(void);
 void   folder_func_to_all_folders	(FolderItemFunc function,
 					 gpointer data);
@@ -323,10 +338,13 @@ FolderItem *folder_get_default_queue	(void);
 FolderItem *folder_get_default_trash	(void);
 FolderItem *folder_get_default_processing (void);
 void folder_set_missing_folders		(void);
+void folder_unref_account_all		(PrefsAccount	*account);
 
 gchar *folder_get_path			(Folder		*folder);
 gchar *folder_item_get_path		(FolderItem	*item);
 
+gint   folder_item_open			(FolderItem	*item);
+void   folder_item_close		(FolderItem	*item);
 gint   folder_item_scan			(FolderItem	*item);
 void   folder_item_scan_foreach		(GHashTable	*table);
 MsgInfo *folder_item_fetch_msginfo	(FolderItem 	*item,
@@ -339,6 +357,8 @@ gchar *folder_item_fetch_msg		(FolderItem	*item,
 gint   folder_item_add_msg		(FolderItem	*dest,
 					 const gchar	*file,
 					 gboolean	 remove_source);
+FolderItem   *folder_item_move_to	(FolderItem	*src,
+					 FolderItem	*dest);
 gint   folder_item_move_msg		(FolderItem	*dest,
 					 MsgInfo	*msginfo);
 gint   folder_item_move_msgs_with_dest	(FolderItem	*dest,
@@ -357,7 +377,6 @@ gboolean folder_item_is_msg_changed	(FolderItem	*item,
 gchar *folder_item_get_cache_file	(FolderItem	*item);
 gchar *folder_item_get_mark_file	(FolderItem	*item);
 gchar * folder_item_get_identifier(FolderItem * item);
-FolderItem * folder_find_item_from_identifier(const gchar *identifier);
 
 GHashTable *folder_persist_prefs_new	(Folder *folder);
 void folder_persist_prefs_free		(GHashTable *pptable);
@@ -370,5 +389,14 @@ void folder_item_write_cache		(FolderItem *item);
 void folder_item_set_default_flags	(FolderItem *dest, MsgFlags *flags);
 
 void folder_item_apply_processing	(FolderItem *item);
+
+void folder_update_item			(FolderItem *item,
+					 gboolean contentchange);
+void folder_update_items_when_required	(gboolean contentchange);
+void folder_update_item_recursive	(FolderItem *item,
+					 gboolean update_summary);
+gint folder_item_update_callback_register(FolderItemUpdateFunc func,
+					  gpointer data);
+void folder_item_update_callback_unregister(gint id);
 
 #endif /* __FOLDER_H__ */

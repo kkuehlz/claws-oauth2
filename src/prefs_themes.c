@@ -33,6 +33,7 @@
 
 #include "intl.h"
 #include "utils.h"
+#include "codeconv.h"
 #include "prefs_common.h"
 #include "prefs_gtk.h"
 
@@ -246,12 +247,26 @@ static void prefs_themes_foreach_file(const gchar *dirname, const FileFunc func,
 static gboolean prefs_themes_is_system_theme(const gchar *dirname)
 {
 	gint len;
+#ifdef WIN32
+	gchar	   *systemthemes;
+	gboolean   result;
+#endif
 	
 	g_return_val_if_fail(dirname != NULL, FALSE);
 
+#ifdef WIN32
+	systemthemes = g_strconcat(get_installed_dir(), G_DIR_SEPARATOR_S,
+				   PIXMAP_THEME_DIR, NULL);
+	len = strlen(systemthemes);
+	if (strlen(dirname) > len && 0 == strncmp(dirname, systemthemes, len)) 
+		result = TRUE;
+	g_free(systemthemes);
+	return result;
+#else
 	len = strlen(PACKAGE_DATA_DIR);
 	if (strlen(dirname) > len && 0 == strncmp(dirname, PACKAGE_DATA_DIR, len))
 		return TRUE;
+#endif
 	
 	return FALSE;
 }
@@ -479,9 +494,15 @@ static void prefs_themes_btn_install_clicked_cb(GtkWidget *widget, gpointer data
 				 _("Yes"), _("No"), _("Cancel"));
 		switch (val) {
 		case G_ALERTDEFAULT:
+#ifdef WIN32
+			cinfo->dest = g_strconcat(get_installed_dir(), G_DIR_SEPARATOR_S,
+						  PIXMAP_THEME_DIR, G_DIR_SEPARATOR_S, 
+						  themename, NULL);
+#else
 			cinfo->dest = g_strconcat(PACKAGE_DATA_DIR, G_DIR_SEPARATOR_S,
 						  PIXMAP_THEME_DIR, G_DIR_SEPARATOR_S, 
 						  themename, NULL);
+#endif
 			break;
 		case G_ALERTALTERNATE:
 			break;
@@ -506,21 +527,17 @@ static void prefs_themes_btn_install_clicked_cb(GtkWidget *widget, gpointer data
 	prefs_themes_foreach_file(source, prefs_themes_file_install, cinfo);
 	if (cinfo->status == NULL) {
 		GList *insted;
-
+		
+		alertpanel_notice(_("Theme installed succesfully"));
 		/* update interface to show newly installed theme */
 		prefs_themes_get_themes_and_names(tdata);
 		insted = g_list_find_custom(tdata->themes, 
 					    (gpointer)(cinfo->dest), 
 					    (GCompareFunc)strcmp2);
-		if (NULL != insted) {
-			alertpanel_notice(_("Theme installed succesfully"));
-			tdata->displayed = (gchar *)(insted->data);
-			prefs_themes_set_themes_menu(GTK_OPTION_MENU(tdata->page->op_menu), tdata);
-			prefs_themes_display_global_stats(tdata);
-			prefs_themes_get_theme_info(tdata);
-		}
-		else
-			alertpanel_error(_("Failed installing theme"));
+		tdata->displayed = (gchar *)(insted->data);
+		prefs_themes_set_themes_menu(GTK_OPTION_MENU(tdata->page->op_menu), tdata);
+		prefs_themes_display_global_stats(tdata);
+		prefs_themes_get_theme_info(tdata);	
 	}
 	else
 		alertpanel_error(_("File %s failed\nwhile installing theme."), cinfo->status);
@@ -561,16 +578,30 @@ static void prefs_themes_update_buttons(const ThemesData *tdata)
 		gtk_widget_set_sensitive(theme->btn_remove, can_rem);
 }
 
+/* placeholders may already be utf8 (i18n) */
+#define SET_LABEL_TEXT_UTF8(label, text)				\
+{									\
+	gchar *tmpstr;							\
+									\
+	if (!g_utf8_validate(text, -1, NULL))				\
+		tmpstr = conv_codeset_strdup(text,			\
+			conv_get_current_charset_str(),	CS_UTF_8);	\
+	else								\
+		tmpstr = g_strdup(text);				\
+									\
+	gtk_label_set_text(GTK_LABEL(label), tmpstr);			\
+	g_free(tmpstr);							\
+}
 static void prefs_themes_display_theme_info(ThemesData *tdata, const ThemeInfo *info)
 {
 	ThemesPage *theme = tdata->page;
 	gchar *save_prefs_path;
 	gint   i;
-	
-	gtk_label_set_text(GTK_LABEL(theme->name), info->name);
-	gtk_label_set_text(GTK_LABEL(theme->author), info->author);
-	gtk_label_set_text(GTK_LABEL(theme->url), info->url);	
-	gtk_label_set_text(GTK_LABEL(theme->status), info->status);
+
+	SET_LABEL_TEXT_UTF8(theme->name,	info->name);
+	SET_LABEL_TEXT_UTF8(theme->author,	info->author);
+	SET_LABEL_TEXT_UTF8(theme->url,		info->url);
+	SET_LABEL_TEXT_UTF8(theme->status,	info->status);
 
 	save_prefs_path = prefs_common.pixmap_theme_path;
 	prefs_common.pixmap_theme_path = tdata->displayed;
@@ -584,6 +615,7 @@ static void prefs_themes_display_theme_info(ThemesData *tdata, const ThemeInfo *
 
 	prefs_themes_update_buttons(tdata);
 }
+#undef SET_LABEL_TEXT_UTF8
 
 static void prefs_themes_display_global_stats(const ThemesData *tdata)
 {

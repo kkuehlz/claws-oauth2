@@ -453,12 +453,12 @@ static gboolean matcherprop_match_execute(const MatcherProp *prop,
 	gchar *cmd;
 	gint retval;
 
-	file = procmsg_get_message_file(info);
+	file = procmsg_get_message_file((MsgInfo*)info);
 	if (file == NULL)
 		return FALSE;
 	g_free(file);		
 
-	cmd = matching_build_command(prop->expr, info);
+	cmd = matching_build_command(prop->expr, (MsgInfo*)info);
 	if (cmd == NULL)
 		return FALSE;
 

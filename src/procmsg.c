@@ -820,7 +820,11 @@ gint procmsg_save_to_outbox(FolderItem *outbox, const gchar *file,
 
 void procmsg_print_message(MsgInfo *msginfo, const gchar *cmdline)
 {
+#ifdef WIN32
+	static const gchar *def_cmd = "notepad /p \"%s\"";
+#else
 	static const gchar *def_cmd = "lpr %s";
+#endif
 	static guint id = 0;
 	gchar *prtmp;
 	FILE *tmpfp, *prfp;
@@ -837,7 +841,7 @@ void procmsg_print_message(MsgInfo *msginfo, const gchar *cmdline)
 	prtmp = g_strdup_printf("%s%cprinttmp.%08x",
 				get_mime_tmp_dir(), G_DIR_SEPARATOR, id++);
 
-	if ((prfp = fopen(prtmp, "wb")) == NULL) {
+	if ((prfp = fopen(prtmp, "w")) == NULL) {	/* translate crlf on dos based systems */
 		FILE_OP_ERROR(prtmp, "fopen");
 		g_free(prtmp);
 		fclose(tmpfp);
@@ -872,7 +876,9 @@ void procmsg_print_message(MsgInfo *msginfo, const gchar *cmdline)
 	g_free(prtmp);
 
 	g_strchomp(buf);
+#ifndef WIN32
 	if (buf[strlen(buf) - 1] != '&') strcat(buf, "&");
+#endif
 	system(buf);
 }
 

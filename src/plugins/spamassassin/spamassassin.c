@@ -24,7 +24,11 @@
 #include "defs.h"
 
 #include <sys/types.h>
+#ifdef WIN32
+#include <process.h>
+#else
 #include <sys/wait.h>
+#endif
 
 #include <glib.h>
 
@@ -78,6 +82,16 @@ static int flags = SPAMC_RAW_MODE | SPAMC_SAFE_FALLBACK | SPAMC_CHECK_ONLY;
 static gchar *username = NULL;
 
 static SpamAssassinConfig config;
+
+#ifdef WIN32
+typedef struct _SpamThreadData SpamThreadData;
+struct _SpamThreadData
+{
+	FILE *fp;
+	gboolean running;
+	gboolean is_spam;
+};
+#endif
 
 static PrefParam param[] = {
 	{"enable", "FALSE", &config.enable, P_BOOL,
@@ -144,6 +158,14 @@ static gboolean msg_is_spam(FILE *fp)
 	return is_spam;
 }
 
+#ifdef WIN32
+void msg_is_spam_thread(SpamThreadData *data)
+{
+	data->is_spam = msg_is_spam(data->fp) ==1 ? TRUE : FALSE ;
+	data->running = 0;
+}
+#endif
+
 static gboolean mail_filtering_hook(gpointer source, gpointer data)
 {
 	MailFilteringData *mail_filtering_data = (MailFilteringData *) source;
@@ -152,6 +174,9 @@ static gboolean mail_filtering_hook(gpointer source, gpointer data)
 	FILE *fp = NULL;
 	int pid = 0;
 	int status;
+#ifdef WIN32
+	SpamThreadData *threaddata = g_new(SpamThreadData,1);
+#endif
 
 	if (!config.enable)
 		return FALSE;
@@ -163,6 +188,18 @@ static gboolean mail_filtering_hook(gpointer source, gpointer data)
 		return FALSE;
 	}
 
+#ifdef WIN32
+	threaddata->fp = fp;
+	threaddata->is_spam = FALSE;
+	threaddata->running = TRUE;
+
+	pid = _beginthread(msg_is_spam_thread, 0, threaddata);
+	while (threaddata->running)
+		g_main_iteration(TRUE);
+
+	is_spam = threaddata->is_spam;
+	g_free(threaddata);
+#else
 	pid = fork();
 	if (pid == 0) {
 		_exit(msg_is_spam(fp) ? 1 : 0);
@@ -187,6 +224,7 @@ static gboolean mail_filtering_hook(gpointer source, gpointer data)
 			g_main_iteration(TRUE);
 	}
         is_spam = WEXITSTATUS(status) == 1 ? TRUE : FALSE;
+#endif
 
 	fclose(fp);
 

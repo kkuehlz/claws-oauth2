@@ -9,17 +9,26 @@
 #include "../config.h"
 #include "libspamc.h"
 #include "utils.h"
-
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <syslog.h>
 #include <sys/types.h>
+#ifdef WIN32
+# include <w32lib.h>
+# include <errno.h>
+# ifndef _MSC_VER
+#  include <winsock2.h>
+# endif
+#else
+#include <syslog.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#endif
 
 #ifdef HAVE_SYSEXITS_H
 #include <sysexits.h>
@@ -35,6 +44,10 @@
 #endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
+
+#ifdef _MSC_VER
+#define in_addr_t ulong
 #endif
 
 #define MAX_CONNECT_RETRIES 3
@@ -214,7 +227,11 @@ try_to_connect (const struct sockaddr *argaddr, struct hostent *hent,
     case ENOPROTOOPT:
     case EFAULT:
       syslog (LOG_ERR, "setsockopt() to spamd failed: %m");
+#ifdef WIN32
+      closesocket (mysock);
+#else
       close (mysock);
+#endif
       return EX_SOFTWARE;
 
     default:
@@ -290,7 +307,11 @@ try_to_connect (const struct sockaddr *argaddr, struct hostent *hent,
   }
  
   /* failed, even with a few retries */
+#ifdef WIN32
+  closesocket (mysock);
+#else
   close (mysock);
+#endif
   syslog (LOG_ERR, "connection attempt to spamd aborted after %d retries",
        MAX_CONNECT_RETRIES);
  
@@ -749,7 +770,11 @@ static int _message_filter(const struct sockaddr *addr,
     len = 0;		/* overwrite those headers */
 
     if (flags&SPAMC_CHECK_ONLY) {
+#ifdef WIN32
+      closesocket(sock); sock = -1;
+#else
       close(sock); sock = -1;
+#endif
       if (m->is_spam == EX_TOOBIG) {
 	    /* We should have gotten headers back... Damnit. */
 	    failureval = EX_PROTOCOL; goto failure;
@@ -779,7 +804,11 @@ static int _message_filter(const struct sockaddr *addr,
 	m->out_len+=len;
 
 	shutdown(sock, SHUT_RD);
+#ifdef WIN32
+	closesocket(sock); sock = -1;
+#else
 	close(sock); sock = -1;
+#endif
     }
     libspamc_timeout = 0;
 
@@ -794,7 +823,11 @@ static int _message_filter(const struct sockaddr *addr,
 failure:
     free(m->out); m->out=m->msg; m->out_len=m->msg_len;
     if (sock != -1) {
+#ifdef WIN32
+      closesocket(sock);
+#else
       close(sock);
+#endif
     }
     libspamc_timeout = 0;
 

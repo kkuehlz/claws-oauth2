@@ -10,8 +10,17 @@
 #define LIBSPAMC_H 1
 
 #include <sys/types.h>
+#ifdef WIN32
+# include <w32lib.h>
+# include "log.h"
+# include "utils.h"
+#ifdef __MINGW32__
+# include "libspamc_utils.h"
+#endif
+#else
 #include <sys/socket.h>
 #include <netdb.h>
+#endif
 #include <stdio.h>
 
 #define EX_NOTSPAM		  0

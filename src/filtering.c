@@ -40,8 +40,12 @@ static gboolean filtering_is_final_action(FilteringAction *filtering_action);
 
 #define STRLEN_WITH_CHECK(expr) \
         strlen_with_check(#expr, __LINE__, expr)
-	        
+
+#ifdef WIN32
+static gint strlen_with_check (const gchar *expr, gint fline, const gchar *str)
+#else
 static inline gint strlen_with_check(const gchar *expr, gint fline, const gchar *str)
+#endif	        
 {
         if (str) 
 		return strlen(str);

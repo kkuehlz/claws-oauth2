@@ -28,7 +28,9 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#ifndef WIN32
+# include <unistd.h>
+#endif
 #include <stdlib.h>
 
 #include "intl.h"
@@ -209,6 +211,9 @@ FolderItem *folder_item_new(Folder *folder, const gchar *name, const gchar *path
 	item->apply_sub = FALSE;
 	item->mark_queue = NULL;
 	item->data = NULL;
+#ifdef WIN32
+	item->n_child = calc_child(item->path);
+#endif
 
 	item->prefs = folder_item_prefs_new();
 
@@ -1857,7 +1862,15 @@ FolderItem *folder_item_move_recursive(FolderItem *src, FolderItem *dest)
 
 	/* move messages */
 	debug_print("Moving %s to %s\n", src->path, dest->path);
+#ifdef WIN32
+	{
+		gchar *p_path = g_strdup(src->path);
+		subst_char(p_path, '/', G_DIR_SEPARATOR);
+		new_item = folder_create_folder(dest, g_basename(p_path));
+	}
+#else
 	new_item = folder_create_folder(dest, g_basename(src->path));
+#endif
 	if (new_item == NULL) {
 		printf("Can't create folder\n");
 		return NULL;
@@ -2638,7 +2651,7 @@ static gchar *folder_get_list_path(void)
 	fputs(" " attr "=\"", fp);			\
 	xml_file_put_escape_str(fp, str);		\
 	fputs("\"", fp);				\
-}
+}                                                       
 
 static void folder_write_list_recursive(GNode *node, gpointer data)
 {
@@ -2836,7 +2849,13 @@ static void folder_create_processing_folder(void)
 	g_assert(processing_folder != NULL);
 
 	debug_print("tmpparentroot %s\n", LOCAL_FOLDER(processing_folder)->rootpath);
+#ifdef WIN32
+	if (LOCAL_FOLDER(processing_folder)->rootpath[0] == '/'
+		|| LOCAL_FOLDER(processing_folder)->rootpath[0] == G_DIR_SEPARATOR
+		|| LOCAL_FOLDER(processing_folder)->rootpath[1] == ':')
+#else
 	if (LOCAL_FOLDER(processing_folder)->rootpath[0] == '/')
+#endif
 		tmpname = g_strconcat(LOCAL_FOLDER(processing_folder)->rootpath,
 				      G_DIR_SEPARATOR_S, PROCESSING_FOLDER_ITEM,
 				      NULL);

@@ -40,14 +40,20 @@
 #  include <wctype.h>
 #endif
 
-#include "addrindex.h"
 #include "addr_compl.h"
+#include "addritem.h"
 #include "utils.h"
 #include "prefs_common.h"
 #include "claws.h"
 #include "hooks.h"
 #include "gtkutils.h"
 #include <pthread.h>
+
+#ifndef USE_NEW_ADDRBOOK
+	#include "addrindex.h"
+#else
+	#include "addressbook-dbus.h"
+#endif
 
 /*!
  *\brief	For the GtkListStore
@@ -291,8 +297,18 @@ static void read_address_book(gchar *folderpath) {
 	free_all_addresses();
 	free_completion_list();
 
+#ifndef USE_NEW_ADDRBOOK
 	addrindex_load_completion( add_address, folderpath );
-
+#else
+	GError* error = NULL;
+	
+	addrcompl_initialize();
+	if (! addrindex_dbus_load_completion(add_address, &error)) {
+		g_warning("Failed to populate address completion list");
+        g_error_free(error);
+		return;
+	}
+#endif
 	/* plugins may hook in here to modify/extend the completion list */
 	hooks_invoke(ADDDRESS_COMPLETION_BUILD_ADDRESS_LIST_HOOKLIST, &g_address_list);
 
@@ -758,8 +774,9 @@ static CompletionWindow *addrcompl_create_window( void ) {
  */
 static void addrcompl_destroy_window( CompletionWindow *cw ) {
 	/* Stop all searches currently in progress */
+#ifndef USE_NEW_ADDRBOOK
 	addrindex_stop_search( _queryID_ );
-
+#endif
 	/* Remove idler function... or application may not terminate */
 	if( _completionIdleID_ != 0 ) {
 		g_source_remove( _completionIdleID_ );
@@ -972,6 +989,7 @@ static gboolean addrcompl_idle( gpointer data ) {
  *                   criteria.
  * \param data       Query data.
  */
+#ifndef USE_NEW_ADDRBOOK
 static gint addrcompl_callback_entry(
 	gpointer sender, gint queryID, GList *listEMail, gpointer data )
 {
@@ -997,6 +1015,7 @@ static gint addrcompl_callback_entry(
 
 	return 0;
 }
+#endif
 
 /**
  * Clear the display queue.
@@ -1042,6 +1061,7 @@ static void addrcompl_load_local( void ) {
  * Start the search.
  */
 static void addrcompl_start_search( void ) {
+#ifndef USE_NEW_ADDRBOOK
 	gchar *searchTerm;
 
 	searchTerm = g_strdup( _compWindow_->searchTerm );
@@ -1050,6 +1070,7 @@ static void addrcompl_start_search( void ) {
 	_queryID_ = addrindex_setup_search(
 		searchTerm, NULL, addrcompl_callback_entry );
 	g_free( searchTerm );
+#endif
 	/* g_print( "addrcompl_start_search::queryID=%d\n", _queryID_ ); */
 
 	/* Load local stuff */
@@ -1060,7 +1081,11 @@ static void addrcompl_start_search( void ) {
 		g_idle_add( (GSourceFunc) addrcompl_idle, NULL );
 	/* g_print( "addrindex_start_search::queryID=%d\n", _queryID_ ); */
 
+#ifndef USE_NEW_ADDRBOOK
 	addrindex_start_search( _queryID_ );
+#else
+	
+#endif
 }
 
 /**

@@ -1,3 +1,35 @@
+2011-09-07 [mir]	3.7.10cvs16.3-new-contacts
+
+	* configure.ac
+	* src/Makefile.am
+	* src/addr_compl.c
+	* src/addressadd.c
+	* src/addressadd.h
+	* src/addressbook-dbus.c
+	* src/addressbook-dbus.h
+	* src/addrgather.c
+	* src/addrgather.h
+	* src/addrharvest.c
+	* src/addrharvest.h
+	* src/claws-contacts.xml
+	* src/compose.c
+	* src/compose.h
+	* src/filtering.c
+	* src/headerview.c
+	* src/main.c
+	* src/mainwindow.c
+	* src/messageview.c
+	* src/prefs_common.c
+	* src/prefs_filtering_action.c
+	* src/prefs_matcher.c
+	* src/summaryview.c
+	* src/textview.c
+	* src/toolbar.c
+	* src/plugins/trayicon/trayicon.c
+	    Initial commit of the new address book.
+	    Needed changes to support the new address
+	    books DBus interface.
+
 2011-09-07 [colin]	3.7.10cvs16.2-new-contacts
 
 	* configure.ac

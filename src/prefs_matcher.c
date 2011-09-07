@@ -53,7 +53,9 @@
 #include "colorlabel.h"
 #include "tags.h"
 
+#ifndef USE_NEW_ADDRBOOK
 static void prefs_matcher_addressbook_select(void);
+#endif
 static void prefs_matcher_test_info(GtkWidget *widget, GtkWidget *parent);
 
 enum {
@@ -521,8 +523,9 @@ static void prefs_matcher_create(void)
 	GtkWidget *down_btn;
 
 	GtkWidget *test_btn;
+#ifndef USE_NEW_ADDRBOOK
 	GtkWidget *addressbook_select_btn;
-
+#endif
 	GtkWidget *color_optmenu;
 
 	static GdkGeometry geometry;
@@ -647,12 +650,13 @@ static void prefs_matcher_create(void)
 	gtk_widget_set_size_request(addressbook_folder_combo, 150, -1);
 	gtk_box_pack_start(GTK_BOX(upper_hbox), addressbook_folder_combo, TRUE, TRUE, 0);			 
 
+#ifndef USE_NEW_ADDRBOOK
 	addressbook_select_btn = gtk_button_new_with_label(_("Select ..."));
 	gtk_box_pack_start(GTK_BOX(upper_hbox), addressbook_select_btn, FALSE, FALSE, 0);
 	g_signal_connect(G_OBJECT (addressbook_select_btn), "clicked",
 			 G_CALLBACK(prefs_matcher_addressbook_select),
 			 NULL);
-
+#endif
 	match_label = gtk_label_new("");
 	gtk_misc_set_alignment(GTK_MISC(match_label), 1, 0.5);
 	gtk_table_attach(GTK_TABLE(table), match_label, 0, 1, 1, 2,
@@ -823,7 +827,9 @@ static void prefs_matcher_create(void)
 #endif
 	matcher.bool_op_combo = bool_op_combo;
 	matcher.test_btn = test_btn;
+#ifndef USE_NEW_ADDRBOOK
 	matcher.addressbook_select_btn = addressbook_select_btn;
+#endif
 	matcher.color_optmenu = color_optmenu;
 	matcher.match_label = match_label;
 	matcher.criteria_label2 = criteria_label2;
@@ -2117,6 +2123,7 @@ static void prefs_matcher_test_info(GtkWidget *widget, GtkWidget *parent)
 	description_window_create(&test_desc_win);
 }
 
+#ifndef USE_NEW_ADDRBOOK
 static void prefs_matcher_addressbook_select(void)
 {
 	const gchar *folderpath = NULL;
@@ -2129,7 +2136,7 @@ static void prefs_matcher_addressbook_select(void)
 		g_free(new_path);
 	} 
 }
-
+#endif
 
 /*
  * list view

@@ -26,7 +26,9 @@
 #include <gdk/gdkkeysyms.h>
 #include <gdk/gdk.h>
 #include <gtk/gtk.h>
+#if !GTK_CHECK_VERSION(3, 0, 0)
 #include "gtk/gtksctree.h"
+#endif
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/stat.h>
@@ -49,7 +51,9 @@
 #include "defs.h"
 #include "gtkutils.h"
 #include "utils.h"
+#if !GTK_CHECK_VERSION(3, 0, 0)
 #include "gtksctree.h"
+#endif
 #include "codeconv.h"
 #include "stock_pixmap.h"
 #include "menu.h"
@@ -84,7 +88,7 @@ void gtkut_widget_set_small_font_size(GtkWidget *widget)
 	gint size;
 
 	cm_return_if_fail(widget != NULL);
-	cm_return_if_fail(widget->style != NULL);
+	cm_return_if_fail(gtk_widget_get_style(widget) != NULL);
 
 	if (prefs_common.derive_from_normal_font || !SMALL_FONT) {
 		font_desc = pango_font_description_from_string(NORMAL_FONT);
@@ -528,6 +532,7 @@ void gtkut_text_view_set_position(GtkTextView *text, gint pos)
 {
 	GtkTextBuffer *buffer;
 	GtkTextIter iter;
+	GtkTextMark *mark;
 
 	cm_return_if_fail(text != NULL);
 
@@ -535,7 +540,8 @@ void gtkut_text_view_set_position(GtkTextView *text, gint pos)
 
 	gtk_text_buffer_get_iter_at_offset(buffer, &iter, pos);
 	gtk_text_buffer_place_cursor(buffer, &iter);
-	gtk_text_view_scroll_to_iter(text, &iter, 0.0, FALSE, 0.0, 0.0);
+	mark = gtk_text_buffer_create_mark(buffer, NULL, &iter, TRUE);
+	gtk_text_view_scroll_to_mark(text, mark, 0.0, FALSE, 0.0, 0.0);
 }
 
 gboolean gtkut_text_view_search_string(GtkTextView *text, const gchar *str,
@@ -605,19 +611,22 @@ gboolean gtkut_text_view_search_string_backward(GtkTextView *text, const gchar *
 
 void gtkut_window_popup(GtkWidget *window)
 {
+	GdkWindow *gdkwin;
 	gint x, y, sx, sy, new_x, new_y;
 
+	gdkwin = gtk_widget_get_window(window);
+
 	cm_return_if_fail(window != NULL);
-	cm_return_if_fail(window->window != NULL);
+	cm_return_if_fail(gdkwin != NULL);
 
 	sx = gdk_screen_width();
 	sy = gdk_screen_height();
 
-	gdk_window_get_origin(window->window, &x, &y);
+	gdk_window_get_origin(gdkwin, &x, &y);
 	new_x = x % sx; if (new_x < 0) new_x = 0;
 	new_y = y % sy; if (new_y < 0) new_y = 0;
 	if (new_x != x || new_y != y)
-		gdk_window_move(window->window, new_x, new_y);
+		gdk_window_move(gdkwin, new_x, new_y);
 
 	gtk_window_set_skip_taskbar_hint(GTK_WINDOW(window), FALSE);
 	gtk_window_present_with_time(GTK_WINDOW(window), time(NULL));
@@ -625,17 +634,20 @@ void gtkut_window_popup(GtkWidget *window)
 
 void gtkut_widget_get_uposition(GtkWidget *widget, gint *px, gint *py)
 {
+	GdkWindow *gdkwin;
 	gint x, y;
 	gint sx, sy;
 
+	gdkwin = gtk_widget_get_window(widget);
+
 	cm_return_if_fail(widget != NULL);
-	cm_return_if_fail(widget->window != NULL);
+	cm_return_if_fail(gdkwin != NULL);
 
 	sx = gdk_screen_width();
 	sy = gdk_screen_height();
 
 	/* gdk_window_get_root_origin ever return *rootwindow*'s position */
-	gdk_window_get_root_origin(widget->window, &x, &y);
+	gdk_window_get_root_origin(gdkwin, &x, &y);
 
 	x %= sx; if (x < 0) x = 0;
 	y %= sy; if (y < 0) y = 0;
@@ -645,8 +657,8 @@ void gtkut_widget_get_uposition(GtkWidget *widget, gint *px, gint *py)
 
 void gtkut_widget_draw_now(GtkWidget *widget)
 {
-	if (widget && gtkut_widget_get_visible(widget) && gtkut_widget_is_drawable(widget))
-		gdk_window_process_updates(widget->window, FALSE);
+	if (widget && gtk_widget_get_visible(widget) && gtk_widget_is_drawable(widget))
+		gdk_window_process_updates(gtk_widget_get_window(widget), FALSE);
 }
 
 static void gtkut_clist_bindings_add(GtkWidget *clist)
@@ -656,7 +668,7 @@ static void gtkut_clist_bindings_add(GtkWidget *clist)
 	binding_set = gtk_binding_set_by_class
 		(GTK_CMCLIST_GET_CLASS(clist));
 
-	gtk_binding_entry_add_signal(binding_set, GDK_n, GDK_CONTROL_MASK,
+	gtk_binding_entry_add_signal(binding_set, GDK_KEY_n, GDK_CONTROL_MASK,
 				     "scroll_vertical", 2,
 				     G_TYPE_ENUM, GTK_SCROLL_STEP_FORWARD,
 				     G_TYPE_FLOAT, 0.0);
@@ -709,7 +721,7 @@ void gtkut_widget_set_app_icon(GtkWidget *widget)
 	static GdkPixbuf *icon = NULL;
 	
 	cm_return_if_fail(widget != NULL);
-	cm_return_if_fail(widget->window != NULL);
+	cm_return_if_fail(gtk_widget_get_window(widget) != NULL);
 	if (!icon) {
 		stock_pixbuf_gdk(widget, STOCK_PIXMAP_CLAWS_MAIL_ICON, &icon);
 	}		
@@ -722,7 +734,7 @@ void gtkut_widget_set_composer_icon(GtkWidget *widget)
 	static GdkPixbuf *icon = NULL;
 	
 	cm_return_if_fail(widget != NULL);
-	cm_return_if_fail(widget->window != NULL);
+	cm_return_if_fail(gtk_widget_get_window(widget) != NULL);
 	if (!icon) {
 		stock_pixbuf_gdk(widget, STOCK_PIXMAP_MAIL_COMPOSE, &icon);
 	}		
@@ -868,7 +880,7 @@ GtkWidget *gtkut_get_focused_child(GtkContainer *parent)
 
 	for (c = child_list; c != NULL; c = g_list_next(c)) {
 		if (c->data && GTK_IS_WIDGET(c->data)) {
-			if (gtkut_widget_has_focus(GTK_WIDGET(c->data))) {
+			if (gtk_widget_has_focus(GTK_WIDGET(c->data))) {
 				result = GTK_WIDGET(c->data);
 				break;
 			}
@@ -1148,12 +1160,15 @@ static GdkCursor *hand_cursor = NULL;
 
 static void link_btn_enter(GtkButton *button, gpointer data)
 {
+	GdkWindow *gdkwin;
 	GtkWidget *window = (GtkWidget *)data;
+
+	gdkwin = gtk_widget_get_window(window);
 
 	if (!hand_cursor)
 		hand_cursor = gdk_cursor_new(GDK_HAND2);
-	if (window && window->window)
-		gdk_window_set_cursor(window->window, hand_cursor);
+	if (window && gdkwin)
+		gdk_window_set_cursor(gdkwin, hand_cursor);
 
 	gtk_button_set_relief(button, GTK_RELIEF_NONE);
 	gtk_widget_set_state(GTK_WIDGET(button), GTK_STATE_NORMAL);
@@ -1162,10 +1177,13 @@ static void link_btn_enter(GtkButton *button, gpointer data)
 
 static void link_btn_leave(GtkButton *button, gpointer data)
 {
+	GdkWindow *gdkwin;
 	GtkWidget *window = (GtkWidget *)data;
 
-	if (window && window->window)
-		gdk_window_set_cursor(window->window, NULL);
+	gdkwin = gtk_widget_get_window(window);
+
+	if (window && gdkwin)
+		gdk_window_set_cursor(gdkwin, NULL);
 
 	gtk_button_set_relief(button, GTK_RELIEF_NONE);
 	gtk_widget_set_state(GTK_WIDGET(button), GTK_STATE_NORMAL);
@@ -1203,9 +1221,11 @@ GtkWidget *gtkut_get_link_btn(GtkWidget *window, const gchar *url, const gchar *
 {
 	GtkWidget *btn;
 	GtkWidget *btn_label;
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	GdkColormap *cmap;
-	GdkColor uri_color[2] = {{0, 0, 0, 0xffff}, {0, 0xffff, 0, 0}};
 	gboolean success[2];
+#endif
+	GdkColor uri_color[2] = {{0, 0, 0, 0xffff}, {0, 0xffff, 0, 0}};
 	gchar *local_url = NULL;
 	if (!url)
 		return NULL;
@@ -1218,9 +1238,11 @@ GtkWidget *gtkut_get_link_btn(GtkWidget *window, const gchar *url, const gchar *
 	btn = gtk_button_new_with_label(label?label:url);
 	gtk_button_set_relief(GTK_BUTTON(btn), GTK_RELIEF_NONE);
 	btn_label = gtk_bin_get_child(GTK_BIN((btn)));
-	cmap = gdk_drawable_get_colormap(window->window);
+#if !GTK_CHECK_VERSION(3, 0, 0)
+	cmap = gdk_drawable_get_colormap(gtk_widget_get_window(window));
 	gdk_colormap_alloc_colors(cmap, uri_color, 2, FALSE, TRUE, success);
 	if (success[0] == TRUE && success[1] == TRUE) {
+#endif
 		GtkStyle *style;
 		gtk_widget_ensure_style(btn_label);
 		style = gtk_style_copy
@@ -1229,8 +1251,10 @@ GtkWidget *gtkut_get_link_btn(GtkWidget *window, const gchar *url, const gchar *
 		style->fg[GTK_STATE_ACTIVE]   = uri_color[1];
 		style->fg[GTK_STATE_PRELIGHT] = uri_color[0];
 		gtk_widget_set_style(btn_label, style);
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	} else
 		g_warning("about_create(): color allocation failed.\n");
+#endif
 
 	g_signal_connect(G_OBJECT(btn), "enter",
 			 G_CALLBACK(link_btn_enter), window);
@@ -1307,12 +1331,12 @@ static void gtkutils_smooth_scroll_do(GtkWidget *widget, GtkAdjustment *vadj,
 	}
 
 	for (i = step; i <= change_value; i += step) {
-		vadj->value = old_value + (up ? -i : i);
+		gtk_adjustment_set_value(vadj, old_value + (up ? -i : i));
 		g_signal_emit_by_name(G_OBJECT(vadj),
 				      "value_changed", 0);
 	}
 
-	vadj->value = last_value;
+	gtk_adjustment_set_value(vadj, last_value);
 	g_signal_emit_by_name(G_OBJECT(vadj), "value_changed", 0);
 
 	gtk_widget_queue_draw(widget);
@@ -1325,16 +1349,15 @@ static gboolean gtkutils_smooth_scroll_page(GtkWidget *widget, GtkAdjustment *va
 	gfloat old_value;
 	gfloat last_value;
 
+	page_incr = gtk_adjustment_get_page_increment(vadj);
 	if (prefs_common.scroll_halfpage)
-		page_incr = vadj->page_increment / 2;
-	else
-		page_incr = vadj->page_increment;
+		page_incr /= 2;
 
+	old_value = gtk_adjustment_get_value(vadj);
 	if (!up) {
-		upper = vadj->upper - vadj->page_size;
-		if (vadj->value < upper) {
-			old_value = vadj->value;
-			last_value = vadj->value + page_incr;
+		upper = gtk_adjustment_get_upper(vadj) - gtk_adjustment_get_page_size(vadj);
+		if (old_value < upper) {
+			last_value = old_value + page_incr;
 			last_value = MIN(last_value, upper);
 
 			gtkutils_smooth_scroll_do(widget, vadj, old_value,
@@ -1343,9 +1366,8 @@ static gboolean gtkutils_smooth_scroll_page(GtkWidget *widget, GtkAdjustment *va
 		} else
 			return FALSE;
 	} else {
-		if (vadj->value > 0.0) {
-			old_value = vadj->value;
-			last_value = vadj->value - page_incr;
+		if (old_value > 0.0) {
+			last_value = old_value - page_incr;
 			last_value = MAX(last_value, 0.0);
 
 			gtkutils_smooth_scroll_do(widget, vadj, old_value,
@@ -1362,28 +1384,31 @@ gboolean gtkutils_scroll_page(GtkWidget *widget, GtkAdjustment *vadj, gboolean u
 {
 	gfloat upper;
 	gfloat page_incr;
+	gfloat old_value;
 
 	if (prefs_common.enable_smooth_scroll)
 		return gtkutils_smooth_scroll_page(widget, vadj, up);
 
+	page_incr = gtk_adjustment_get_page_increment(vadj);
 	if (prefs_common.scroll_halfpage)
-		page_incr = vadj->page_increment / 2;
-	else
-		page_incr = vadj->page_increment;
+		page_incr /= 2;
 
+	old_value = gtk_adjustment_get_value(vadj);
 	if (!up) {
-		upper = vadj->upper - vadj->page_size;
-		if (vadj->value < upper) {
-			vadj->value += page_incr;
-			vadj->value = MIN(vadj->value, upper);
+		upper = gtk_adjustment_get_upper(vadj) - gtk_adjustment_get_page_size(vadj);
+		if (old_value < upper) {
+			old_value += page_incr;
+			old_value = MIN(old_value, upper);
+			gtk_adjustment_set_value(vadj, old_value);
 			g_signal_emit_by_name(G_OBJECT(vadj),
 					      "value_changed", 0);
 		} else
 			return FALSE;
 	} else {
-		if (vadj->value > 0.0) {
-			vadj->value -= page_incr;
-			vadj->value = MAX(vadj->value, 0.0);
+		if (old_value > 0.0) {
+			old_value -= page_incr;
+			old_value = MAX(old_value, 0.0);
+			gtk_adjustment_set_value(vadj, old_value);
 			g_signal_emit_by_name(G_OBJECT(vadj),
 					      "value_changed", 0);
 		} else
@@ -1398,11 +1423,11 @@ static void gtkutils_smooth_scroll_one_line(GtkWidget *widget, GtkAdjustment *va
 	gfloat old_value;
 	gfloat last_value;
 
+	old_value = gtk_adjustment_get_value(vadj);
 	if (!up) {
-		upper = vadj->upper - vadj->page_size;
-		if (vadj->value < upper) {
-			old_value = vadj->value;
-			last_value = vadj->value + vadj->step_increment;
+		upper = gtk_adjustment_get_upper(vadj) - gtk_adjustment_get_page_size(vadj);
+		if (old_value < upper) {
+			last_value = old_value + gtk_adjustment_get_step_increment(vadj);
 			last_value = MIN(last_value, upper);
 
 			gtkutils_smooth_scroll_do(widget, vadj, old_value,
@@ -1410,9 +1435,8 @@ static void gtkutils_smooth_scroll_one_line(GtkWidget *widget, GtkAdjustment *va
 						  prefs_common.scroll_step);
 		}
 	} else {
-		if (vadj->value > 0.0) {
-			old_value = vadj->value;
-			last_value = vadj->value - vadj->step_increment;
+		if (old_value > 0.0) {
+			last_value = old_value - gtk_adjustment_get_step_increment(vadj);
 			last_value = MAX(last_value, 0.0);
 
 			gtkutils_smooth_scroll_do(widget, vadj, old_value,
@@ -1425,24 +1449,28 @@ static void gtkutils_smooth_scroll_one_line(GtkWidget *widget, GtkAdjustment *va
 void gtkutils_scroll_one_line(GtkWidget *widget, GtkAdjustment *vadj, gboolean up)
 {
 	gfloat upper;
+	gfloat old_value;
 
 	if (prefs_common.enable_smooth_scroll) {
 		gtkutils_smooth_scroll_one_line(widget, vadj, up);
 		return;
 	}
 
+	old_value = gtk_adjustment_get_value(vadj);
 	if (!up) {
-		upper = vadj->upper - vadj->page_size;
-		if (vadj->value < upper) {
-			vadj->value += vadj->step_increment;
-			vadj->value = MIN(vadj->value, upper);
+		upper = gtk_adjustment_get_upper(vadj) - gtk_adjustment_get_page_size(vadj);
+		if (old_value < upper) {
+			old_value += gtk_adjustment_get_step_increment(vadj);
+			old_value = MIN(old_value, upper);
+			gtk_adjustment_set_value(vadj, old_value);
 			g_signal_emit_by_name(G_OBJECT(vadj),
 					      "value_changed", 0);
 		}
 	} else {
-		if (vadj->value > 0.0) {
-			vadj->value -= vadj->step_increment;
-			vadj->value = MAX(vadj->value, 0.0);
+		if (old_value > 0.0) {
+			old_value -= gtk_adjustment_get_step_increment(vadj);
+			old_value = MAX(old_value, 0.0);
+			gtk_adjustment_set_value(vadj, old_value);
 			g_signal_emit_by_name(G_OBJECT(vadj),
 					      "value_changed", 0);
 		}
@@ -1600,36 +1628,26 @@ GtkUIManager *gtkut_ui_manager(void)
 	return gui_manager;
 }
 
-#define READ_CONDITION (G_IO_IN | G_IO_HUP | G_IO_ERR)
-#define WRITE_CONDITION (G_IO_OUT | G_IO_ERR)
-#define EXCEPTION_CONDITION (G_IO_PRI)
 typedef struct _ClawsIOClosure ClawsIOClosure;
 
 struct _ClawsIOClosure
 {
-  GdkInputFunction function;
-  GdkInputCondition condition;
+  ClawsIOFunc function;
+  GIOCondition condition;
   GDestroyNotify notify;
   gpointer data;
 };
 
 static gboolean  
 claws_io_invoke (GIOChannel   *source,
-	       GIOCondition  condition,
-	       gpointer      data)
+	         GIOCondition  condition,
+	         gpointer      data)
 {
   ClawsIOClosure *closure = data;
-  GdkInputCondition gdk_cond = 0;
 
-  if (condition & READ_CONDITION)
-    gdk_cond |= GDK_INPUT_READ;
-  if (condition & WRITE_CONDITION)
-    gdk_cond |= GDK_INPUT_WRITE;
-  if (condition & EXCEPTION_CONDITION)
-    gdk_cond |= GDK_INPUT_EXCEPTION;
-
-  if (closure->condition & gdk_cond)
-    closure->function (closure->data, g_io_channel_unix_get_fd (source), gdk_cond);
+  if (closure->condition & condition)
+    closure->function (closure->data, g_io_channel_unix_get_fd (source),
+    		       condition);
 
   return TRUE;
 }
@@ -1647,27 +1665,19 @@ claws_io_destroy (gpointer data)
 
 gint
 claws_input_add    (gint	      source,
-		    GdkInputCondition condition,
-		    GdkInputFunction  function,
+		    GIOCondition      condition,
+		    ClawsIOFunc       function,
 		    gpointer	      data,
 		    gboolean	      is_sock)
 {
   guint result;
   ClawsIOClosure *closure = g_new (ClawsIOClosure, 1);
   GIOChannel *channel;
-  GIOCondition cond = 0;
 
   closure->function = function;
   closure->condition = condition;
   closure->notify = NULL;
   closure->data = data;
-
-  if (condition & GDK_INPUT_READ)
-    cond |= READ_CONDITION;
-  if (condition & GDK_INPUT_WRITE)
-    cond |= WRITE_CONDITION;
-  if (condition & GDK_INPUT_EXCEPTION)
-    cond |= EXCEPTION_CONDITION;
 
 #ifndef G_OS_WIN32
   channel = g_io_channel_unix_new (source);
@@ -1677,120 +1687,12 @@ claws_input_add    (gint	      source,
   else
     channel = g_io_channel_win32_new_fd(source);
 #endif
-  result = g_io_add_watch_full (channel, G_PRIORITY_DEFAULT, cond, 
+  result = g_io_add_watch_full (channel, G_PRIORITY_DEFAULT, condition, 
 				claws_io_invoke,
 				closure, claws_io_destroy);
   g_io_channel_unref (channel);
 
   return result;
-}
-
-gboolean gtkut_widget_has_focus(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_has_focus(widget);
-#else
-	return GTK_WIDGET_HAS_FOCUS(widget);
-#endif
-}
-
-gboolean gtkut_widget_get_can_focus(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_get_can_focus(widget);
-#else
-	return GTK_WIDGET_CAN_FOCUS(widget);
-#endif
-}
-
-gboolean gtkut_widget_has_grab(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_has_grab(widget);
-#else
-	return GTK_WIDGET_HAS_GRAB(widget);
-#endif
-}
-
-gboolean gtkut_widget_get_visible(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_get_visible(widget);
-#else
-	return GTK_WIDGET_VISIBLE(widget);
-#endif
-}
-
-gboolean gtkut_widget_get_realized(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,19,0)
-	return gtk_widget_get_realized(widget);
-#else
-	return GTK_WIDGET_REALIZED(widget);
-#endif
-}
-
-gboolean gtkut_widget_is_sensitive(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_is_sensitive(widget);
-#else
-	return GTK_WIDGET_IS_SENSITIVE(widget);
-#endif
-}
-
-gboolean gtkut_widget_get_sensitive(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_get_sensitive(widget);
-#else
-	return GTK_WIDGET_SENSITIVE(widget);
-#endif
-}
-
-gboolean gtkut_widget_is_drawable(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_is_drawable(widget);
-#else
-	return GTK_WIDGET_DRAWABLE(widget);
-#endif
-}
-
-GtkStateType gtkut_widget_get_state(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_get_state(widget);
-#else
-	return GTK_WIDGET_STATE(widget);
-#endif
-}
-
-gboolean gtkut_widget_get_mapped(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,19,0)
-	return gtk_widget_get_mapped(widget);
-#else
-	return GTK_WIDGET_MAPPED(widget);
-#endif
-}
-
-gboolean gtkut_widget_get_has_window(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_get_has_window(widget);
-#else
-	return GTK_WIDGET_NO_WINDOW(widget);
-#endif
-}
-
-gboolean gtkut_widget_get_app_paintable(GtkWidget *widget)
-{
-#if GTK_CHECK_VERSION(2,18,0)
-	return gtk_widget_get_app_paintable(widget);
-#else
-	return GTK_WIDGET_APP_PAINTABLE(widget);
-#endif
 }
 
 void gtkut_widget_set_mapped(GtkWidget *widget, gboolean mapped)

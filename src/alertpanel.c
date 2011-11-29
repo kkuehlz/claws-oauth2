@@ -204,6 +204,7 @@ static void alertpanel_show(void)
 {
 	gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
 	manage_window_set_transient(GTK_WINDOW(dialog));
+	gtk_widget_show_all(dialog);
 	value = G_ALERTWAIT;
 
 	if (gdk_pointer_is_grabbed())
@@ -268,7 +269,7 @@ static void alertpanel_create(const gchar *title,
 	/* for title icon, label and message */
 	hbox = gtk_hbox_new(FALSE, 12);
 	gtk_container_set_border_width(GTK_CONTAINER(hbox), 12);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox),
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dialog))),
 			   hbox, FALSE, FALSE, 0);
 
 	/* title icon */
@@ -308,7 +309,7 @@ static void alertpanel_create(const gchar *title,
 		gint size;
 
 		size = pango_font_description_get_size
-			(label->style->font_desc);
+			(gtk_widget_get_style(label)->font_desc);
 		font_desc = pango_font_description_new();
 		pango_font_description_set_weight
 			(font_desc, PANGO_WEIGHT_BOLD);
@@ -337,7 +338,8 @@ static void alertpanel_create(const gchar *title,
 
 	if (can_disable) {
 		hbox = gtk_hbox_new(FALSE, 0);
-		gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox,
+		gtk_box_pack_start(GTK_BOX(
+			gtk_dialog_get_content_area(GTK_DIALOG(dialog))), hbox,
 				   FALSE, FALSE, 0);
 
 		disable_checkbtn = gtk_check_button_new_with_label
@@ -364,7 +366,7 @@ static void alertpanel_create(const gchar *title,
 				      button2_label ? &button2 : NULL, label2,
 				      button3_label ? &button3 : NULL, label3);
 
-	gtk_box_pack_end(GTK_BOX(GTK_DIALOG(dialog)->action_area),
+	gtk_box_pack_end(GTK_BOX(gtk_dialog_get_action_area(GTK_DIALOG(dialog))),
 			 confirm_area, FALSE, FALSE, 0);
 	gtk_container_set_border_width(GTK_CONTAINER(confirm_area), 5);
 	gtk_widget_grab_default(button1);
@@ -420,7 +422,7 @@ static gboolean alertpanel_close(GtkWidget *widget, GdkEventAny *event,
 				 gpointer data)
 {
 	if (event->type == GDK_KEY_PRESS)
-		if (((GdkEventKey *)event)->keyval != GDK_Escape)
+		if (((GdkEventKey *)event)->keyval != GDK_KEY_Escape)
 			return FALSE;
 
 	value = (value & ~G_ALERT_VALUE_MASK) | (AlertValue)data;

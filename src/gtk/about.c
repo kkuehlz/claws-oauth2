@@ -768,7 +768,7 @@ static void about_create(void)
 
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		gtk_widget_hide(window);
 	return FALSE;
 }
@@ -847,7 +847,7 @@ static gboolean about_textview_motion_notify(GtkWidget *widget,
 					GtkWidget *textview)
 {
 	about_textview_uri_update(textview, event->x, event->y);
-	gdk_window_get_pointer(widget->window, NULL, NULL, NULL);
+	gdk_window_get_pointer(gtk_widget_get_window(widget), NULL, NULL, NULL);
 
 	return FALSE;
 }

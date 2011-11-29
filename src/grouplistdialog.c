@@ -94,7 +94,7 @@ GSList *grouplist_dialog(Folder *folder)
 	GNode *node;
 	FolderItem *item;
 
-	if (dialog && gtkut_widget_get_visible(dialog)) return NULL;
+	if (dialog && gtk_widget_get_visible(dialog)) return NULL;
 
 	if (!dialog)
 		grouplist_dialog_create();
@@ -156,7 +156,7 @@ static void grouplist_dialog_create(void)
 	dialog = gtk_dialog_new();
 	gtk_window_set_resizable(GTK_WINDOW(dialog), TRUE);
 	gtk_container_set_border_width
-		(GTK_CONTAINER(GTK_DIALOG(dialog)->action_area), 5);
+		(GTK_CONTAINER(gtk_dialog_get_action_area(GTK_DIALOG(dialog))), 5);
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
 	gtk_window_set_title(GTK_WINDOW(dialog), _("Newsgroup subscription"));
 	g_signal_connect(G_OBJECT(dialog), "delete_event",
@@ -168,7 +168,8 @@ static void grouplist_dialog_create(void)
 	MANAGE_WINDOW_SIGNALS_CONNECT(dialog);
 
 	vbox = gtk_vbox_new(FALSE, 8);
-	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), vbox);
+	gtk_container_add(GTK_CONTAINER(
+				gtk_dialog_get_content_area(GTK_DIALOG(dialog))), vbox);
 	gtk_container_set_border_width(GTK_CONTAINER(vbox), 8);
 
 	hbox = gtk_hbox_new(FALSE, 0);
@@ -210,15 +211,9 @@ static void grouplist_dialog_create(void)
 	gtk_cmclist_set_column_auto_resize(GTK_CMCLIST(ctree), 0, TRUE);
 	gtk_cmclist_set_selection_mode(GTK_CMCLIST(ctree), GTK_SELECTION_MULTIPLE);
 	
-	if (prefs_common.enable_dotted_lines) {	
-		gtk_cmctree_set_line_style(GTK_CMCTREE(ctree), GTK_CMCTREE_LINES_DOTTED);
-		gtk_cmctree_set_expander_style(GTK_CMCTREE(ctree),
-					GTK_CMCTREE_EXPANDER_SQUARE);
-	} else {
-		gtk_cmctree_set_line_style(GTK_CMCTREE(ctree), GTK_CMCTREE_LINES_NONE);
-		gtk_cmctree_set_expander_style(GTK_CMCTREE(ctree),
-					GTK_CMCTREE_EXPANDER_TRIANGLE);
-	}
+	gtk_cmctree_set_line_style(GTK_CMCTREE(ctree), GTK_CMCTREE_LINES_NONE);
+	gtk_cmctree_set_expander_style(GTK_CMCTREE(ctree),
+				GTK_CMCTREE_EXPANDER_TRIANGLE);
 
 	for (i = 0; i < 3; i++)
 		gtkut_widget_set_can_focus(GTK_CMCLIST(ctree)->column[i].button, FALSE);
@@ -235,7 +230,7 @@ static void grouplist_dialog_create(void)
 				      &refresh_button, GTK_STOCK_REFRESH,
 				      &cancel_button, GTK_STOCK_CANCEL,
 				      &ok_button, GTK_STOCK_OK);
-	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->action_area),
+	gtk_container_add(GTK_CONTAINER(gtk_dialog_get_action_area(GTK_DIALOG(dialog))),
 			  confirm_area);
 	gtk_widget_grab_default(ok_button);
 
@@ -257,7 +252,7 @@ static void grouplist_dialog_create(void)
 					prefs_common.news_subscribe_width,
 					prefs_common.news_subscribe_height);
 
-	gtk_widget_show_all(GTK_DIALOG(dialog)->vbox);
+	gtk_widget_show_all(gtk_dialog_get_content_area(GTK_DIALOG(dialog)));
 }
 
 static GHashTable *branch_node_table;
@@ -359,7 +354,7 @@ static GtkCMCTreeNode *grouplist_create_branch(NewsGroupInfo *ginfo,
 	parent = grouplist_create_parent(parent_name, pattern);
 	node = grouplist_hash_get_branch_node(name);
 	if (node) {
-		gtk_sctree_set_node_info(GTK_CMCTREE(ctree), node, cols[0], 0,
+		gtk_cmctree_set_node_info(GTK_CMCTREE(ctree), node, cols[0], 0,
 					NULL, NULL, FALSE, FALSE);
 		gtk_cmctree_node_set_text(GTK_CMCTREE(ctree), node, 1, cols[1]);
 		gtk_cmctree_node_set_text(GTK_CMCTREE(ctree), node, 2, cols[2]);
@@ -401,6 +396,7 @@ static void grouplist_dialog_set_list(const gchar *pattern, gboolean refresh)
 	GSList *cur;
 	GtkCMCTreeNode *node;
 	GPatternSpec *pspec;
+	GdkWindow *window;
 
 	if (locked) return;
 	locked = TRUE;
@@ -410,7 +406,8 @@ static void grouplist_dialog_set_list(const gchar *pattern, gboolean refresh)
 
 	if (!watch_cursor)
 		watch_cursor = gdk_cursor_new(GDK_WATCH);
-	gdk_window_set_cursor(dialog->window, watch_cursor);
+	window = gtk_widget_get_window(dialog);
+	gdk_window_set_cursor(window, watch_cursor);
 	main_window_cursor_wait(mainwindow_get_mainwindow());
 	GTK_EVENTS_FLUSH();
 	
@@ -424,7 +421,7 @@ static void grouplist_dialog_set_list(const gchar *pattern, gboolean refresh)
 		if (group_list == NULL && ack == TRUE) {
 			alertpanel_error(_("Can't retrieve newsgroup list."));
 			locked = FALSE;
-			gdk_window_set_cursor(dialog->window, NULL);
+			gdk_window_set_cursor(window, NULL);
 			main_window_cursor_normal(mainwindow_get_mainwindow());
 			return;
 		}
@@ -461,7 +458,7 @@ static void grouplist_dialog_set_list(const gchar *pattern, gboolean refresh)
 
 	gtk_label_set_text(GTK_LABEL(status_label), _("Done."));
 
-	gdk_window_set_cursor(dialog->window, NULL);
+	gdk_window_set_cursor(window, NULL);
 	main_window_cursor_normal(mainwindow_get_mainwindow());
 
 	locked = FALSE;
@@ -548,7 +545,7 @@ static void refresh_clicked(GtkWidget *widget, gpointer data)
 
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		cancel_clicked(NULL, NULL);
 	return FALSE;
 }

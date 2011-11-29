@@ -42,6 +42,7 @@
 #include "prefs_common.h"
 #include "statusbar.h"
 #include "summaryview.h"
+#include "prefs_actions.h"
 
 static void new_folder_cb(GtkAction *action, gpointer data);
 static void rename_folder_cb(GtkAction *action, gpointer data);
@@ -298,7 +299,7 @@ static void rename_folder_cb(GtkAction *action, gpointer data)
 	new_id = folder_item_get_identifier(item);
 	prefs_filtering_rename_path(old_id, new_id);
 	account_rename_path(old_id, new_id);
-
+	prefs_actions_rename_path(old_id, new_id);
 	g_free(old_id);
 	g_free(new_id);
 
@@ -533,7 +534,9 @@ static void subscribe_cb_full(FolderView *folderview, guint action)
 				transc_list = g_list_append(transc_list, 
 					imap_modified_utf7_to_utf8(cur->data, FALSE));
 			}
-
+			
+			transc_list = g_list_sort(transc_list, g_str_equal);
+			
 			child_folder = input_dialog_combo(_("Subscribe"), 
 					msg,
 					transc_list->next?_("All of them"):transc_list->data, transc_list);

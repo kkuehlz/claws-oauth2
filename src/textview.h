@@ -70,8 +70,6 @@ struct _TextView
 	GSList *uri_list;
 	gint body_pos;
 
-	gboolean show_all_headers;
-
 	MessageView *messageview;
 	gint last_buttonpress;
 
@@ -96,8 +94,6 @@ void textview_show_mime_part	(TextView	*textview,
 				 MimeInfo	*partinfo);
 void textview_clear		(TextView	*textview);
 void textview_destroy		(TextView	*textview);
-void textview_set_all_headers	(TextView	*textview,
-				 gboolean	 all_headers);
 void textview_set_font		(TextView	*textview,
 				 const gchar	*codeset);
 void textview_set_text		(TextView	*textview,
@@ -108,6 +104,8 @@ void textview_scroll_one_line	(TextView	*textview,
 				 gboolean	 up);
 gboolean textview_scroll_page	(TextView	*textview,
 				 gboolean	 up);
+void textview_scroll_max	(TextView 	*textview,
+				 gboolean 	 up);
 
 gboolean textview_search_string			(TextView	*textview,
 						 const gchar	*str,

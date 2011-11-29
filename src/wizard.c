@@ -450,7 +450,7 @@ static void initialize_fonts(WizardWindow *wizard)
 {
 	GtkWidget *widget = wizard->email;
 	gint size = pango_font_description_get_size(
-			widget->style->font_desc)
+			gtk_widget_get_style(widget)->font_desc)
 		      /PANGO_SCALE;
 	gchar *tmp, *new;
 #ifdef G_OS_WIN32
@@ -1123,7 +1123,6 @@ static GtkWidget* mailbox_page (WizardWindow * wizard)
 	gchar *uri, *mount_path;
 #endif
 	GtkWidget *hbox;
-	CLAWS_TIP_DECL();
 
 	gtk_table_set_row_spacings(GTK_TABLE(table), 4);
 	gtk_table_set_col_spacings(GTK_TABLE(table), 8);
@@ -1259,7 +1258,6 @@ static GtkWidget* smtp_page (WizardWindow * wizard)
 	GtkWidget *smtp_cert_table;
 #endif
 	gchar *text;
-	CLAWS_TIP_DECL();
 	
 	gtk_table_set_row_spacings(GTK_TABLE(table), 4);
 	gtk_table_set_col_spacings(GTK_TABLE(table), 8);
@@ -1524,7 +1522,6 @@ static GtkWidget* recv_page (WizardWindow * wizard)
 	GtkTreeIter iter;
 	gchar *text;
 	gint index = 0;
-	CLAWS_TIP_DECL();
 
 	gtk_table_set_row_spacings(GTK_TABLE(table), 4);
 	gtk_table_set_col_spacings(GTK_TABLE(table), 8);
@@ -1848,7 +1845,7 @@ gboolean run_wizard(MainWindow *mainwin, gboolean create_mailbox) {
 	wizard->notebook = gtk_notebook_new();
 	gtk_notebook_set_show_tabs(GTK_NOTEBOOK(wizard->notebook), FALSE);
 	gtk_notebook_set_show_border(GTK_NOTEBOOK(wizard->notebook), FALSE);
-	gtk_box_pack_start(GTK_BOX(GTK_DIALOG(wizard->window)->vbox), 
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(wizard->window))), 
 			    wizard->notebook, TRUE, TRUE, 0);
 	
 	wizard->pages = NULL;

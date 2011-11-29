@@ -195,8 +195,8 @@ typedef struct _StockPixmapData	StockPixmapData;
 struct _StockPixmapData
 {
 	gchar **data;
-	GdkPixmap *pixmap;
-	GdkBitmap *mask;
+	cairo_surface_t *pixmap;
+	cairo_pattern_t *mask;
 	gchar *file;
 	gchar *icon_path;
 	GdkPixbuf *pixbuf;
@@ -207,10 +207,8 @@ typedef struct _OverlayData OverlayData;
 struct _OverlayData
 {
 	gboolean is_pixmap;
-	GdkPixmap *base_pixmap;
-	GdkBitmap *base_mask;
-	GdkPixmap *overlay_pixmap;
-	GdkBitmap *overlay_mask;
+	cairo_surface_t *base_pixmap;
+	cairo_surface_t *overlay_pixmap;
 	
 	GdkPixbuf *base_pixbuf;
 	GdkPixbuf *overlay_pixbuf;
@@ -590,24 +588,18 @@ StockPixmap stock_pixmap_get_icon (gchar *file)
 	return -1;
 }
 
-static gboolean pixmap_with_overlay_expose_event_cb(GtkWidget *widget, GdkEventExpose *expose,
-						    OverlayData *data) 
+static gboolean do_pix_draw(GtkWidget *widget, cairo_t *cr,
+			    OverlayData *data) 
 {
-	GdkDrawable *drawable = widget->window;	
-	cairo_t *cr;
+	GdkWindow *drawable = gtk_widget_get_window(widget);	
 	gint left = 0;
 	gint top = 0;
 
 	if (data->is_pixmap) {
 		cm_return_val_if_fail(data->base_pixmap != NULL, FALSE);
-		cm_return_val_if_fail(data->base_mask != NULL, FALSE);
 	} else {
 		cm_return_val_if_fail(data->base_pixbuf != NULL, FALSE);
 	}
-	cr = gdk_cairo_create(drawable);
-
-	gdk_window_clear_area (drawable, expose->area.x, expose->area.y,
-			       expose->area.width, expose->area.height);
 
 	if (data->highlight) {
 		MainWindow *mw = NULL;
@@ -631,10 +623,9 @@ static gboolean pixmap_with_overlay_expose_event_cb(GtkWidget *widget, GdkEventE
 	}
 
 	if (data->is_pixmap) {
-		gdk_cairo_set_source_pixmap(cr, data->base_pixmap, data->border_x, data->border_y);
+		cairo_set_source_surface(cr, data->base_pixmap, data->border_x, data->border_y);
 		cairo_pattern_set_extend(cairo_get_source(cr), CAIRO_EXTEND_REPEAT);
-		cairo_rectangle(cr, data->border_x, data->border_y,
-        data->base_width, data->base_height);
+		cairo_rectangle(cr, data->border_x, data->border_y, data->base_width, data->base_height);
 		cairo_fill(cr);
 	} else {
 		gdk_cairo_set_source_pixbuf(cr, data->base_pixbuf, data->border_x, data->border_y);
@@ -653,7 +644,7 @@ static gboolean pixmap_with_overlay_expose_event_cb(GtkWidget *widget, GdkEventE
 			case OVERLAY_TOP_CENTER:
 			case OVERLAY_MID_CENTER:
 			case OVERLAY_BOTTOM_CENTER:
-				left = (data->base_width + data->border_x * 2  - data->overlay_width)/2;
+				left = (data->base_width + data->border_x * 2 - data->overlay_width)/2;
 				break;
 
 			case OVERLAY_TOP_RIGHT:
@@ -675,7 +666,7 @@ static gboolean pixmap_with_overlay_expose_event_cb(GtkWidget *widget, GdkEventE
 			case OVERLAY_MID_LEFT:
 			case OVERLAY_MID_CENTER:
 			case OVERLAY_MID_RIGHT:
-				top = (data->base_height + data->border_y * 2  - data->overlay_height)/2;
+				top = (data->base_height + data->border_y * 2 - data->overlay_height)/2;
 				break;
 					
 			case OVERLAY_BOTTOM_LEFT:
@@ -692,8 +683,7 @@ static gboolean pixmap_with_overlay_expose_event_cb(GtkWidget *widget, GdkEventE
 	if (data->position != OVERLAY_NONE) {
 		if (data->is_pixmap) {
 			cm_return_val_if_fail(data->overlay_pixmap != NULL, FALSE);
-			cm_return_val_if_fail(data->overlay_mask != NULL, FALSE);
-			gdk_cairo_set_source_pixmap(cr, data->overlay_pixmap, left, top);
+			cairo_set_source_surface(cr, data->overlay_pixmap, left, top);
 			cairo_pattern_set_extend (cairo_get_source (cr), CAIRO_EXTEND_REPEAT);
 			cairo_rectangle (cr, left, top, data->overlay_width, data->overlay_height);
 			cairo_fill(cr);
@@ -704,19 +694,40 @@ static gboolean pixmap_with_overlay_expose_event_cb(GtkWidget *widget, GdkEventE
 		}
 	}
 
-	cairo_destroy(cr);
-	
 	return TRUE;
 }
 
-static void pixmap_with_overlay_destroy_cb(GtkObject *object, OverlayData *data) 
+#if !GTK_CHECK_VERSION(3,0,0)
+static gboolean pixmap_with_overlay_expose_event_cb(GtkWidget *widget, GdkEventExpose *expose,
+                                                   OverlayData *data) 
+#else
+static gboolean pixmap_with_overlay_expose_event_cb(GtkWidget *widget, cairo_t *cr,
+						    OverlayData *data) 
+#endif
+{
+#if !GTK_CHECK_VERSION(3,0,0)
+	cairo_t *cr;
+	GdkWindow *drawable = gtk_widget_get_window(widget);	
+	gboolean result;
+
+	cr = gdk_cairo_create(drawable);
+	gdk_window_clear_area (drawable, expose->area.x, expose->area.y,
+                               expose->area.width, expose->area.height);
+
+	result = do_pix_draw(widget, cr, data);
+	cairo_destroy(cr);
+	return result;
+#else
+	return do_pix_draw(widget, cr, data);
+#endif
+}
+
+static void pixmap_with_overlay_destroy_cb(GtkWidget *object, OverlayData *data) 
 {
 	if (data->is_pixmap) {
-		g_object_unref(data->base_pixmap);
-		g_object_unref(data->base_mask);
+		cairo_surface_destroy(data->base_pixmap);
 		if (data->position != OVERLAY_NONE) {
-			g_object_unref(data->overlay_pixmap);
-			g_object_unref(data->overlay_mask);
+			cairo_surface_destroy(data->overlay_pixmap);
 		}
 	} else {
 		g_object_unref(data->base_pixbuf);
@@ -744,16 +755,17 @@ GtkWidget *stock_pixmap_widget_with_overlay(GtkWidget *window, StockPixmap icon,
 					    StockPixmap overlay, OverlayPosition pos,
 					    gint border_x, gint border_y)
 {
-	GdkPixmap *stock_pixmap = NULL;
-	GdkBitmap *stock_mask = NULL;
+	cairo_surface_t *stock_pixmap = NULL;
 	GdkPixbuf *stock_pixbuf = NULL;
 	GtkWidget *widget = NULL;
 	GtkWidget *stock_wid = NULL;
+	GtkRequisition requisition;
 	OverlayData *data = NULL;
 	
 	data = g_new0(OverlayData, 1);
 
 	stock_wid = stock_pixmap_widget(window, icon);
+	gtk_widget_get_requisition(stock_wid, &requisition);
 
 	if (gtk_image_get_storage_type(GTK_IMAGE(stock_wid)) == GTK_IMAGE_PIXMAP)
 		data->is_pixmap = TRUE;
@@ -761,27 +773,26 @@ GtkWidget *stock_pixmap_widget_with_overlay(GtkWidget *window, StockPixmap icon,
 		data->is_pixmap = FALSE;
 
 	if (data->is_pixmap) {
-		gtk_image_get_pixmap(GTK_IMAGE(stock_wid), &stock_pixmap, &stock_mask);
-		g_object_ref(stock_pixmap);
-		g_object_ref(stock_mask);
+		cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(stock_wid));
+		stock_pixmap = cairo_get_target(cr);
+		cairo_surface_reference(stock_pixmap);
+		cairo_destroy(cr);
 		data->base_pixmap = stock_pixmap;
-		data->base_mask   = stock_mask;
-		data->base_height = stock_wid->requisition.height;
-		data->base_width  = stock_wid->requisition.width;
+		data->base_height = requisition.height;
+		data->base_width  = requisition.width;
 		gtk_widget_destroy(stock_wid);
 
 		if (pos == OVERLAY_NONE) {
 			data->overlay_pixmap = NULL;
-			data->overlay_mask   = NULL;
 		} else {
 			stock_wid = stock_pixmap_widget(window, overlay);
-			gtk_image_get_pixmap(GTK_IMAGE(stock_wid), &stock_pixmap, &stock_mask);
-			g_object_ref(stock_pixmap);
-			g_object_ref(stock_mask);
+			cr = gdk_cairo_create(gtk_widget_get_window(stock_wid));
+			stock_pixmap = cairo_get_target(cr);
+			cairo_surface_reference(stock_pixmap);
+			cairo_destroy(cr);
 			data->overlay_pixmap = stock_pixmap;
-			data->overlay_mask   = stock_mask;
-			data->overlay_height = stock_wid->requisition.height;
-			data->overlay_width  = stock_wid->requisition.width;
+			data->overlay_height = requisition.height;
+			data->overlay_width  = requisition.width;
 
 			gtk_widget_destroy(stock_wid);
 		}
@@ -790,19 +801,18 @@ GtkWidget *stock_pixmap_widget_with_overlay(GtkWidget *window, StockPixmap icon,
 		stock_pixbuf = gtk_image_get_pixbuf(GTK_IMAGE(stock_wid));
 		g_object_ref(stock_pixbuf);
 		data->base_pixbuf = stock_pixbuf;
-		data->base_height = stock_wid->requisition.height;
-		data->base_width  = stock_wid->requisition.width;
+		data->base_height = requisition.height;
+		data->base_width  = requisition.width;
 		gtk_widget_destroy(stock_wid);
 		if (pos == OVERLAY_NONE) {
 			data->overlay_pixmap = NULL;
-			data->overlay_mask   = NULL;
 		} else {
 			stock_wid = stock_pixmap_widget(window, overlay);
 			stock_pixbuf = gtk_image_get_pixbuf(GTK_IMAGE(stock_wid));
 			g_object_ref(stock_pixbuf);
 			data->overlay_pixbuf = stock_pixbuf;
-			data->overlay_height = stock_wid->requisition.height;
-			data->overlay_width  = stock_wid->requisition.width;
+			data->overlay_height = requisition.height;
+			data->overlay_width  = requisition.width;
 
 			gtk_widget_destroy(stock_wid);
 		}
@@ -815,8 +825,13 @@ GtkWidget *stock_pixmap_widget_with_overlay(GtkWidget *window, StockPixmap icon,
 	widget = gtk_drawing_area_new();
 	gtk_widget_set_size_request(widget, data->base_width + border_x * 2, 
 			      data->base_height + border_y * 2);
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	g_signal_connect(G_OBJECT(widget), "expose_event", 
 			 G_CALLBACK(pixmap_with_overlay_expose_event_cb), data);
+#else
+	g_signal_connect(G_OBJECT(widget), "draw", 
+			 G_CALLBACK(pixmap_with_overlay_expose_event_cb), data);
+#endif
 	g_signal_connect(G_OBJECT(widget), "destroy",
 			 G_CALLBACK(pixmap_with_overlay_destroy_cb), data);
 	g_object_set_data(G_OBJECT(widget), "highlight", &(data->highlight));

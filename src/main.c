@@ -226,7 +226,7 @@ static gchar * get_crashfile_name	(void);
 static gint lock_socket_remove		(void);
 static void lock_socket_input_cb	(gpointer	   data,
 					 gint		   source,
-					 GdkInputCondition condition);
+					 GIOCondition      condition);
 
 static void open_compose_new		(const gchar	*address,
 					 GPtrArray	*attach_files);
@@ -428,7 +428,6 @@ static gboolean migrate_old_config(const gchar *old_cfg_dir, const gchar *new_cf
 	gint r = 0;
 	GtkWidget *window = NULL;
 	GtkWidget *keep_backup_chk;
-	CLAWS_TIP_DECL();
 	gboolean backup = TRUE;
 
 	keep_backup_chk = gtk_check_button_new_with_label (_("Keep old configuration"));
@@ -591,8 +590,8 @@ static void sc_ice_io_error_handler (IceConn connection)
 		(*sc_ice_installed_handler) (connection);
 }
 static gboolean sc_process_ice_messages (GIOChannel   *source,
-		      GIOCondition  condition,
-		      gpointer      data)
+					 GIOCondition  condition,
+					 gpointer      data)
 {
 	IceConn connection = (IceConn) data;
 	IceProcessMessagesStatus status;
@@ -1186,33 +1185,6 @@ int main(int argc, char *argv[])
 		g_error(_("g_thread is not supported by glib.\n"));
 	}
 
-	/* check that we're not on a too recent/old gtk+ */
-#if GTK_CHECK_VERSION(2, 9, 0)
-	if (gtk_check_version(2, 9, 0) != NULL) {
-		alertpanel_error(_("Claws Mail has been compiled with "
-				   "a more recent GTK+ library than is "
-				   "currently available. This will cause "
-				   "crashes. You need to upgrade GTK+ or "
-				   "recompile Claws Mail."));
-#ifdef G_OS_WIN32
-		win32_close_log();
-#endif
-		exit(1);
-	}
-#else
-	if (gtk_check_version(2, 9, 0) == NULL) {
-		alertpanel_error(_("Claws Mail has been compiled with "
-				   "an older GTK+ library than is "
-				   "currently available. This will cause "
-				   "crashes. You need to recompile "
-				   "Claws Mail."));
-#ifdef G_OS_WIN32
-		win32_close_log();
-#endif
-		exit(1);
-	}
-#endif	
-
 #ifdef G_OS_WIN32
 	CHDIR_EXEC_CODE_RETURN_VAL_IF_FAIL(get_home_dir(), 1, win32_close_log(););
 #else
@@ -1407,7 +1379,7 @@ int main(int argc, char *argv[])
 
 	/* register the callback of unix domain socket input */
 	lock_socket_tag = claws_input_add(lock_socket,
-					GDK_INPUT_READ | GDK_INPUT_EXCEPTION,
+					G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_PRI,
 					lock_socket_input_cb,
 					mainwin, TRUE);
 
@@ -1826,6 +1798,94 @@ static void exit_claws(MainWindow *mainwin)
 	claws_done();
 }
 
+#define G_STRING_APPEND_ENCODED_URI(gstring,source)	\
+	{						\
+		gchar tmpbuf[BUFFSIZE];			\
+		encode_uri(tmpbuf, BUFFSIZE, (source));	\
+		g_string_append((gstring), tmpbuf);	\
+	}
+
+#define G_PRINT_EXIT(msg)	\
+	{			\
+		g_print(msg);	\
+		exit(1);	\
+	}
+
+static GString * parse_cmd_compose_from_file(const gchar *fn)
+{
+	GString *headers = g_string_new(NULL);
+	GString *body = g_string_new(NULL);
+	gchar *to = NULL;
+	gchar *h;
+	gchar *v;
+	gchar fb[BUFFSIZE];
+	FILE *fp;
+	gboolean isstdin;
+
+	if (fn == NULL || *fn == '\0')
+		G_PRINT_EXIT(_("Missing filename\n"));
+	isstdin = (*fn == '-' && *(fn + 1) == '\0');
+	if (isstdin)
+		fp = stdin;
+	else {
+		fp = g_fopen(fn, "r");
+		if (!fp)
+			G_PRINT_EXIT(_("Cannot open filename for reading\n"));
+	}
+
+	while (fgets(fb, sizeof(fb), fp)) {
+		gchar *tmp;	
+		strretchomp(fb);
+		if (*fb == '\0')
+			break;
+		h = fb;
+		while (*h && *h != ':') { ++h; } /* search colon */
+        	if (*h == '\0')
+			G_PRINT_EXIT(_("Malformed header\n"));
+		v = h + 1;
+		while (*v && *v == ' ') { ++v; } /* trim value start */
+		*h = '\0';
+		tmp = g_ascii_strdown(fb, -1); /* get header name */
+		if (!strcmp(tmp, "to")) {
+			if (to != NULL)
+				G_PRINT_EXIT(_("Duplicated 'To:' header\n"));
+			to = g_strdup(v);
+		} else {
+			g_string_append_c(headers, '&');
+			g_string_append(headers, tmp);
+			g_string_append_c(headers, '=');
+#if GLIB_CHECK_VERSION(2,16,0)
+			g_string_append_uri_escaped(headers, v, NULL, TRUE);
+#else
+			G_STRING_APPEND_ENCODED_URI(headers, v);
+#endif	
+		}
+		g_free(tmp);
+	}
+	if (to == NULL)
+		G_PRINT_EXIT(_("Missing required 'To:' header\n"));
+	g_string_append(body, to);
+	g_free(to);
+	g_string_append(body, "?body=");
+	while (fgets(fb, sizeof(fb), fp)) {
+#if GLIB_CHECK_VERSION(2,16,0)
+		g_string_append_uri_escaped(body, fb, NULL, TRUE);
+#else
+		G_STRING_APPEND_ENCODED_URI(body, fb);
+#endif
+	}
+	if (!isstdin)
+		fclose(fp);
+	/* append the remaining headers */
+	g_string_append(body, headers->str);
+	g_string_free(headers, TRUE);
+
+	return body;
+}
+
+#undef G_STRING_APPEND_ENCODED_URI
+#undef G_PRINT_EXIT
+
 static void parse_cmd_opt(int argc, char *argv[])
 {
 	gint i;
@@ -1835,6 +1895,13 @@ static void parse_cmd_opt(int argc, char *argv[])
 			cmd.receive_all = TRUE;
 		} else if (!strncmp(argv[i], "--receive", 9)) {
 			cmd.receive = TRUE;
+		} else if (!strncmp(argv[i], "--compose-from-file", 19)) {
+			const gchar *p = (i+1 < argc)?argv[i+1]:NULL;
+
+			GString *mailto = parse_cmd_compose_from_file(p);
+			cmd.compose = TRUE;
+			cmd.compose_mailto = mailto->str;
+			i++;
 		} else if (!strncmp(argv[i], "--compose", 9)) {
 			const gchar *p = (i+1 < argc)?argv[i+1]:NULL;
 
@@ -1936,18 +2003,23 @@ static void parse_cmd_opt(int argc, char *argv[])
 			g_print(_("Usage: %s [OPTION]...\n"), base);
 
 			g_print("%s\n", _("  --compose [address]    open composition window"));
+			g_print("%s\n", _("  --compose-from-file file\n"
+				  	  "                         open composition window with data from given file;\n"
+			  	  	  "                         use - as file name for reading from standard input;\n"
+			  	  	  "                         content format: headers first (To: required) until an\n"
+				  	  "                         empty line, then mail body until end of file."));
 			g_print("%s\n", _("  --subscribe [uri]      subscribe to the given URI if possible"));
 			g_print("%s\n", _("  --attach file1 [file2]...\n"
-			          "                         open composition window with specified files\n"
-			          "                         attached"));
+					  "                         open composition window with specified files\n"
+					  "                         attached"));
 			g_print("%s\n", _("  --receive              receive new messages"));
 			g_print("%s\n", _("  --receive-all          receive new messages of all accounts"));
-			g_print("%s\n", _("  --search folder type request [recursive]"));
-			g_print("%s\n", _("                         searches mail"));
-			g_print("%s\n", _("                         folder ex.: \"#mh/Mailbox/inbox\" or \"Mail\""));
-			g_print("%s\n", _("                         type: s[ubject],f[rom],t[o],e[xtended],m[ixed] or g: tag"));
-			g_print("%s\n", _("                         request: search string"));
-			g_print("%s\n", _("                         recursive: false if arg. starts with 0, n, N, f or F"));
+			g_print("%s\n", _("  --search folder type request [recursive]\n"
+					  "                         searches mail\n"
+					  "                         folder ex.: \"#mh/Mailbox/inbox\" or \"Mail\"\n"
+					  "                         type: s[ubject],f[rom],t[o],e[xtended],m[ixed] or g: tag\n"
+					  "                         request: search string\n"
+					  "                         recursive: false if arg. starts with 0, n, N, f or F"));
 
 			g_print("%s\n", _("  --send                 send all queued messages"));
  			g_print("%s\n", _("  --status [folder]...   show the total number of messages"));
@@ -2388,7 +2460,7 @@ static GPtrArray *get_folder_item_list(gint sock)
 
 static void lock_socket_input_cb(gpointer data,
 				 gint source,
-				 GdkInputCondition condition)
+				 GIOCondition condition)
 {
 	MainWindow *mainwin = (MainWindow *)data;
 	gint sock;
@@ -2493,7 +2565,7 @@ static void lock_socket_input_cb(gpointer data,
 				debug_print("Unknown folder: '%s'\n",folder_name);
 		} else {
 			debug_print("%s %s\n",folderItem->name, folderItem->path);
-        }
+		}
 		if (folderItem != NULL) {
 			quicksearch_set(quicksearch, searchType, request);
 			quicksearch_set_recursive(quicksearch, recursive);

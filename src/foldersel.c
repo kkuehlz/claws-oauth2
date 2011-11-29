@@ -261,8 +261,7 @@ static void foldersel_create(void)
 	gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(treeview), FALSE);
 	gtk_tree_view_set_rules_hint(GTK_TREE_VIEW(treeview),
 	                             prefs_common.use_stripes_everywhere);
-	gtk_tree_view_set_enable_tree_lines(GTK_TREE_VIEW(treeview),
-							prefs_common.enable_dotted_lines);
+	gtk_tree_view_set_enable_tree_lines(GTK_TREE_VIEW(treeview), FALSE);
 	gtk_tree_view_set_search_column(GTK_TREE_VIEW(treeview),
 					FOLDERSEL_FOLDERNAME);
 
@@ -619,7 +618,7 @@ static gint delete_event(GtkWidget *widget, GdkEventAny *event, gpointer data)
 
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		foldersel_cancel(NULL, NULL);
 	return FALSE;
 }

@@ -130,6 +130,8 @@ static void summary_set_hide_read_msgs_menu (SummaryView *summaryview,
 					     guint action);
 static void summary_set_hide_del_msgs_menu (SummaryView *summaryview,
 					     guint action);
+static void summary_set_hide_read_threads_menu (SummaryView *summaryview,
+					     guint action);
 
 static GtkCMCTreeNode *summary_find_prev_msg
 					(SummaryView		*summaryview,
@@ -517,7 +519,6 @@ SummaryView *summary_create(MainWindow *mainwin)
 	GtkWidget *toggle_arrow;
 	GtkWidget *toggle_search;
 	QuickSearch *quicksearch;
-	CLAWS_TIP_DECL();
 
 	debug_print("Creating summary view...\n");
 	summaryview = g_new0(SummaryView, 1);
@@ -796,8 +797,10 @@ void summary_relayout(SummaryView *summaryview)
 	g_object_ref(summaryview->hbox_l);
 	g_object_ref(summaryview->statlabel_msgs);
 	
-	gtkut_container_remove(GTK_CONTAINER(summaryview->hbox_l->parent), summaryview->hbox_l);
-	gtkut_container_remove(GTK_CONTAINER(summaryview->statlabel_msgs->parent), summaryview->statlabel_msgs);
+	gtkut_container_remove(GTK_CONTAINER(
+		gtk_widget_get_parent(summaryview->hbox_l)), summaryview->hbox_l);
+	gtkut_container_remove(GTK_CONTAINER(
+		gtk_widget_get_parent(summaryview->statlabel_msgs)), summaryview->statlabel_msgs);
 
 	switch (prefs_common.layout_mode) {
 	case NORMAL_LAYOUT:
@@ -881,7 +884,7 @@ static void summary_set_fonts(SummaryView *summaryview)
 	if (prefs_common.derive_from_normal_font || !SMALL_FONT) {
 		font_desc = pango_font_description_new();
 		size = pango_font_description_get_size
-			(summaryview->ctree->style->font_desc);
+			(gtk_widget_get_style(summaryview->ctree)->font_desc);
 		pango_font_description_set_size(font_desc, size * PANGO_SCALE_SMALL);
 	} else {
 		font_desc = pango_font_description_from_string(SMALL_FONT);
@@ -1216,6 +1219,7 @@ gboolean summary_show(SummaryView *summaryview, FolderItem *item)
 				item?item->no_select:FALSE);
 		summary_set_hide_read_msgs_menu(summaryview, FALSE);
 		summary_set_hide_del_msgs_menu(summaryview, FALSE);
+		summary_set_hide_read_threads_menu(summaryview, FALSE);
 		summary_clear_all(summaryview);
 		summaryview->folder_item = item;
 		summary_thaw(summaryview);
@@ -1256,12 +1260,15 @@ gboolean summary_show(SummaryView *summaryview, FolderItem *item)
 		mlist = folder_item_get_msg_list(item);
 	}
 
-	if ((summaryview->folder_item->hide_read_msgs || summaryview->folder_item->hide_del_msgs) &&
+	if ((summaryview->folder_item->hide_read_msgs
+             || summaryview->folder_item->hide_del_msgs
+             || summaryview->folder_item->hide_read_threads) &&
 	    quicksearch_is_active(summaryview->quicksearch) == FALSE) {
 		GSList *not_killed;
 		
 		summary_set_hide_read_msgs_menu(summaryview, summaryview->folder_item->hide_read_msgs);
 		summary_set_hide_del_msgs_menu(summaryview, summaryview->folder_item->hide_del_msgs);
+		summary_set_hide_read_threads_menu(summaryview, summaryview->folder_item->hide_read_threads);
 		not_killed = NULL;
 		for(cur = mlist ; cur != NULL && cur->data != NULL ; cur = g_slist_next(cur)) {
 			MsgInfo * msginfo = (MsgInfo *) cur->data;
@@ -1296,6 +1303,7 @@ gboolean summary_show(SummaryView *summaryview, FolderItem *item)
 	} else {
 		summary_set_hide_read_msgs_menu(summaryview, FALSE);
 		summary_set_hide_del_msgs_menu(summaryview, FALSE);
+		summary_set_hide_read_threads_menu(summaryview, FALSE);
 	}
 
 	if (quicksearch_is_active(summaryview->quicksearch)) {
@@ -1706,7 +1714,7 @@ void summary_set_menu_sensitive(SummaryView *summaryview)
 	&&  summaryview->messageview->mimeview
 	&&  summaryview->messageview->mimeview->textview)
 		cm_toggle_menu_set_active_full(summaryview->mainwin->ui_manager, "Menus/SummaryViewPopup/View/AllHeaders",
-			summaryview->messageview->mimeview->textview->show_all_headers);
+			prefs_common.show_all_headers);
 #endif
 	summary_unlock(summaryview);
 }
@@ -2453,9 +2461,7 @@ static void summary_status_show(SummaryView *summaryview)
 	goffset sel_size = 0, n_size = 0;
 	MsgInfo *msginfo;
 	gchar *name;
-#if GTK_CHECK_VERSION(2, 12, 0)
 	gchar *tooltip;
-#endif
 	
 	if (!summaryview->folder_item) {
 		gtk_label_set_text(GTK_LABEL(summaryview->statlabel_folder), "");
@@ -2478,6 +2484,7 @@ static void summary_status_show(SummaryView *summaryview)
 	
 	if (summaryview->folder_item->hide_read_msgs 
 	|| summaryview->folder_item->hide_del_msgs
+	|| summaryview->folder_item->hide_read_threads
 	|| quicksearch_is_active(summaryview->quicksearch)) {
 		rowlist = GTK_CMCLIST(summaryview->ctree)->row_list;
 		for (cur = rowlist; cur != NULL && cur->data != NULL; cur = cur->next) {
@@ -2572,7 +2579,6 @@ static void summary_status_show(SummaryView *summaryview)
 
 		gtk_label_set_text(GTK_LABEL(summaryview->statlabel_msgs), str);
 		g_free(str);
-#if GTK_CHECK_VERSION(2, 12, 0)
 		tooltip = g_strdup_printf(_("<b>Message summary</b>\n"
 					    "<b>New:</b> %d\n"
 					    "<b>Unread:</b> %d\n"
@@ -2592,7 +2598,6 @@ static void summary_status_show(SummaryView *summaryview)
 		gtk_widget_set_tooltip_markup(GTK_WIDGET(summaryview->statlabel_msgs),
 				            tooltip); 
 		g_free(tooltip);
-#endif
 	} else {
 		gchar *ssize, *tsize;
 		if (n_selected) {
@@ -2731,7 +2736,7 @@ static void summary_set_column_titles(SummaryView *summaryview)
 void summary_reflect_tags_changes(SummaryView *summaryview)
 {
 	GtkMenuShell *menu;
-	GList *cur;
+	GList *children, *cur;
 	GtkCMCTreeNode *node;
 	GtkCMCTree *ctree = GTK_CMCTREE(summaryview->ctree);
 	gboolean froze = FALSE;
@@ -2742,9 +2747,11 @@ void summary_reflect_tags_changes(SummaryView *summaryview)
 	cm_return_if_fail(menu != NULL);
 
 	/* clear items. get item pointers. */
-	for (cur = menu->children; cur != NULL && cur->data != NULL; cur = cur->next) {
+	children = gtk_container_get_children(GTK_CONTAINER(menu));
+	for (cur = children; cur != NULL && cur->data != NULL; cur = cur->next) {
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(cur->data), NULL);
 	}
+	g_list_free(children);
 	summary_tags_menu_create(summaryview, TRUE);
 
 	START_LONG_OPERATION(summaryview, TRUE);
@@ -2924,6 +2931,30 @@ static void summary_find_thread_age(GNode *gnode)
 	msginfo->thread_date = most_recent;
 }
 
+static gboolean summary_update_is_read(GNode *node, gpointer data)
+{
+	MsgInfo *msginfo = node->data;
+	gboolean *all_read = (gboolean *)data;
+
+	if (MSG_IS_UNREAD(msginfo->flags)) {
+		*all_read = FALSE;
+		return TRUE;
+	}
+	return FALSE;
+}	
+
+static gboolean summary_thread_is_read(GNode *gnode)
+{
+	MsgInfo *msginfo = (MsgInfo *)gnode->data;
+	gboolean all_read = TRUE;
+
+	if (!msginfo)
+		return all_read;
+
+	g_node_traverse(gnode, G_IN_ORDER, G_TRAVERSE_ALL, -1, summary_update_is_read, &all_read);
+    return all_read;
+}
+
 static gboolean summary_insert_gnode_func(GtkCMCTree *ctree, guint depth, GNode *gnode,
 				   GtkCMCTreeNode *cnode, gpointer data)
 {
@@ -2937,7 +2968,7 @@ static gboolean summary_insert_gnode_func(GtkCMCTree *ctree, guint depth, GNode 
 
 	summary_set_header(summaryview, text, msginfo);
 
-	gtk_sctree_set_node_info(ctree, cnode, text[col_pos[S_COL_SUBJECT]], 2,
+	gtk_cmctree_set_node_info(ctree, cnode, text[col_pos[S_COL_SUBJECT]], 2,
 				NULL, NULL, FALSE, summaryview->threaded && !summaryview->thread_collapsed);
 #define SET_TEXT(col) {						\
 	gtk_cmctree_node_set_text(ctree, cnode, col_pos[col], 	\
@@ -3017,10 +3048,14 @@ static void summary_set_ctree_from_list(SummaryView *summaryview,
 		
 		for (gnode = root->children; gnode != NULL;
 		     gnode = gnode->next) {
-			summary_find_thread_age(gnode);
-			node = gtk_sctree_insert_gnode
-				(ctree, NULL, node, gnode,
-				 summary_insert_gnode_func, summaryview);
+            if (!summaryview->folder_item->hide_read_threads ||
+                    !summary_thread_is_read(gnode))
+            {
+                summary_find_thread_age(gnode);
+                node = gtk_sctree_insert_gnode
+                    (ctree, NULL, node, gnode,
+                     summary_insert_gnode_func, summaryview);
+            }
 		}
 
 		g_node_destroy(root);
@@ -3138,13 +3173,9 @@ static inline void summary_set_header(SummaryView *summaryview, gchar *text[],
 	gchar *from_text = NULL, *to_text = NULL, *tags_text = NULL;
 	gboolean should_swap = FALSE;
 	gboolean vert = (prefs_common.layout_mode == VERTICAL_LAYOUT);
-#if GTK_CHECK_VERSION(2,12,0)
 	static const gchar *color_dim_rgb = NULL;
 	if (!color_dim_rgb)
 		color_dim_rgb = gdk_color_to_string(&summaryview->color_dim);
-#else
-	static const gchar *color_dim_rgb = "#888888";
-#endif
 	text[col_pos[S_COL_FROM]]   = "";
 	text[col_pos[S_COL_TO]]     = "";
 	text[col_pos[S_COL_SUBJECT]]= "";
@@ -3436,7 +3467,8 @@ static void summary_display_msg_full(SummaryView *summaryview,
 	gint val;
 	START_TIMING("");
 	if (!new_window) {
-		if (summaryview->displayed == row)
+		if (summaryview->displayed == row &&
+		    messageview_is_visible(summaryview->messageview))
 			return;
 		else if (summaryview->messageview)
 			summaryview->messageview->filtered = FALSE;
@@ -3475,7 +3507,7 @@ static void summary_display_msg_full(SummaryView *summaryview,
 			summaryview->last_displayed = summaryview->displayed;
 			summaryview->displayed = row;
 			val = messageview_show(msgview, msginfo, all_headers);
-			if (GTK_CMCLIST(msgview->mimeview->ctree)->row_list == NULL)
+			if (mimeview_tree_is_empty(msgview->mimeview))
 				gtk_widget_grab_focus(summaryview->ctree);
 			gtkut_ctree_node_move_if_on_the_edge(ctree, row,
 				GTK_CMCLIST(summaryview->ctree)->focus_row);
@@ -3483,12 +3515,13 @@ static void summary_display_msg_full(SummaryView *summaryview,
 			msgview = summaryview->messageview;
 			summaryview->last_displayed = summaryview->displayed;
 			summaryview->displayed = row;
-			if (!messageview_is_visible(msgview)) {
+			if (!messageview_is_visible(msgview) &&
+			    gtk_window_is_active(GTK_WINDOW(summaryview->mainwin->window))) {
 				main_window_toggle_message_view(summaryview->mainwin);
 				GTK_EVENTS_FLUSH();
 			}
 			val = messageview_show(msgview, msginfo, all_headers);
-			if (GTK_CMCLIST(msgview->mimeview->ctree)->row_list == NULL)
+			if (mimeview_tree_is_empty(msgview->mimeview))
 				gtk_widget_grab_focus(summaryview->ctree);
 			gtkut_ctree_node_move_if_on_the_edge(ctree, row,
 				GTK_CMCLIST(summaryview->ctree)->focus_row);
@@ -3644,6 +3677,8 @@ gboolean summary_is_list(SummaryView *summaryview)
 void summary_toggle_view(SummaryView *summaryview)
 {
 	if (prefs_common.layout_mode == SMALL_LAYOUT)
+		return;
+	if (summary_is_locked(summaryview))
 		return;
 	if (!messageview_is_visible(summaryview->messageview) &&
 	    summaryview->selected && summary_is_list(summaryview))
@@ -5787,7 +5822,7 @@ static void summary_colorlabel_menu_item_activate_item_cb(GtkMenuItem *menu_item
 	GtkMenuShell *menu;
 	GtkCheckMenuItem **items;
 	gint n;
-	GList *cur, *sel;
+	GList *children, *cur, *sel;
 
 	summaryview = (SummaryView *)data;
 	cm_return_if_fail(summaryview != NULL);
@@ -5807,7 +5842,8 @@ static void summary_colorlabel_menu_item_activate_item_cb(GtkMenuItem *menu_item
 			  GINT_TO_POINTER(1));
 
 	/* clear items. get item pointers. */
-	for (n = 0, cur = menu->children; cur != NULL && cur->data != NULL; cur = cur->next) {
+	children = gtk_container_get_children(GTK_CONTAINER(menu));
+	for (n = 0, cur = children; cur != NULL && cur->data != NULL; cur = cur->next) {
 		if (GTK_IS_CHECK_MENU_ITEM(cur->data)) {
 			gtk_check_menu_item_set_active
 				(GTK_CHECK_MENU_ITEM(cur->data), FALSE);
@@ -5815,6 +5851,8 @@ static void summary_colorlabel_menu_item_activate_item_cb(GtkMenuItem *menu_item
 			n++;
 		}
 	}
+
+	g_list_free(children);
 
 	if (n == (N_COLOR_LABELS + 1)) {
 		/* iterate all messages and set the state of the appropriate
@@ -5828,7 +5866,7 @@ static void summary_colorlabel_menu_item_activate_item_cb(GtkMenuItem *menu_item
 				 GTK_CMCTREE_NODE(sel->data));
 			if (msginfo) {
 				clabel = MSG_GET_COLORLABEL_VALUE(msginfo->flags);
-				if (!items[clabel]->active)
+				if (!gtk_check_menu_item_get_active(items[clabel]))
 					gtk_check_menu_item_set_active
 						(items[clabel], TRUE);
 			}
@@ -5911,7 +5949,7 @@ static void summary_tags_menu_item_activate_item_cb(GtkMenuItem *menu_item,
 							  gpointer data)
 {
 	GtkMenuShell *menu;
-	GList *cur;
+	GList *children, *cur;
 	GList *sel;
 	GHashTable *menu_table = g_hash_table_new_full(
 					g_direct_hash,
@@ -5937,7 +5975,8 @@ static void summary_tags_menu_item_activate_item_cb(GtkMenuItem *menu_item,
 			  GINT_TO_POINTER(1));
 
 	/* clear items. get item pointers. */
-	for (cur = menu->children; cur != NULL && cur->data != NULL; cur = cur->next) {
+	children = gtk_container_get_children(GTK_CONTAINER(menu));
+	for (cur = children; cur != NULL && cur->data != NULL; cur = cur->next) {
 		if (GTK_IS_CHECK_MENU_ITEM(cur->data)) {
 			gint id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(cur->data),
 				"tag_id"));
@@ -5948,6 +5987,8 @@ static void summary_tags_menu_item_activate_item_cb(GtkMenuItem *menu_item,
 			g_hash_table_insert(menu_allsel_table, GINT_TO_POINTER(id), GINT_TO_POINTER(0));
 		}
 	}
+
+	g_list_free(children);
 
 	/* iterate all messages and set the state of the appropriate
 	 * items */
@@ -5970,7 +6011,7 @@ static void summary_tags_menu_item_activate_item_cb(GtkMenuItem *menu_item,
 				gint num_checked = GPOINTER_TO_INT(g_hash_table_lookup(menu_allsel_table, tags->data));
 				id = GPOINTER_TO_INT(tags->data);
 				item = g_hash_table_lookup(menu_table, GINT_TO_POINTER(tags->data));
-				if (item && !item->active) {
+				if (item && !gtk_check_menu_item_get_active(item)) {
 					gtk_check_menu_item_set_active
 						(item, TRUE);
 				}
@@ -5980,7 +6021,8 @@ static void summary_tags_menu_item_activate_item_cb(GtkMenuItem *menu_item,
 		}
 	}
 
-	for (cur = menu->children; cur != NULL && cur->data != NULL; cur = cur->next) {
+	children = gtk_container_get_children(GTK_CONTAINER(menu));
+	for (cur = children; cur != NULL && cur->data != NULL; cur = cur->next) {
 		if (GTK_IS_CHECK_MENU_ITEM(cur->data)) {
 			gint id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(cur->data),
 				"tag_id"));
@@ -5991,6 +6033,7 @@ static void summary_tags_menu_item_activate_item_cb(GtkMenuItem *menu_item,
 				gtk_check_menu_item_set_inconsistent(GTK_CHECK_MENU_ITEM(cur->data), FALSE);
 		}
 	}
+	g_list_free(children);
 	g_hash_table_destroy(menu_table);
 	g_hash_table_destroy(menu_allsel_table);
 	/* reset "dont_toggle" state */
@@ -6120,7 +6163,7 @@ static gboolean summary_popup_menu(GtkWidget *widget, gpointer data)
 	return TRUE;
 }
 
-#if GTK_CHECK_VERSION(2,12,0) && !GENERIC_UMPC
+#if !GENERIC_UMPC
 static gchar *summaryview_get_tooltip_text(SummaryView *summaryview, MsgInfo *info, gint column)
 {
 	MsgFlags flags;
@@ -6325,15 +6368,9 @@ static GtkWidget *summary_ctree_create(SummaryView *summaryview)
 	gtk_cmclist_set_column_width(GTK_CMCLIST(ctree), col_pos[S_COL_TAGS],
 				   prefs_common.summary_col_size[S_COL_TAGS]);
 
-	if (prefs_common.enable_dotted_lines) {
-		gtk_cmctree_set_line_style(GTK_CMCTREE(ctree), GTK_CMCTREE_LINES_DOTTED);
-		gtk_cmctree_set_expander_style(GTK_CMCTREE(ctree),
-				     GTK_CMCTREE_EXPANDER_SQUARE);
-	} else {
-		gtk_cmctree_set_line_style(GTK_CMCTREE(ctree), GTK_CMCTREE_LINES_NONE);
-		gtk_cmctree_set_expander_style(GTK_CMCTREE(ctree),
-				     GTK_CMCTREE_EXPANDER_TRIANGLE);
-	}
+	gtk_cmctree_set_line_style(GTK_CMCTREE(ctree), GTK_CMCTREE_LINES_NONE);
+	gtk_cmctree_set_expander_style(GTK_CMCTREE(ctree),
+			     GTK_CMCTREE_EXPANDER_TRIANGLE);
 
 	gtk_sctree_set_stripes(GTK_SCTREE(ctree), prefs_common.use_stripes_in_summaries);
 
@@ -6434,7 +6471,7 @@ static GtkWidget *summary_ctree_create(SummaryView *summaryview)
 			 G_CALLBACK(summary_drag_motion_cb),
 			 summaryview);
 
-#if GTK_CHECK_VERSION(2,12,0) && !GENERIC_UMPC
+#if !GENERIC_UMPC
 	g_object_set (G_OBJECT(ctree), "has-tooltip", TRUE, NULL);
 	g_signal_connect(G_OBJECT(ctree), "query-tooltip", 
 			 G_CALLBACK(tooltip_cb),
@@ -6579,7 +6616,7 @@ static gboolean summary_key_pressed(GtkWidget *widget, GdkEventKey *event,
 	if (summaryview->selected) {
 		gboolean handled = FALSE;
 		switch (event->keyval) {
-		case GDK_space:		/* Page down or go to the next */
+		case GDK_KEY_space:		/* Page down or go to the next */
 			handled = TRUE;
 			if (event->state & GDK_CONTROL_MASK) {
 				handled = FALSE;
@@ -6602,12 +6639,12 @@ static gboolean summary_key_pressed(GtkWidget *widget, GdkEventKey *event,
 				}				
 			}
 			break;
-		case GDK_BackSpace:	/* Page up */
+		case GDK_KEY_BackSpace:	/* Page up */
 			handled = TRUE;
 			mimeview_scroll_page(messageview->mimeview, TRUE);
 			break;
-		case GDK_Return:	/* Scroll up/down one line */
-		case GDK_KP_Enter:
+		case GDK_KEY_Return:	/* Scroll up/down one line */
+		case GDK_KEY_KP_Enter:
 			handled = TRUE;
 			if (summaryview->displayed != summaryview->selected) {
 #ifndef GENERIC_UMPC
@@ -6629,21 +6666,21 @@ static gboolean summary_key_pressed(GtkWidget *widget, GdkEventKey *event,
 		return TRUE;
 
 	switch (event->keyval) {
-	case GDK_Left:		/* Move focus */
+	case GDK_KEY_Left:		/* Move focus */
 		adj = gtk_scrolled_window_get_hadjustment
 			(GTK_SCROLLED_WINDOW(summaryview->scrolledwin));
-		if (adj->lower != adj->value)
+		if (gtk_adjustment_get_lower(adj) != gtk_adjustment_get_value(adj))
 			break;
 		/* FALLTHROUGH */	
-	case GDK_Escape:
+	case GDK_KEY_Escape:
 		gtk_widget_grab_focus(summaryview->folderview->ctree);
 		mainwindow_exit_folder(summaryview->mainwin);
 		return TRUE;
-	case GDK_Home:
-	case GDK_End:
+	case GDK_KEY_Home:
+	case GDK_KEY_End:
 		if ((node = summaryview->selected) != NULL) {
 			GtkCMCTreeNode *next = NULL;
-			next = (event->keyval == GDK_Home)
+			next = (event->keyval == GDK_KEY_Home)
 					? gtk_cmctree_node_nth(ctree, 0)
 					: gtk_cmctree_node_nth(ctree, 
 						g_list_length(GTK_CMCLIST(ctree)->row_list)-1);
@@ -6671,16 +6708,17 @@ static gboolean summary_key_pressed(GtkWidget *widget, GdkEventKey *event,
 	}
 
 	switch (event->keyval) {
-	case GDK_Delete:
+	case GDK_KEY_Delete:
 		BREAK_ON_MODIFIER_KEY();
 		summary_delete_trash(summaryview);
 		break;
-	case GDK_y:
-	case GDK_t:
-	case GDK_l:
-	case GDK_o:
-	case GDK_c:
-	case GDK_a:
+	case GDK_KEY_y:
+	case GDK_KEY_t:
+	case GDK_KEY_l:
+	case GDK_KEY_o:
+	case GDK_KEY_c:
+	case GDK_KEY_a:
+	case GDK_KEY_z:
 		if ((event->state & (GDK_MOD1_MASK|GDK_CONTROL_MASK)) == 0) {
 			g_signal_stop_emission_by_name(G_OBJECT(widget), 
                                        "key_press_event");
@@ -7034,7 +7072,7 @@ static void summary_start_drag(GtkWidget *widget, gint button, GdkEvent *event,
 				 GDK_ACTION_MOVE|GDK_ACTION_COPY|GDK_ACTION_DEFAULT, button, event);
 	gtk_drag_set_icon_default(context);
 	if (prefs_common.layout_mode == SMALL_LAYOUT) {
-		GtkWidget *paned = GTK_WIDGET_PTR(summaryview)->parent;
+		GtkWidget *paned = gtk_widget_get_parent(GTK_WIDGET_PTR(summaryview));
 		if (paned && GTK_IS_PANED(paned)) {
 	        	mainwindow_reset_paned(GTK_PANED(paned));
 		}
@@ -7111,14 +7149,14 @@ static void summary_drag_data_get(GtkWidget        *widget,
 
 		if (mail_list != NULL) {
 			gtk_selection_data_set(selection_data,
-					       selection_data->target, 8,
+					       gtk_selection_data_get_target(selection_data), 8,
 					       mail_list, strlen(mail_list));
 			g_free(mail_list);
 		} 
 	} else if (info == TARGET_DUMMY) {
 		if (GTK_CMCLIST(summaryview->ctree)->selection)
 			gtk_selection_data_set(selection_data,
-					       selection_data->target, 8,
+					       gtk_selection_data_get_target(selection_data), 8,
 					       "Dummy-Summaryview", 
 					       strlen("Dummy-Summaryview")+1);
 	} else if (info == TARGET_MAIL_CM_PATH_LIST) {
@@ -7150,7 +7188,7 @@ static void summary_drag_data_get(GtkWidget        *widget,
 
 		if (path_list != NULL) {
 			gtk_selection_data_set(selection_data,
-					       selection_data->target, 8,
+					       gtk_selection_data_get_target(selection_data), 8,
 					       path_list, strlen(path_list));
 			g_free(path_list);
 		}
@@ -7200,7 +7238,8 @@ static void summary_drag_data_received(GtkWidget        *widget,
 			gtk_drag_finish(drag_context, FALSE, FALSE, time);			
 			return;
 		} else {
-			folderview_finish_dnd(data->data, drag_context, time, item);
+			folderview_finish_dnd(gtk_selection_data_get_data(data),
+				drag_context, time, item);
 		}
 	}
 }
@@ -7657,12 +7696,40 @@ void summary_toggle_show_del_messages(SummaryView *summaryview)
  	summary_show(summaryview, summaryview->folder_item);
 }
  
+void summary_toggle_show_read_threads(SummaryView *summaryview)
+{
+	FolderItemUpdateData source;
+	if (summaryview->folder_item->hide_read_threads)
+ 		summaryview->folder_item->hide_read_threads = 0;
+ 	else
+ 		summaryview->folder_item->hide_read_threads = 1;
+
+	source.item = summaryview->folder_item;
+	source.update_flags = F_ITEM_UPDATE_NAME;
+	source.msg = NULL;
+	hooks_invoke(FOLDER_ITEM_UPDATE_HOOKLIST, &source);
+ 	summary_show(summaryview, summaryview->folder_item);
+}
+ 
 static void summary_set_hide_read_msgs_menu (SummaryView *summaryview,
  					     guint action)
 {
  	GtkWidget *widget;
 
  	widget = gtk_ui_manager_get_widget(summaryview->mainwin->ui_manager, "/Menu/View/HideReadMessages");
+ 	g_object_set_data(G_OBJECT(widget), "dont_toggle",
+ 			  GINT_TO_POINTER(1));
+ 	gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(widget), action);
+ 	g_object_set_data(G_OBJECT(widget), "dont_toggle",
+ 			  GINT_TO_POINTER(0));
+}
+
+static void summary_set_hide_read_threads_menu (SummaryView *summaryview,
+ 					     guint action)
+{
+ 	GtkWidget *widget;
+
+ 	widget = gtk_ui_manager_get_widget(summaryview->mainwin->ui_manager, "/Menu/View/HideReadThreads");
  	g_object_set_data(G_OBJECT(widget), "dont_toggle",
  			  GINT_TO_POINTER(1));
  	gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(widget), action);
@@ -7733,20 +7800,22 @@ void summary_reflect_prefs_pixmap_theme(SummaryView *summaryview)
 void summary_reflect_prefs_custom_colors(SummaryView *summaryview)
 {
 	GtkMenuShell *menu;
-	GList *cur;
+	GList *children, *cur;
 
 	/* re-create colorlabel submenu */
 	menu = GTK_MENU_SHELL(summaryview->colorlabel_menu);
 	cm_return_if_fail(menu != NULL);
 
 	/* clear items. get item pointers. */
-	for (cur = menu->children; cur != NULL && cur->data != NULL; cur = cur->next) {
+	children = gtk_container_get_children(GTK_CONTAINER(menu));
+	for (cur = children; cur != NULL && cur->data != NULL; cur = cur->next) {
 		g_signal_handlers_disconnect_matched
 			 (gtk_ui_manager_get_accel_group(summaryview->mainwin->ui_manager), 
 			 G_SIGNAL_MATCH_DATA|G_SIGNAL_MATCH_FUNC,
 			 0, 0, NULL, mainwin_accel_changed_cb, cur->data);
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(cur->data), NULL);
 	}
+	g_list_free(children);
 	summary_colorlabel_menu_create(summaryview, TRUE);
 }
 

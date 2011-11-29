@@ -27,7 +27,6 @@
 #include <glib/gi18n.h>
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
-#include "gtk/gtksctree.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -391,15 +390,15 @@ static void message_search_next_clicked(GtkButton *button, gpointer data)
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event,
 			    gpointer data)
 {
-	if (event && (event->keyval == GDK_Escape)) {
+	if (event && (event->keyval == GDK_KEY_Escape)) {
 		gtk_widget_hide(search_window.window);
 	}
 
-	if (event && (event->keyval == GDK_Return || event->keyval == GDK_KP_Enter)) {
+	if (event && (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter)) {
 		message_search_execute(FALSE);
 	}
 
-	if (event && (event->keyval == GDK_Down || event->keyval == GDK_Up)) {
+	if (event && (event->keyval == GDK_KEY_Down || event->keyval == GDK_KEY_Up)) {
 		if (search_window.body_entry_has_focus) {
 			combobox_set_value_from_arrow_key(
 					GTK_COMBO_BOX(search_window.body_entry),

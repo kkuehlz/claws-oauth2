@@ -222,11 +222,11 @@ static gboolean prefswindow_key_pressed(GtkWidget *widget, GdkEventKey *event,
 
 	if (event) {
 		switch (event->keyval) {
-			case GDK_Escape :
+			case GDK_KEY_Escape :
 				cancel_button_clicked(NULL, data);
 				break;
-			case GDK_Return : 
-			case GDK_KP_Enter :
+			case GDK_KEY_Return : 
+			case GDK_KEY_KP_Enter :
 				focused_child = gtkut_get_focused_child
 					(GTK_CONTAINER(data->notebook));
 				/* Press ok, if the focused child is not a text view
@@ -600,7 +600,7 @@ void prefswindow_open_full(const gchar *title, GSList *prefs_pages,
 #endif
 	adj = gtk_scrolled_window_get_vadjustment(
 			GTK_SCROLLED_WINDOW(prefswindow->scrolledwindow1));
-	gtk_adjustment_set_value(adj, adj->lower);
+	gtk_adjustment_set_value(adj, gtk_adjustment_get_lower(adj));
 	gtk_adjustment_changed(adj);
 }
 
@@ -686,6 +686,7 @@ static gboolean prefswindow_row_selected(GtkTreeSelection *selector,
 	PrefsTreeNode *prefsnode;
 	PrefsPage *page;
 	PrefsWindow *prefswindow = (PrefsWindow *) data;
+	gfloat lower;
 	gchar *labeltext;
 	gint pagenum, i;
 	GtkTreeIter iter;
@@ -730,11 +731,12 @@ static gboolean prefswindow_row_selected(GtkTreeSelection *selector,
 
 	adj = gtk_scrolled_window_get_vadjustment(
 			GTK_SCROLLED_WINDOW(page->widget));
-	gtk_adjustment_set_value(adj, adj->lower);
+	lower = gtk_adjustment_get_lower(adj);
+	gtk_adjustment_set_value(adj, lower);
 	gtk_adjustment_changed(adj);
 	adj = gtk_scrolled_window_get_hadjustment(
 			GTK_SCROLLED_WINDOW(page->widget));
-	gtk_adjustment_set_value(adj, adj->lower);
+	gtk_adjustment_set_value(adj, lower);
 	gtk_adjustment_changed(adj);
 
 #ifdef GENERIC_UMPC

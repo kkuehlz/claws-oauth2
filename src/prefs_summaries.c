@@ -318,7 +318,7 @@ static void prefs_summaries_create_widget(PrefsPage *_page, GtkWindow *window,
 	GtkWidget *hbox1;
 	GtkWidget *label_ng_abbrev;
 	GtkWidget *spinbtn_ng_abbrev_len;
-	GtkObject *spinbtn_ng_abbrev_len_adj;
+	GtkAdjustment *spinbtn_ng_abbrev_len_adj;
 	GtkWidget *vbox2;
 	GtkWidget *vbox3;
 	GtkWidget *checkbtn_useaddrbook;
@@ -333,7 +333,7 @@ static void prefs_summaries_create_widget(PrefsPage *_page, GtkWindow *window,
 	GtkWidget *checkbtn_reopen_last_folder;
 	GtkWidget *optmenu_always_show_msg;
 	GtkWidget *spinbtn_mark_as_read_delay;
-	GtkObject *spinbtn_mark_as_read_delay_adj;
+	GtkAdjustment *spinbtn_mark_as_read_delay_adj;
 	GtkWidget *checkbtn_immedexec;
 	GtkWidget *checkbtn_ask_mark_all_read;
 	GtkWidget *label, *label_fill;
@@ -345,7 +345,6 @@ static void prefs_summaries_create_widget(PrefsPage *_page, GtkWindow *window,
 	GtkWidget *button_edit_actions;
 	GtkWidget *radio_mark_as_read_on_select;
 	GtkWidget *radio_mark_as_read_on_new_win;
-	CLAWS_TIP_DECL();
 
 	vbox1 = gtk_vbox_new (FALSE, VSPACING);
 	gtk_widget_show (vbox1);
@@ -733,7 +732,7 @@ static void date_format_cancel_btn_clicked(GtkButton *button,
 static gboolean date_format_key_pressed(GtkWidget *keywidget, GdkEventKey *event,
 					GtkWidget **widget)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		date_format_cancel_btn_clicked(NULL, widget);
 	return FALSE;
 }

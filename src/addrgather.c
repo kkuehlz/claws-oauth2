@@ -128,7 +128,7 @@ static gint addrgather_dlg_delete_event(
 static gboolean addrgather_dlg_key_pressed(
 	GtkWidget *widget, GdkEventKey *event, gpointer data )
 {
-	if( event && event->keyval == GDK_Escape ) {
+	if( event && event->keyval == GDK_KEY_Escape ) {
 		addrgather_dlg.cancelled = TRUE;
 		gtk_main_quit();
 	}
@@ -324,11 +324,11 @@ static void addrgather_page_fields(gint pageNum, gchar *pageLbl)
 	GtkWidget *hboxs;
 	GtkWidget *spinbtnFolder;
 	GtkObject *adjFolder;
+	CLAWS_TIP_DECL();
 #endif
 	GtkWidget *checkRecurse;
 	gint top;
 	gint i;
-	CLAWS_TIP_DECL();
 #ifdef USE_NEW_ADDRBOOK
 	GError* error = NULL;
 	GSList *books, *cur;
@@ -453,7 +453,9 @@ static void addrgather_page_finish( gint pageNum, gchar *pageLbl ) {
 	GtkWidget *clistCount;
 	gchar *titles[ FIELDS_N_COLS ];
 	gint i;
-
+#ifndef USE_NEW_ADDRBOOK
+	CLAWS_TIP_DECL();
+#endif
 	titles[ FIELD_COL_HEADER ] = _("Header Name");
 	titles[ FIELD_COL_COUNT  ] = _("Address Count");
 

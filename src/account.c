@@ -51,6 +51,7 @@
 #include "remotefolder.h"
 #include "manual.h"
 #include "filtering.h"
+#include "prefs_actions.h"
 
 enum {
 	ACCOUNT_IS_DEFAULT,
@@ -442,7 +443,7 @@ void account_add(void)
 void account_open(PrefsAccount *ac_prefs)
 {
 	gboolean prev_default;
-	gchar *ac_name;
+	gchar *ac_name, *old_prefix, *new_prefix;
 	gboolean account_dirty = FALSE;
 
 	cm_return_if_fail(ac_prefs != NULL);
@@ -458,10 +459,19 @@ void account_open(PrefsAccount *ac_prefs)
 			account_set_as_default(ac_prefs);
 
 		if (ac_prefs->folder && strcmp2(ac_name, ac_prefs->account_name) != 0) {
+			old_prefix = folder_get_identifier(FOLDER(ac_prefs->folder));
 			folder_set_name(FOLDER(ac_prefs->folder),
 					ac_prefs->account_name);
 			folderview_set_all();
 			folder_prefs_save_config_recursive(FOLDER(ac_prefs->folder));
+			new_prefix = folder_get_identifier(FOLDER(ac_prefs->folder));
+
+			account_rename_path(old_prefix, new_prefix);
+			prefs_filtering_rename_path(old_prefix, new_prefix);
+			prefs_actions_rename_path(old_prefix, new_prefix);
+			
+			g_free(old_prefix);
+			g_free(new_prefix);
 		}
 
 		account_write_config_all();
@@ -557,8 +567,6 @@ void account_rename_path(const gchar *old_id, const gchar *new_id)
 		CHECK_CHANGE_FOLDER(ap->trash_folder);
 	}
 }
-
-#undef CHECK_CHANGE_FOLDER
 
 FolderItem *account_get_special_folder(PrefsAccount *ac_prefs,
 				       SpecialFolderItemType type)
@@ -1230,7 +1238,7 @@ static gint account_delete_event(GtkWidget *widget, GdkEventAny *event,
 static gboolean account_key_pressed(GtkWidget *widget, GdkEventKey *event,
 				    gpointer data)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		account_edit_close(NULL, NULL);
 	return FALSE;
 }
@@ -1518,7 +1526,6 @@ static void account_create_list_view_columns(GtkWidget *list_view)
 {
 	GtkTreeViewColumn *column;
 	GtkCellRenderer *renderer;
-	CLAWS_TIP_DECL();
 
 	renderer = gtk_cell_renderer_toggle_new();
 	g_object_set(renderer, 
@@ -1531,7 +1538,7 @@ static void account_create_list_view_columns(GtkWidget *list_view)
 		 NULL);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(list_view), column);		
 	gtk_tree_view_column_set_alignment (column, 0.5);
-	CLAWS_SET_TIP(column->button,
+	CLAWS_SET_TIP(gtk_tree_view_column_get_widget(column),
 			_("'Get Mail' retrieves mail from the checked accounts"));
 	g_signal_connect(G_OBJECT(renderer), "toggled", 		     
 			 G_CALLBACK(account_get_all_toggled),

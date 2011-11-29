@@ -91,7 +91,11 @@ static gboolean cb_preview_close(GtkWidget*, GdkEventAny*, gpointer);
 static void     cb_preview_size_allocate(GtkWidget*, GtkAllocation*);
 static void     cb_preview_ready(GtkPrintOperationPreview*,
 				 GtkPrintContext*, gpointer);
+#if !GTK_CHECK_VERSION(3, 0, 0)
 static gboolean cb_preview_expose(GtkWidget*, GdkEventExpose*, gpointer);
+#else
+static gboolean cb_preview_expose(GtkWidget*, cairo_t*, gpointer);
+#endif
 static void     cb_preview_got_page_size(GtkPrintOperationPreview*,
 					 GtkPrintContext*,
 					 GtkPageSetup*, gpointer);
@@ -189,7 +193,6 @@ GtkPageSetup *printing_get_page_setup(void)
 
 		read_from_file = FALSE;
 
-#if GTK_CHECK_VERSION(2,14,0)
 		/* try reading the page setup from file */
 		page_setup_filename = g_strconcat(get_rc_dir(), G_DIR_SEPARATOR_S, 
 						  PRINTING_PAGE_SETUP_STORAGE_FILE, NULL);
@@ -208,11 +211,6 @@ GtkPageSetup *printing_get_page_setup(void)
 		} else {
 			debug_print("Printing: Could not read page setup from key file\n");
 		}
-#else
-		key_file_read = FALSE;
-		keyfile = NULL;
-		page_setup_filename = NULL;
-#endif
 
 		/* if reading from file did not work, or has not been tried (GTK+ < 2.14), use prefs */
 		if (!read_from_file) {
@@ -278,11 +276,10 @@ void printing_print_full(GtkWindow *parent, PrintRenderer *renderer, gpointer re
 	/* Config for printing */
 	gtk_print_operation_set_print_settings(op, settings);
 	gtk_print_operation_set_default_page_setup(op, page_setup);
-#if GTK_CHECK_VERSION(2, 18, 0)
+#if GTK_CHECK_VERSION(2,18,0)
         /* enable Page Size and Orientation in the print dialog */
 	gtk_print_operation_set_embed_page_setup(op, TRUE);
 #endif
-
 	/* signals */
 	g_signal_connect(op, "begin_print", G_CALLBACK(renderer->cb_begin_print), print_data);
 	g_signal_connect(op, "draw_page", G_CALLBACK(renderer->cb_draw_page), print_data);
@@ -383,7 +380,6 @@ void printing_page_setup(GtkWindow *parent)
 	prefs_common.print_margin_right  = (int) (100*gtk_page_setup_get_right_margin(page_setup,
 								PAGE_MARGIN_STORAGE_UNIT));
 
-#if GTK_CHECK_VERSION(2,14,0)
 	/* save to file */
 	keyfile = g_strconcat(get_rc_dir(), G_DIR_SEPARATOR_S,
 			      PRINTING_PAGE_SETUP_STORAGE_FILE, NULL);
@@ -391,7 +387,6 @@ void printing_page_setup(GtkWindow *parent)
 		debug_print("Printing: Could not store page setup in file `%s'\n", keyfile);
 	}
 	g_free(keyfile);
-#endif
 }
 
 static gboolean cb_preview(GtkPrintOperation        *operation,
@@ -412,7 +407,6 @@ static gboolean cb_preview(GtkPrintOperation        *operation,
 	static GdkGeometry geometry;
 	GtkWidget *dialog = NULL;
 	GtkWidget *statusbar = gtk_hbox_new(2, FALSE);
-	CLAWS_TIP_DECL();
 
 	debug_print("Creating internal print preview\n");
 
@@ -537,7 +531,7 @@ static gboolean cb_preview(GtkPrintOperation        *operation,
 	preview_data->area = da;
 
 	/* cairo context */
-	cr = gdk_cairo_create(da->window);
+	cr = gdk_cairo_create(gtk_widget_get_window(da));
 	gtk_print_context_set_cairo_context(context, cr, PREVIEW_SCALE, PREVIEW_SCALE);
 	cairo_destroy(cr);
 
@@ -581,7 +575,7 @@ static gboolean cb_preview_close(GtkWidget *widget, GdkEventAny *event,
 {
 	PreviewData *preview_data = (PreviewData *)data;
 	if (event->type == GDK_KEY_PRESS)
- 		 if (((GdkEventKey *)event)->keyval != GDK_Escape)
+ 		 if (((GdkEventKey *)event)->keyval != GDK_KEY_Escape)
     			return FALSE;
 	if (preview_data->rendering)
 		return FALSE; 
@@ -620,9 +614,15 @@ static void cb_preview_ready(GtkPrintOperationPreview *preview,
 	preview_data->current_page = preview_data->pages_to_print;
 	preview_data->context = context;
 
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	g_signal_connect(preview_data->area, "expose_event",
 			 G_CALLBACK(cb_preview_expose),
 			 preview_data);
+#else
+	g_signal_connect(preview_data->area, "draw",
+			 G_CALLBACK(cb_preview_expose),
+			 preview_data);
+#endif
 
 	gtk_widget_queue_draw(preview_data->area);
 }
@@ -655,19 +655,32 @@ static void cb_preview_got_page_size(GtkPrintOperationPreview *preview,
 				    paper_width, paper_height);
 }
 
+#if !GTK_CHECK_VERSION(3, 0, 0)
 static gboolean cb_preview_expose(GtkWidget *widget, GdkEventExpose *event,
 				  gpointer data)
+#else
+static gboolean cb_preview_expose(GtkWidget *widget, cairo_t *event,
+				  gpointer data)
+#endif
 {
 	PreviewData *preview_data = data;
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	cairo_t *cr;
+#endif
 
 	debug_print("preview_expose (current %p)\n", preview_data->current_page);
 
-	cr = gdk_cairo_create(preview_data->area->window);
+#if !GTK_CHECK_VERSION(3, 0, 0)
+	cr = gdk_cairo_create(gtk_widget_get_window(preview_data->area));
+#endif
 
 	/* background */
 	cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	cairo_rectangle(cr, event->area.x, event->area.y, event->area.width, event->area.height);
+#else
+	cairo_rectangle(cr, 0, 0, event->area.width, event->area.height);
+#endif
 	cairo_fill(cr);
 
 	/* shadow */
@@ -685,7 +698,9 @@ static gboolean cb_preview_expose(GtkWidget *widget, GdkEventExpose *event,
 	cairo_fill(cr);
 
 	gtk_print_context_set_cairo_context(preview_data->context, cr, PREVIEW_SCALE, PREVIEW_SCALE);
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	cairo_destroy(cr);
+#endif
 
 	if (preview_data->current_page) {
 		preview_data->rendering = TRUE;
@@ -768,13 +783,15 @@ static void cb_preview_zoom_100(GtkButton *button, gpointer data)
 static void cb_preview_zoom_fit(GtkButton *button, gpointer data)
 {
 	PreviewData *preview_data = (PreviewData*) data;
+	GtkAllocation allocation;
 	gdouble zoom_w;
 	gdouble zoom_h;
 
-	zoom_w = ((gdouble)preview_data->scrolled_window->allocation.width) /
+	gtk_widget_get_allocation(preview_data->scrolled_window, &allocation);
+	zoom_w = ((gdouble)allocation.width) /
 		 ((gdouble)preview_data->page_width/preview_data->print_data->zoom +
 		  PREVIEW_SHADOW_OFFSET);
-	zoom_h = ((gdouble)preview_data->scrolled_window->allocation.height) /
+	zoom_h = ((gdouble)allocation.height) /
 		 ((gdouble)preview_data->page_height/preview_data->print_data->zoom +
 		  PREVIEW_SHADOW_OFFSET);
 

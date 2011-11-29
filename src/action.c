@@ -180,13 +180,13 @@ static gint io_dialog_key_pressed_cb	(GtkWidget	*widget,
 
 static void catch_output		(gpointer		 data,
 					 gint			 source,
-					 GdkInputCondition	 cond);
+					 GIOCondition		 cond);
 static void catch_input			(gpointer		 data, 
 					 gint			 source,
-					 GdkInputCondition	 cond);
+					 GIOCondition		 cond);
 static void catch_status		(gpointer		 data,
 					 gint			 source,
-					 GdkInputCondition	 cond);
+					 GIOCondition		 cond);
 
 static gchar *get_user_string		(const gchar	*action,
 					 ActionType	 type);
@@ -476,15 +476,22 @@ void action_update_compose_menu(GtkUIManager *ui_manager,
 
 static GtkWidget *find_item_in_menu(GtkWidget *menu, gchar *name)
 {
-	GList *amenu = GTK_MENU_SHELL(menu)->children;
+	GList *children = gtk_container_get_children(GTK_CONTAINER(GTK_MENU_SHELL(menu)));
+	GList *amenu = children;
 	const gchar *existing_name;
 	while (amenu) {
 		GtkWidget *item = GTK_WIDGET(amenu->data);
 		if ((existing_name = g_object_get_data(G_OBJECT(item), "s_name")) != NULL &&
 		    !strcmp2(name, existing_name))
+		{
+			g_list_free(children);
 			 return item;
+		}
 		amenu = amenu->next;
 	}
+
+	g_list_free(children);
+
 	return NULL;
 }
 
@@ -898,7 +905,7 @@ static gboolean execute_actions(gchar *action, GSList *msg_list,
 			child_info->data = data;
 			child_info->tag_status = 
 				claws_input_add(child_info->chld_status,
-					      GDK_INPUT_READ,
+					      G_IO_IN | G_IO_HUP | G_IO_ERR,
 					      catch_status, child_info,
 					      FALSE);
 		}
@@ -1065,9 +1072,9 @@ static ChildInfo *fork_child(gchar *cmd, const gchar *msg_str,
 	child_info->chld_err    = chld_err[0];
 	child_info->chld_status = chld_status[0];
 	child_info->tag_in      = -1;
-	child_info->tag_out     = claws_input_add(chld_out[0], GDK_INPUT_READ,
+	child_info->tag_out     = claws_input_add(chld_out[0], G_IO_IN | G_IO_HUP | G_IO_ERR,
 						catch_output, child_info, FALSE);
-	child_info->tag_err     = claws_input_add(chld_err[0], GDK_INPUT_READ,
+	child_info->tag_err     = claws_input_add(chld_err[0], G_IO_IN | G_IO_HUP | G_IO_ERR,
 						catch_output, child_info, FALSE);
 
 	if (!(children->action_type &
@@ -1151,7 +1158,7 @@ static void send_input(GtkWidget *w, gpointer data)
 	ChildInfo *child_info = (ChildInfo *) children->list->data;
 
 	child_info->tag_in = claws_input_add(child_info->chld_in,
-					   GDK_INPUT_WRITE,
+					   G_IO_OUT | G_IO_ERR,
 					   catch_input, children, FALSE);
 }
 
@@ -1178,9 +1185,9 @@ static void hide_io_dialog_cb(GtkWidget *w, gpointer data)
 static gint io_dialog_key_pressed_cb(GtkWidget *widget, GdkEventKey *event,
 				     gpointer data)
 {
-	if (event && (event->keyval == GDK_Escape ||
-		      event->keyval == GDK_Return ||
-			  event->keyval == GDK_KP_Enter))
+	if (event && (event->keyval == GDK_KEY_Escape ||
+		      event->keyval == GDK_KEY_Return ||
+			  event->keyval == GDK_KEY_KP_Enter))
 		hide_io_dialog_cb(widget, data);
 	return TRUE;
 }
@@ -1324,7 +1331,7 @@ static void create_io_dialog(Children *children)
 
 	dialog = gtk_dialog_new();
 	gtk_container_set_border_width
-		(GTK_CONTAINER(GTK_DIALOG(dialog)->action_area), 5);
+		(GTK_CONTAINER(gtk_dialog_get_action_area(GTK_DIALOG(dialog))), 5);
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
 	gtk_window_set_title(GTK_WINDOW(dialog), _("Action's input/output"));
 	gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
@@ -1336,7 +1343,8 @@ static void create_io_dialog(Children *children)
 			 children);
 
 	vbox = gtk_vbox_new(FALSE, 8);
-	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), vbox);
+	gtk_container_add(GTK_CONTAINER(
+				gtk_dialog_get_content_area(GTK_DIALOG(dialog))), vbox);
 	gtk_container_set_border_width(GTK_CONTAINER(vbox), 8);
 	gtk_widget_show(vbox);
 
@@ -1413,8 +1421,15 @@ static void create_io_dialog(Children *children)
 #endif
 		
 		progress_bar = gtk_progress_bar_new();
+#if !GTK_CHECK_VERSION(3, 0, 0)
 		gtk_progress_bar_set_orientation(GTK_PROGRESS_BAR(progress_bar),
 				GTK_PROGRESS_LEFT_TO_RIGHT);
+#else
+		gtk_orientable_set_orientation(GTK_PROGRESS_BAR(progress_bar),
+				GTK_ORIENTATION_HORIZONTAL);
+		gtk_progress_bar_set_inverted(GTK_PROGRESS_BAR(progress_bar),
+				FALSE);
+#endif
 		text = g_strdup_printf(format, _("Completed"), 
 		                       children->initial_nb);
 		gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progress_bar),
@@ -1435,7 +1450,8 @@ static void create_io_dialog(Children *children)
 	if (children->nb)
 		gtk_widget_set_sensitive(close_button, FALSE);
 
-	gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->action_area), hbox);
+	gtk_container_add(GTK_CONTAINER(
+			gtk_dialog_get_action_area(GTK_DIALOG(dialog))), hbox);
 
 	children->dialog       = dialog;
 	children->scrolledwin  = scrolledwin;
@@ -1449,7 +1465,7 @@ static void create_io_dialog(Children *children)
 	gtk_widget_show(dialog);
 }
 
-static void catch_status(gpointer data, gint source, GdkInputCondition cond)
+static void catch_status(gpointer data, gint source, GIOCondition cond)
 {
 	ChildInfo *child_info = (ChildInfo *)data;
 	gchar buf;
@@ -1517,7 +1533,7 @@ static void catch_status(gpointer data, gint source, GdkInputCondition cond)
 	wait_for_children(child_info->children);
 }
 	
-static void catch_input(gpointer data, gint source, GdkInputCondition cond)
+static void catch_input(gpointer data, gint source, GIOCondition cond)
 {
 	Children *children = (Children *)data;
 	ChildInfo *child_info = (ChildInfo *)children->list->data;
@@ -1526,7 +1542,7 @@ static void catch_input(gpointer data, gint source, GdkInputCondition cond)
 	gssize by_read = 0, by_written = 0;
 
 	debug_print("Sending input to grand child.\n");
-	if (!(cond & GDK_INPUT_WRITE))
+	if (!(cond & (G_IO_OUT | G_IO_ERR)))
 		return;
 
 	gtk_widget_set_sensitive(children->input_hbox, FALSE);
@@ -1565,7 +1581,7 @@ static void catch_input(gpointer data, gint source, GdkInputCondition cond)
 	debug_print("Input to grand child sent.\n");
 }
 
-static void catch_output(gpointer data, gint source, GdkInputCondition cond)
+static void catch_output(gpointer data, gint source, GIOCondition cond)
 {
 	ChildInfo *child_info = (ChildInfo *)data;
 	gint c;

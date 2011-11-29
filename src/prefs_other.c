@@ -159,7 +159,7 @@ static void prefs_keybind_select(void)
 static gboolean prefs_keybind_key_pressed(GtkWidget *widget, GdkEventKey *event,
 					  gpointer data)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		prefs_keybind_cancel();
 	return FALSE;
 }
@@ -446,7 +446,7 @@ static void prefs_other_create_widget(PrefsPage *_page, GtkWindow *window,
 
 	GtkWidget *label_iotimeout;
 	GtkWidget *spinbtn_iotimeout;
-	GtkObject *spinbtn_iotimeout_adj;
+	GtkAdjustment *spinbtn_iotimeout_adj;
 
 	GtkWidget *vbox2;
 	GtkWidget *checkbtn_askonclean;
@@ -461,7 +461,6 @@ static void prefs_other_create_widget(PrefsPage *_page, GtkWindow *window,
 	GtkWidget *flush_metadata_safer_radiobtn;
 
 	gchar *shred_binary = NULL;
-	CLAWS_TIP_DECL();
 
 	vbox1 = gtk_vbox_new (FALSE, VSPACING);
 	gtk_widget_show (vbox1);

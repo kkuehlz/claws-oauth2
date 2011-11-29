@@ -227,7 +227,6 @@ struct _PrefsCommon
 	gboolean use_stripes_everywhere;
 	gboolean use_stripes_in_summaries; /* overrides if use_stripes_everywhere is set to TRUE */
 	gint stripes_color_offset;
-	gboolean enable_dotted_lines;
 	gboolean enable_hscrollbar;
 	gboolean bold_unread;
 	gboolean enable_thread;
@@ -293,11 +292,14 @@ struct _PrefsCommon
 	gint msgwin_width;
 	gint msgwin_height;
 
+	gint mimeview_tree_height;
+	
 	gint sourcewin_width;
 	gint sourcewin_height;
 
 	gint compose_width;
 	gint compose_height;
+	gint compose_notebook_height;
 	gint compose_x;
 	gint compose_y;
 
@@ -328,6 +330,7 @@ struct _PrefsCommon
 	gboolean scroll_halfpage;
 	gboolean hide_quoted;
 	gboolean respect_flowed_format;
+	gboolean show_all_headers;
 
 	gboolean show_other_header;
 	GSList *disphdr_list;

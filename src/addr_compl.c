@@ -23,11 +23,6 @@
 #endif
 #include "defs.h"
 
-/* We know this file uses some deprecated stuff. */
-#undef G_DISABLE_DEPRECATED
-#undef GTK_DISABLE_DEPRECATED
-#undef GDK_DISABLE_DEPRECATED
-
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <gdk/gdkkeysyms.h>
@@ -865,18 +860,26 @@ static void addrcompl_resize_window( CompletionWindow *cw ) {
 	gint x, y, width, height, depth;
 
 	/* Get current geometry of window */
-	gdk_window_get_geometry( cw->window->window, &x, &y, &width, &height, &depth );
+	gdk_window_get_geometry( gtk_widget_get_window( cw->window ), &x, &y, &width, &height, &depth );
 
+	/* simple _hide breaks size requisition !? */
 	gtk_widget_hide_all( cw->window );
 	gtk_widget_show_all( cw->window );
 	gtk_widget_size_request( cw->list_view, &r );
-
+printf("%d  + %d < %d\n", y, r.height, gdk_screen_height());
 	/* Adjust window height to available screen space */
-	if( ( y + r.height ) > gdk_screen_height() ) {
-		gtk_window_set_resizable(GTK_WINDOW(cw->window), FALSE);
-		gtk_widget_set_size_request( cw->window, width, gdk_screen_height() - y );
-	} else
-		gtk_widget_set_size_request(cw->window, width, r.height);
+	if( y + r.height > gdk_screen_height())
+		r.height = gdk_screen_height() - y;
+
+	gtk_widget_set_size_request(cw->window, width, r.height);
+
+	gdk_pointer_grab(gtk_widget_get_window(cw->window), TRUE,
+			 GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK |
+			 GDK_BUTTON_RELEASE_MASK,
+			 NULL, NULL, GDK_CURRENT_TIME);
+	gdk_keyboard_grab(gtk_widget_get_window(cw->window), FALSE, GDK_CURRENT_TIME);
+	gtk_grab_add(cw->window);
+
 }
 
 static GdkPixbuf *group_pixbuf = NULL;
@@ -1132,7 +1135,7 @@ static void completion_window_apply_selection(GtkTreeView *list_view,
 	g_free(text);
 
 	/* Move focus to next widget */
-	parent = GTK_WIDGET(entry)->parent;
+	parent = gtk_widget_get_parent(GTK_WIDGET(entry));
 	if( parent && move_focus) {
 		gtk_widget_child_focus( parent, GTK_DIR_TAB_FORWARD );
 	}
@@ -1187,7 +1190,7 @@ void address_completion_register_entry(GtkEntry *entry, gboolean allow_commas)
  */
 void address_completion_unregister_entry(GtkEntry *entry)
 {
-	GtkObject *entry_obj;
+	GObject *entry_obj;
 
 	cm_return_if_fail(entry != NULL);
 	cm_return_if_fail(GTK_IS_ENTRY(entry));
@@ -1242,14 +1245,14 @@ static gboolean address_completion_entry_key_pressed(GtkEntry    *entry,
 						     GdkEventKey *ev,
 						     gpointer     data)
 {
-	if (ev->keyval == GDK_Tab) {
+	if (ev->keyval == GDK_KEY_Tab) {
 		addrcompl_clear_queue();
 		_allowCommas_ = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(entry), ENTRY_DATA_ALLOW_COMMAS));
 		if( address_completion_complete_address_in_entry( entry, TRUE ) ) {
 			/* route a void character to the default handler */
 			/* this is a dirty hack; we're actually changing a key
 			 * reported by the system. */
-			ev->keyval = GDK_AudibleBell_Enable;
+			ev->keyval = GDK_KEY_AudibleBell_Enable;
 			ev->state &= ~GDK_SHIFT_MASK;
 
 			/* Create window */			
@@ -1263,16 +1266,16 @@ static gboolean address_completion_entry_key_pressed(GtkEntry    *entry,
 		else {
 			/* old behaviour */
 		}
-	} else if (ev->keyval == GDK_Shift_L
-		|| ev->keyval == GDK_Shift_R
-		|| ev->keyval == GDK_Control_L
-		|| ev->keyval == GDK_Control_R
-		|| ev->keyval == GDK_Caps_Lock
-		|| ev->keyval == GDK_Shift_Lock
-		|| ev->keyval == GDK_Meta_L
-		|| ev->keyval == GDK_Meta_R
-		|| ev->keyval == GDK_Alt_L
-		|| ev->keyval == GDK_Alt_R) {
+	} else if (ev->keyval == GDK_KEY_Shift_L
+		|| ev->keyval == GDK_KEY_Shift_R
+		|| ev->keyval == GDK_KEY_Control_L
+		|| ev->keyval == GDK_KEY_Control_R
+		|| ev->keyval == GDK_KEY_Caps_Lock
+		|| ev->keyval == GDK_KEY_Shift_Lock
+		|| ev->keyval == GDK_KEY_Meta_L
+		|| ev->keyval == GDK_KEY_Meta_R
+		|| ev->keyval == GDK_KEY_Alt_L
+		|| ev->keyval == GDK_KEY_Alt_R) {
 		/* these buttons should not clear the cache... */
 	} else
 		clear_completion_cache();
@@ -1291,7 +1294,7 @@ static gboolean address_completion_complete_address_in_entry(GtkEntry *entry,
 
 	cm_return_val_if_fail(entry != NULL, FALSE);
 
-	if (!gtkut_widget_has_focus(GTK_WIDGET(entry))) return FALSE;
+	if (!gtk_widget_has_focus(GTK_WIDGET(entry))) return FALSE;
 
 	/* get an address component from the cursor */
 	searchTerm = get_address_from_edit( entry, &cursor_pos );
@@ -1342,6 +1345,7 @@ static void address_completion_create_completion_window( GtkEntry *entry_ )
 	GtkRequisition r;
 	GtkWidget *window;
 	GtkWidget *entry = GTK_WIDGET(entry_);
+	GdkWindow *gdkwin;
 
 	/* Create new window and list */
 	window = gtk_window_new(GTK_WINDOW_POPUP);
@@ -1365,8 +1369,9 @@ static void address_completion_create_completion_window( GtkEntry *entry_ )
 	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll),
 		GTK_SHADOW_OUT);
 	/* Use entry widget to create initial window */
-	gdk_window_get_geometry(entry->window, &x, &y, &width, &height, &depth);
-	gdk_window_get_origin (entry->window, &x, &y);
+	gdkwin = gtk_widget_get_window(entry),
+	gdk_window_get_geometry(gdkwin, &x, &y, &width, &height, &depth);
+	gdk_window_get_origin (gdkwin, &x, &y);
 	y += height;
 	gtk_window_move(GTK_WINDOW(window), x, y);
 
@@ -1393,17 +1398,12 @@ static void address_completion_create_completion_window( GtkEntry *entry_ )
 			 "key-press-event",
 			 G_CALLBACK(completion_window_key_press),
 			 _compWindow_ );
-	gdk_pointer_grab(window->window, TRUE,
+	gdk_pointer_grab(gtk_widget_get_window(window), TRUE,
 			 GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK |
 			 GDK_BUTTON_RELEASE_MASK,
 			 NULL, NULL, GDK_CURRENT_TIME);
+	gdk_keyboard_grab(gtk_widget_get_window(window), FALSE, GDK_CURRENT_TIME);
 	gtk_grab_add( window );
-
-	/* XXX: GTK2 too??? 
-	 *
-	 * GTK1: this gets rid of the irritating focus rectangle that doesn't
-	 * follow the selection */
-	gtkut_widget_set_can_focus(list_view, FALSE);
 }
 
 /**
@@ -1439,7 +1439,7 @@ static gboolean completion_window_button_press(GtkWidget *widget,
 				restore = FALSE;
 				break;
 			}
-			event_widget = event_widget->parent;
+			event_widget = gtk_widget_get_parent(event_widget);
 		}
 	}
 
@@ -1479,19 +1479,19 @@ static gboolean completion_window_key_press(GtkWidget *widget,
 	cm_return_val_if_fail(entry != NULL, FALSE);
 
 	/* allow keyboard navigation in the alternatives tree view */
-	if (event->keyval == GDK_Up || event->keyval == GDK_Down ||
-	    event->keyval == GDK_Page_Up || event->keyval == GDK_Page_Down) {
+	if (event->keyval == GDK_KEY_Up || event->keyval == GDK_KEY_Down ||
+	    event->keyval == GDK_KEY_Page_Up || event->keyval == GDK_KEY_Page_Down) {
 		completion_window_advance_selection
 			(GTK_TREE_VIEW(list_view),
-			 event->keyval == GDK_Down ||
-			 event->keyval == GDK_Page_Down ? TRUE : FALSE);
+			 event->keyval == GDK_KEY_Down ||
+			 event->keyval == GDK_KEY_Page_Down ? TRUE : FALSE);
 		return FALSE;
 	}		
 
 	/* make tab move to next field */
-	if( event->keyval == GDK_Tab ) {
+	if( event->keyval == GDK_KEY_Tab ) {
 		/* Reference to parent */
-		parent = GTK_WIDGET(entry)->parent;
+		parent = gtk_widget_get_parent(GTK_WIDGET(entry));
 
 		/* Discard the window */
 		clear_completion_cache();
@@ -1505,9 +1505,9 @@ static gboolean completion_window_key_press(GtkWidget *widget,
 	}
 
 	/* make backtab move to previous field */
-	if( event->keyval == GDK_ISO_Left_Tab ) {
+	if( event->keyval == GDK_KEY_ISO_Left_Tab ) {
 		/* Reference to parent */
-		parent = GTK_WIDGET(entry)->parent;
+		parent = gtk_widget_get_parent(GTK_WIDGET(entry));
 
 		/* Discard the window */
 		clear_completion_cache();
@@ -1522,17 +1522,17 @@ static gboolean completion_window_key_press(GtkWidget *widget,
 	_allowCommas_ = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(entry), ENTRY_DATA_ALLOW_COMMAS));
 
 	/* look for presses that accept the selection */
-	if (event->keyval == GDK_Return || event->keyval == GDK_space ||
-			event->keyval == GDK_KP_Enter ||
-			(_allowCommas_ && event->keyval == GDK_comma)) {
+	if (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_space ||
+			event->keyval == GDK_KEY_KP_Enter ||
+			(_allowCommas_ && event->keyval == GDK_KEY_comma)) {
 		/* User selected address with a key press */
 
 		/* Display selected address in entry field */		
 		completion_window_apply_selection(
 			GTK_TREE_VIEW(list_view), GTK_ENTRY(entry),
-			event->keyval != GDK_comma);
+			event->keyval != GDK_KEY_comma);
 
-		if (event->keyval == GDK_comma) {
+		if (event->keyval == GDK_KEY_comma) {
 			gint pos = gtk_editable_get_position(GTK_EDITABLE(entry));
 			gtk_editable_insert_text(GTK_EDITABLE(entry), ", ", 2, &pos);
 			gtk_editable_set_position(GTK_EDITABLE(entry), pos + 1);
@@ -1545,16 +1545,16 @@ static gboolean completion_window_key_press(GtkWidget *widget,
 	}
 
 	/* key state keys should never be handled */
-	if (event->keyval == GDK_Shift_L
-		 || event->keyval == GDK_Shift_R
-		 || event->keyval == GDK_Control_L
-		 || event->keyval == GDK_Control_R
-		 || event->keyval == GDK_Caps_Lock
-		 || event->keyval == GDK_Shift_Lock
-		 || event->keyval == GDK_Meta_L
-		 || event->keyval == GDK_Meta_R
-		 || event->keyval == GDK_Alt_L
-		 || event->keyval == GDK_Alt_R) {
+	if (event->keyval == GDK_KEY_Shift_L
+		 || event->keyval == GDK_KEY_Shift_R
+		 || event->keyval == GDK_KEY_Control_L
+		 || event->keyval == GDK_KEY_Control_R
+		 || event->keyval == GDK_KEY_Caps_Lock
+		 || event->keyval == GDK_KEY_Shift_Lock
+		 || event->keyval == GDK_KEY_Meta_L
+		 || event->keyval == GDK_KEY_Meta_R
+		 || event->keyval == GDK_KEY_Alt_L
+		 || event->keyval == GDK_KEY_Alt_R) {
 		return FALSE;
 	}
 
@@ -1565,7 +1565,7 @@ static gboolean completion_window_key_press(GtkWidget *widget,
 
 	/* make sure anything we typed comes in the edit box */
 	tmp_event.type       = event->type;
-	tmp_event.window     = entry->window;
+	tmp_event.window     = gtk_widget_get_window(GTK_WIDGET(entry));
 	tmp_event.send_event = TRUE;
 	tmp_event.time       = event->time;
 	tmp_event.state      = event->state;

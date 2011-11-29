@@ -155,9 +155,11 @@ LogWindow *log_window_create(LogInstance instance)
 void log_window_init(LogWindow *logwin)
 {
 	GtkTextBuffer *buffer;
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	GdkColormap *colormap;
-	GdkColor color[LOG_COLORS];
 	gboolean success[LOG_COLORS];
+#endif
+	GdkColor color[LOG_COLORS];
 	gint i;
 
 	gtkut_convert_int_to_gdk_color(prefs_common.log_msg_color, &color[0]);
@@ -178,7 +180,8 @@ void log_window_init(LogWindow *logwin)
 	logwin->status_nok_color = color[6];
 	logwin->status_skip_color = color[7];
 
-	colormap = gdk_drawable_get_colormap(logwin->window->window);
+#if !GTK_CHECK_VERSION(3, 0, 0)
+	colormap = gdk_drawable_get_colormap(gtk_widget_get_window(logwin->window));
 	gdk_colormap_alloc_colors(colormap, color, LOG_COLORS, FALSE, TRUE, success);
 
 	for (i = 0; i < LOG_COLORS; i++) {
@@ -195,6 +198,7 @@ void log_window_init(LogWindow *logwin)
 			break;
 		}
 	}
+#endif
 
 	buffer = logwin->buffer;
 	gtk_text_buffer_create_tag(buffer, "message",
@@ -364,10 +368,12 @@ static gboolean log_window_append(gpointer source, gpointer data)
 	       log_window_clip (logwindow, logwindow->clip_length);
 
 	if (!logwindow->hidden) {
-		GtkAdjustment *vadj = text->vadjustment;
-		gfloat upper = vadj->upper - vadj->page_size;
-		if (vadj->value == upper || 
-		    (upper - vadj->value < 16 && vadj->value < 8))
+		GtkAdjustment *vadj = gtk_text_view_get_vadjustment(text);
+		gfloat upper = gtk_adjustment_get_upper(vadj) -
+		    gtk_adjustment_get_page_size(vadj);
+		gfloat value = gtk_adjustment_get_value(vadj);
+		if (value == upper || 
+		    (upper - value < 16 && value < 8))
 			gtk_text_view_scroll_mark_onscreen(text, logwindow->end_mark);
 	}
 
@@ -382,9 +388,9 @@ static void hide_cb(GtkWidget *widget, LogWindow *logwin)
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event,
 			LogWindow *logwin)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		gtk_widget_hide(logwin->window);
-	else if (event && event->keyval == GDK_Delete) 
+	else if (event && event->keyval == GDK_KEY_Delete) 
 		log_window_clear(NULL, logwin);
 
 	return FALSE;

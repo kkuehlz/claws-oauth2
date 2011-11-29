@@ -189,29 +189,41 @@ gchar *colorlabel_get_color_default_text(gint color_index)
 }
 
 static gboolean colorlabel_drawing_area_expose_event_cb
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	(GtkWidget *widget, GdkEventExpose *expose, gpointer data)
+#else
+	(GtkWidget *widget, cairo_t *cr, gpointer data)
+#endif
 {
-	GdkDrawable *drawable = widget->window;
+#if !GTK_CHECK_VERSION(3, 0, 0)
+	cairo_t *cr;
+	GdkWindow *drawable = gtk_widget_get_window(widget);
+#endif
+	GtkAllocation allocation;
 	gulong c = (gulong) GPOINTER_TO_INT(data);
 	GdkColor color;
-	cairo_t *cr;
 
 	INTCOLOR_TO_GDKCOLOR(c, color)
 
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	gdk_colormap_alloc_color(gtk_widget_get_colormap(widget), &color, FALSE, TRUE);
-
 	cr = gdk_cairo_create(drawable);
+#endif
+	gtk_widget_get_allocation(widget, &allocation);
+
 	cairo_set_source_rgb(cr, 0., 0., 0.);
 	cairo_rectangle(cr, 0, 0,
-	    widget->allocation.width - 1,
-	    widget->allocation.height - 1);
+	    allocation.width - 1,
+	    allocation.height - 1);
 	cairo_stroke(cr);
 	gdk_cairo_set_source_color(cr, &color);
 	cairo_rectangle(cr, 1, 1,
-	    widget->allocation.width - 2,
-	    widget->allocation.height - 2);
+	    allocation.width - 2,
+	    allocation.height - 2);
 	cairo_fill(cr);
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	cairo_destroy(cr);
+#endif
 	
 	return FALSE;
 }
@@ -229,11 +241,19 @@ static GtkWidget *colorlabel_create_color_widget(GdkColor color)
 			 (CL(g) << (gulong)  8) | \
 			 (CL(b)))
 
+#if !GTK_CHECK_VERSION(3, 0, 0)
 	g_signal_connect(G_OBJECT(widget), "expose_event", 
 			 G_CALLBACK
 			   	(colorlabel_drawing_area_expose_event_cb),
 			 GINT_TO_POINTER
 			   	((gint)CR(color.red, color.green, color.blue)));
+#else
+	g_signal_connect(G_OBJECT(widget), "draw", 
+			 G_CALLBACK
+			   	(colorlabel_drawing_area_expose_event_cb),
+			 GINT_TO_POINTER
+			   	((gint)CR(color.red, color.green, color.blue)));
+#endif
 
 	return widget;
 }
@@ -332,7 +352,7 @@ GtkWidget *colorlabel_create_check_color_menu_item(gint color_index, gboolean fo
 	gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 4);
 	if (color_index < 9) {
-		accel = gtk_accelerator_get_label(GDK_1+color_index, GDK_CONTROL_MASK);
+		accel = gtk_accelerator_get_label(GDK_KEY_1+color_index, GDK_CONTROL_MASK);
 		label = gtk_label_new(accel);
 		gtk_widget_show(label);
 		gtk_misc_set_alignment(GTK_MISC(label), 1, 0.5);

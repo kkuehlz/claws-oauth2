@@ -114,6 +114,8 @@ static void prefs_filtering_bottom	(gpointer action, gpointer data);
 static gint prefs_filtering_deleted	(GtkWidget	*widget,
 					 GdkEventAny	*event,
 					 gpointer	 data);
+static void prefs_filtering_row_selected(GtkTreeSelection *selection,
+					 GtkTreeView *list_view);
 static gboolean prefs_filtering_key_pressed(GtkWidget	*widget,
 					 GdkEventKey	*event,
 					 gpointer	 data);
@@ -330,7 +332,6 @@ static void prefs_filtering_create(void)
 	GtkWidget *bottom_btn;
 	GtkWidget *table;
 	static GdkGeometry geometry;
-	CLAWS_TIP_DECL();
 
 	debug_print("Creating filtering configuration window...\n");
 
@@ -645,97 +646,13 @@ void prefs_filtering_rename_path(const gchar *old_path, const gchar *new_path)
 static void rename_path(GSList * filters,
 			const gchar * old_path, const gchar * new_path)
 {
-	gchar *base;
-	gchar *prefix;
-	gchar *suffix;
-	gchar *dest_path;
-	gchar *old_path_with_sep;
-	gint destlen;
-	gint prefixlen;
-	gint oldpathlen;
-        GSList * action_cur;
         GSList * cur;
-	const gchar *separator=G_DIR_SEPARATOR_S;
-	gboolean matched = FALSE;
-#ifdef G_OS_WIN32
-again:
-#endif
-	oldpathlen = strlen(old_path);
-	old_path_with_sep = g_strconcat(old_path,separator,NULL);
 
 	for (cur = filters; cur != NULL; cur = cur->next) {
 		FilteringProp   *filtering = (FilteringProp *)cur->data;
-                
-                for(action_cur = filtering->action_list ; action_cur != NULL ;
-                    action_cur = action_cur->next) {
-
-                        FilteringAction *action = action_cur->data;
-                        
-                        if (action->type == MATCHACTION_SET_TAG ||
-			    action->type == MATCHACTION_UNSET_TAG)
-				continue;
-                        if (!action->destination) 
-				continue;
-                        
-                        destlen = strlen(action->destination);
-                        
-                        if (destlen > oldpathlen) {
-                                prefixlen = destlen - oldpathlen;
-                                suffix = action->destination + prefixlen;
-                                
-                                if (!strncmp(old_path, suffix, oldpathlen)) {
-                                        prefix = g_malloc0(prefixlen + 1);
-                                        strncpy2(prefix, action->destination, prefixlen);
-                                        
-                                        base = suffix + oldpathlen;
-                                        while (*base == G_DIR_SEPARATOR) base++;
-                                        if (*base == '\0')
-                                                dest_path = g_strconcat(prefix,
-                                                    separator,
-                                                    new_path, NULL);
-                                        else
-                                                dest_path = g_strconcat(prefix,
-                                                    separator,
-                                                    new_path,
-                                                    separator,
-                                                    base, NULL);
-                                        
-                                        g_free(prefix);
-                                        g_free(action->destination);
-                                        action->destination = dest_path;
-					matched = TRUE;
-                                } else { /* for non-leaf folders */
-                                        /* compare with trailing slash */
-                                        if (!strncmp(old_path_with_sep, action->destination, oldpathlen+1)) {
-                                                
-                                                suffix = action->destination + oldpathlen + 1;
-                                                dest_path = g_strconcat(new_path,
-                                                    separator,
-                                                    suffix, NULL);
-                                                g_free(action->destination);
-                                                action->destination = dest_path;
-						matched = TRUE;
-                                        }
-                                }
-                        } else {
-                                /* folder-moving a leaf */
-                                if (!strcmp(old_path, action->destination)) {
-                                        dest_path = g_strdup(new_path);
-                                        g_free(action->destination);
-                                        action->destination = dest_path;
-					matched = TRUE;
-                                }
-                        }
-                }
+		filtering_action_list_rename_path(filtering->action_list,
+						  old_path, new_path);
         }
-	
-	g_free(old_path_with_sep);
-#ifdef G_OS_WIN32
-	if (!strcmp(separator, G_DIR_SEPARATOR_S) && !matched) {
-		separator = "/";
-		goto again;
-	}
-#endif
 }
 
 static gboolean prefs_filtering_rename_path_func(GNode *node, gpointer data)
@@ -1262,7 +1179,9 @@ static void prefs_filtering_substitute_cb(gpointer action, gpointer data)
 
 	filteringprop_free(prop);
 
-	prefs_filtering_reset_dialog();
+	prefs_filtering_row_selected(gtk_tree_view_get_selection(
+				GTK_TREE_VIEW(filtering.cond_list_view)),
+				GTK_TREE_VIEW(filtering.cond_list_view));
 	modified = TRUE;
 }
 
@@ -1532,7 +1451,7 @@ static gint prefs_filtering_deleted(GtkWidget *widget, GdkEventAny *event,
 static gboolean prefs_filtering_key_pressed(GtkWidget *widget, GdkEventKey *event,
 				     gpointer data)
 {
-	if (event && event->keyval == GDK_Escape) {
+	if (event && event->keyval == GDK_KEY_Escape) {
 		prefs_filtering_cancel(NULL, NULL);
 		return TRUE;			
 	}
@@ -1778,6 +1697,21 @@ static GtkActionEntry prefs_filtering_popup_entries[] =
 #endif
 };
 
+static void prefs_filtering_row_selected(GtkTreeSelection *selection,
+					 GtkTreeView *list_view)
+{
+	GtkTreePath *path;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	
+	if (!gtk_tree_selection_get_selected(selection, &model, &iter))
+		return;
+	
+	path = gtk_tree_model_get_path(model, &iter);
+	prefs_filtering_select_row(list_view, path);
+	gtk_tree_path_free(path);
+}
+
 static gint prefs_filtering_list_btn_pressed(GtkWidget *widget, GdkEventButton *event,
 				    GtkTreeView *list_view)
 {
@@ -1881,6 +1815,8 @@ static GtkWidget *prefs_filtering_list_view_create(void)
 	
 	selector = gtk_tree_view_get_selection(list_view);
 	gtk_tree_selection_set_mode(selector, GTK_SELECTION_BROWSE);
+	g_signal_connect(G_OBJECT(selector), "changed",
+			 G_CALLBACK(prefs_filtering_row_selected), list_view);
 
 	/* create the columns */
 	prefs_filtering_create_list_view_columns(GTK_WIDGET(list_view));

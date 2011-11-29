@@ -635,6 +635,9 @@ static void messageview_add_toolbar(MessageView *msgview, GtkWidget *window)
 	hildon_window_set_menu(HILDON_WINDOW(window), GTK_MENU(menubar));
 #endif
 
+	cm_toggle_menu_set_active_full(msgview->ui_manager, "Menu/View/AllHeaders",
+					prefs_common.show_all_headers);
+
 	if (prefs_common.toolbar_detachable) {
 		handlebox = gtk_handle_box_new();
 	} else {
@@ -1070,7 +1073,7 @@ static gint disposition_notification_send(MsgInfo *msginfo)
 
 	/* send it */
 	path = folder_item_fetch_msg(queue, num);
-	ok = procmsg_send_message_queue(path, &foo, queue, num, &queued_removed);
+	ok = procmsg_send_message_queue_with_lock(path, &foo, queue, num, &queued_removed);
 	g_free(path);
 	g_free(foo);
 	if (ok == 0 && !queued_removed)
@@ -1135,7 +1138,7 @@ gint messageview_show(MessageView *messageview, MsgInfo *msginfo,
 {
 	gchar *text = NULL;
 	gchar *file;
-	MimeInfo *mimeinfo, *encinfo, *brokeninfo;
+	MimeInfo *mimeinfo, *encinfo, *brokeninfo, *root;
 	gchar *subject = NULL;
 	cm_return_val_if_fail(msginfo != NULL, -1);
 
@@ -1243,9 +1246,6 @@ gint messageview_show(MessageView *messageview, MsgInfo *msginfo,
 
 	messageview_set_position(messageview, 0);
 
-	textview_set_all_headers(messageview->mimeview->textview, 
-			messageview->all_headers);
-
 #ifdef MAEMO
 	maemo_window_full_screen_if_needed(GTK_WINDOW(messageview->window));
 #endif
@@ -1314,6 +1314,7 @@ gint messageview_show(MessageView *messageview, MsgInfo *msginfo,
 		noticeview_show(messageview->noticeview);
 	}
 			
+	root = mimeinfo;
 	mimeinfo = procmime_mimeinfo_next(mimeinfo);
 	if (!all_headers && mimeinfo 
 			&& (mimeinfo->type != MIMETYPE_TEXT || 
@@ -1385,7 +1386,8 @@ gint messageview_show(MessageView *messageview, MsgInfo *msginfo,
 			if (!mimeinfo) 
 				mimeinfo = saved_mimeinfo;
 
-			mimeview_show_part(messageview->mimeview,mimeinfo);
+			if (!mimeview_show_part(messageview->mimeview, mimeinfo))
+				mimeview_select_mimepart_icon(messageview->mimeview, root);
 			goto done;
 		} else if (prefs_common.invoke_plugin_on_html) {
 			mimeview_select_mimepart_icon(messageview->mimeview, mimeinfo);
@@ -1405,6 +1407,8 @@ gint messageview_show(MessageView *messageview, MsgInfo *msginfo,
 			mimeinfo = procmime_mimeinfo_next(mimeinfo);
 		}
 	}
+
+	mimeview_select_mimepart_icon(messageview->mimeview, root);
 done:
 	/* plugins may hook in here to work with the message view */
 	hooks_invoke(MESSAGE_VIEW_SHOW_DONE_HOOKLIST, messageview);
@@ -1721,20 +1725,17 @@ static void messageview_size_allocate_cb(GtkWidget *widget,
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event,
 			MessageView *messageview)
 {
-	if (event && event->keyval == GDK_Escape && messageview->window) {
+	if (event && event->keyval == GDK_KEY_Escape && messageview->window) {
 		messageview_destroy(messageview);
 		return TRUE;
 	}
 
 	if (event && (event->state & (GDK_MOD1_MASK|GDK_CONTROL_MASK)) != 0)
 		return FALSE;
-	if (event && (event->state & GDK_SHIFT_MASK) && event->keyval != GDK_space) 
+	if (event && (event->state & GDK_SHIFT_MASK) && event->keyval != GDK_KEY_space) 
 		return FALSE;
 
-	g_signal_stop_emission_by_name(G_OBJECT(widget),
-					"key_press_event");
-	mimeview_pass_key_press_event(messageview->mimeview, event);
-	return FALSE;
+	return mimeview_pass_key_press_event(messageview->mimeview, event);
 }
 #endif
 
@@ -2551,13 +2552,14 @@ static void show_all_header_cb(GtkToggleAction *action, gpointer data)
 	if (messageview->updating)
 		return;
 
-	messageview->all_headers = 
+	messageview->all_headers = prefs_common.show_all_headers =
 			gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action));
 	if (!msginfo) return;
 	messageview->msginfo = NULL;
-	messageview_show(messageview, msginfo,gtk_toggle_action_get_active (GTK_TOGGLE_ACTION (action)));
+	messageview_show(messageview, msginfo, messageview->all_headers);
 	procmsg_msginfo_free(msginfo);
 	main_window_set_menu_sensitive(messageview->mainwin);
+	summary_redisplay_msg(messageview->mainwin->summaryview);
 }
 
 static void msg_hide_quotes_cb(GtkToggleAction *action, gpointer data)
@@ -2683,8 +2685,8 @@ static void add_address_cb(GtkAction *action, gpointer data)
 	         full_msginfo->extradata &&
 		 full_msginfo->extradata->xface) {
 		image = xface_get_from_header(full_msginfo->extradata->xface,
-				&messageview->mainwin->summaryview->ctree->style->white,
-				messageview->window->window);	
+				&(gtk_widget_get_style(messageview->mainwin->summaryview->ctree)->white),
+				gtk_widget_get_window(messageview->window));
 	}
 #endif
 	procmsg_msginfo_free(full_msginfo);

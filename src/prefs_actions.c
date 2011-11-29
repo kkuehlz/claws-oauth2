@@ -197,7 +197,6 @@ static void prefs_actions_create(MainWindow *mainwin)
 	GtkWidget *up_btn;
 	GtkWidget *down_btn;
 	static GdkGeometry geometry;
-	CLAWS_TIP_DECL();
 
 	debug_print("Creating actions configuration window...\n");
 
@@ -425,6 +424,7 @@ static void prefs_actions_reset_dialog(void)
 {
 	gtk_entry_set_text(GTK_ENTRY(actions.name_entry), "");
 	gtk_entry_set_text(GTK_ENTRY(actions.cmd_entry), "");
+	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(actions.shell_radiobtn), TRUE);
 }
 
 void prefs_actions_read_config(void)
@@ -538,6 +538,7 @@ static void prefs_actions_set_dialog(void)
 				(GTK_TREE_VIEW(actions.actions_list_view)));
 
 	prefs_actions_clear_list(store);	
+	prefs_actions_reset_dialog();
 
 	for (cur = prefs_common.actions_list; cur != NULL; cur = cur->next) {
 		gchar *action = (gchar *) cur->data;
@@ -848,7 +849,7 @@ static gint prefs_actions_deleted(GtkWidget *widget, GdkEventAny *event,
 static gboolean prefs_actions_key_pressed(GtkWidget *widget, GdkEventKey *event,
 					  gpointer data)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		prefs_actions_cancel(widget, data);
 	else {
 		GtkWidget *focused = gtkut_get_focused_child(
@@ -1079,6 +1080,20 @@ static GtkActionEntry prefs_actions_popup_entries[] =
 	{"PrefsActionsPopup/Duplicate",	NULL, N_("D_uplicate"), NULL, NULL, G_CALLBACK(prefs_actions_duplicate_cb) },
 };
 
+static void prefs_actions_row_selected(GtkTreeSelection *selection, GtkTreeView *list_view)
+{
+	GtkTreePath *path;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	
+	if (!gtk_tree_selection_get_selected(selection, &model, &iter))
+		return;
+	
+	path = gtk_tree_model_get_path(model, &iter);
+	prefs_actions_select_row(list_view, path);
+	gtk_tree_path_free(path);
+}
+
 static gint prefs_actions_list_btn_pressed(GtkWidget *widget, GdkEventButton *event,
 				   GtkTreeView *list_view)
 {
@@ -1173,6 +1188,8 @@ static GtkWidget *prefs_actions_list_view_create(void)
 
 	selector = gtk_tree_view_get_selection(list_view);
 	gtk_tree_selection_set_mode(selector, GTK_SELECTION_BROWSE);
+	g_signal_connect(G_OBJECT(selector), "changed",
+			 G_CALLBACK(prefs_actions_row_selected), list_view);
 
 	/* create the columns */
 	prefs_actions_create_list_view_columns(GTK_WIDGET(list_view));
@@ -1307,6 +1324,7 @@ static void prefs_action_define_filter_done(GSList * action_list)
 	if (action_list == NULL)
 		return;
 
+	action_list = filtering_action_list_sort(action_list);
 	str = filteringaction_list_to_string(action_list);
 
 	if (str != NULL) {
@@ -1316,5 +1334,33 @@ static void prefs_action_define_filter_done(GSList * action_list)
 		gtk_entry_set_text(GTK_ENTRY(actions.cmd_entry), cmd);
 		g_free(cmd);
 		modified = TRUE;
+	}
+}
+
+void prefs_actions_rename_path(const gchar *old_path, const gchar *new_path)
+{
+	gchar **tokens, *action_str;
+	GSList *action, *action_list;
+	
+	for (action = prefs_common.actions_list; action != NULL;
+			action = action->next) {
+		action_str = (gchar *)action->data;
+		tokens = g_strsplit_set(action_str, "{}", 5);
+		
+		if (tokens[0] && tokens[1] && *tokens[1] != '\0')
+			action_list = matcher_parser_get_action_list(tokens[1]);
+		else
+			action_list = NULL;
+
+		if (action_list &&
+		    filtering_action_list_rename_path(action_list,
+						old_path, new_path)) {
+			g_free(action->data);
+			action->data = g_strconcat(tokens[0], "{",
+				filteringaction_list_to_string(action_list),
+				"}", NULL);
+		}
+
+		g_strfreev(tokens);
 	}
 }

@@ -206,7 +206,7 @@ static gint edit_ldap_delete_event( GtkWidget *widget, GdkEventAny *event, gbool
 }
 
 static gboolean edit_ldap_key_pressed( GtkWidget *widget, GdkEventKey *event, gboolean *cancelled ) {
-	if (event && event->keyval == GDK_Escape) {
+	if (event && event->keyval == GDK_KEY_Escape) {
 		*cancelled = TRUE;
 		gtk_main_quit();
 	}
@@ -396,7 +396,7 @@ static void addressbook_edit_ldap_page_basic( gint pageNum, gchar *pageLbl ) {
 	GtkWidget *entry_name;
 	GtkWidget *entry_server;
 	GtkWidget *hbox_spin;
-	GtkObject *spinbtn_port_adj;
+	GtkAdjustment *spinbtn_port_adj;
 	GtkWidget *spinbtn_port;
 #ifdef USE_LDAP_TLS
 	GtkWidget *enable_ssl_checkbtn, *enable_tls_checkbtn;
@@ -404,7 +404,6 @@ static void addressbook_edit_ldap_page_basic( gint pageNum, gchar *pageLbl ) {
 	GtkWidget *entry_baseDN;
 	GtkWidget *check_btn;
 	GtkWidget *lookdn_btn;
-	CLAWS_TIP_DECL();
 	gint top;
 
 	vbox = gtk_vbox_new( FALSE, 8 );
@@ -550,12 +549,11 @@ static void addressbook_edit_ldap_page_search( gint pageNum, gchar *pageLbl ) {
 	GtkWidget *label;
 	GtkWidget *entry_criteria;
 	GtkWidget *hbox_spin;
-	GtkObject *spinbtn_queryage_adj;
+	GtkAdjustment *spinbtn_queryage_adj;
 	GtkWidget *spinbtn_queryage;
 	GtkWidget *check_dynsearch;
 	GtkWidget *check_matchoption;
 	GtkWidget *reset_btn;
-	CLAWS_TIP_DECL();
 	gint top;
 
 	vbox = gtk_vbox_new( FALSE, 8 );
@@ -675,11 +673,10 @@ static void addressbook_edit_ldap_page_extended( gint pageNum, gchar *pageLbl ) 
 	GtkWidget *entry_bindDN;
 	GtkWidget *entry_bindPW;
 	GtkWidget *hbox_spin;
-	GtkObject *spinbtn_timeout_adj;
+	GtkAdjustment *spinbtn_timeout_adj;
 	GtkWidget *spinbtn_timeout;
-	GtkObject *spinbtn_maxentry_adj;
+	GtkAdjustment *spinbtn_maxentry_adj;
 	GtkWidget *spinbtn_maxentry;
-	CLAWS_TIP_DECL();
 	gint top;
 
 	vbox = gtk_vbox_new( FALSE, 8 );

@@ -694,9 +694,9 @@ void addressbook_refresh( void )
 
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		addressbook_close();
-	else if (event && event->keyval == GDK_Delete) {
+	else if (event && event->keyval == GDK_KEY_Delete) {
 		/* TODO: enable deletion when focus is in ctree (needs implementation in _del_clicked() */
 		if ( /* address_index_has_focus || */ address_list_has_focus )
 			addressbook_del_clicked(NULL, NULL);
@@ -1019,15 +1019,9 @@ static void addressbook_create(void)
 	gtk_container_add(GTK_CONTAINER(ctree_swin), ctree);
 	gtk_cmclist_set_selection_mode(GTK_CMCLIST(ctree), GTK_SELECTION_BROWSE);
 	gtk_cmclist_set_column_width(GTK_CMCLIST(ctree), 0, COL_FOLDER_WIDTH);
-	if (prefs_common.enable_dotted_lines) {
-		gtk_cmctree_set_line_style(GTK_CMCTREE(ctree), GTK_CMCTREE_LINES_DOTTED);
-		gtk_cmctree_set_expander_style(GTK_CMCTREE(ctree),
-				     GTK_CMCTREE_EXPANDER_SQUARE);
-	} else {
-		gtk_cmctree_set_line_style(GTK_CMCTREE(ctree), GTK_CMCTREE_LINES_NONE);
-		gtk_cmctree_set_expander_style(GTK_CMCTREE(ctree),
-				     GTK_CMCTREE_EXPANDER_TRIANGLE);
-	}
+	gtk_cmctree_set_line_style(GTK_CMCTREE(ctree), GTK_CMCTREE_LINES_NONE);
+	gtk_cmctree_set_expander_style(GTK_CMCTREE(ctree),
+			     GTK_CMCTREE_EXPANDER_TRIANGLE);
 	gtk_sctree_set_stripes(GTK_SCTREE(ctree), prefs_common.use_stripes_in_summaries);
 	gtk_cmctree_set_indent(GTK_CMCTREE(ctree), CTREE_INDENT);
 	gtk_cmclist_set_compare_func(GTK_CMCLIST(ctree),
@@ -1074,15 +1068,9 @@ static void addressbook_create(void)
 	clist = gtk_sctree_new_with_titles(N_LIST_COLS, 0, list_titles);
 	gtk_container_add(GTK_CONTAINER(clist_swin), clist);
 	gtk_cmclist_set_selection_mode(GTK_CMCLIST(clist), GTK_SELECTION_EXTENDED);
-	if (prefs_common.enable_dotted_lines) {
-		gtk_cmctree_set_line_style(GTK_CMCTREE(clist), GTK_CMCTREE_LINES_DOTTED);
-		gtk_cmctree_set_expander_style(GTK_CMCTREE(clist),
-				     GTK_CMCTREE_EXPANDER_SQUARE);
-	} else {
-		gtk_cmctree_set_line_style(GTK_CMCTREE(clist), GTK_CMCTREE_LINES_NONE);
-		gtk_cmctree_set_expander_style(GTK_CMCTREE(clist),
-				     GTK_CMCTREE_EXPANDER_TRIANGLE);
-	}
+	gtk_cmctree_set_line_style(GTK_CMCTREE(clist), GTK_CMCTREE_LINES_NONE);
+	gtk_cmctree_set_expander_style(GTK_CMCTREE(clist),
+			     GTK_CMCTREE_EXPANDER_TRIANGLE);
 	gtk_sctree_set_stripes(GTK_SCTREE(ctree), prefs_common.use_stripes_in_summaries);
 	gtk_cmctree_set_indent(GTK_CMCTREE(clist), CTREE_INDENT);
 	gtk_cmclist_set_column_width(GTK_CMCLIST(clist), COL_NAME,
@@ -2743,7 +2731,7 @@ static void addressbook_change_node_name(GtkCMCTreeNode *node, const gchar *name
 	gtk_cmctree_get_node_info(ctree, node, text, &spacing,
 				&pix_cl, &pix_op,
 				&is_leaf, &expanded);
-	gtk_sctree_set_node_info(ctree, node, name, spacing,
+	gtk_cmctree_set_node_info(ctree, node, name, spacing,
 				pix_cl, pix_op,
 				is_leaf, expanded);
 }
@@ -2960,7 +2948,11 @@ static void addressbook_treenode_delete_cb(GtkAction *action, gpointer data)
 	if( obj->type == ADDR_DATASOURCE ) {
 		/* Remove node from tree */
 		gtk_cmctree_remove_node( ctree, node );
-	
+		
+		if (delType == ADDRTREE_DEL_DATA &&
+		    ds->interface && ds->interface->type == ADDR_IF_BOOK)
+			addrbook_delete_book_file((AddressBookFile *) ds->rawDataSource);
+			
 		/* Remove data source. */
 		if( addrindex_index_remove_datasource( _addressIndex_, ds ) ) {
 			addrindex_free_datasource( ds );
@@ -4378,7 +4370,7 @@ void addressbook_export_to_file( void ) {
 
 static gboolean addressbook_entry_key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-	if (event && (event->keyval == GDK_Return || event->keyval == GDK_KP_Enter))
+	if (event && (event->keyval == GDK_KEY_Return || event->keyval == GDK_KEY_KP_Enter))
 		addressbook_lup_clicked(NULL, NULL);
 	return FALSE;
 }
@@ -5618,11 +5610,11 @@ static void addressbook_drag_data_get(GtkWidget        *widget,
 	if (aio && aio->type == ADDR_ITEM_PERSON) {
 		if( ds && ds->interface && ds->interface->readOnly)
 			gtk_selection_data_set(selection_data,
-				       selection_data->target, 8,
+				       gtk_selection_data_get_target(selection_data), 8,
 				       (const guchar *)"Dummy_addr_copy", 15);
 		else
 			gtk_selection_data_set(selection_data,
-				       selection_data->target, 8,
+				       gtk_selection_data_get_target(selection_data), 8,
 				       (const guchar *)"Dummy_addr_move", 15);
 	} 
 }
@@ -5634,14 +5626,18 @@ static gboolean addressbook_drag_motion_cb(GtkWidget      *widget,
 					  guint           time,
 					  void            *data)
 {
+	GtkAllocation allocation;
+	GtkRequisition requisition;
 	gint row, column;
 	GtkCMCTreeNode *node = NULL;
 	gboolean acceptable = FALSE;
-	gint height = addrbook.ctree->allocation.height;
-	gint total_height = addrbook.ctree->requisition.height;
+	gtk_widget_get_allocation(GTK_WIDGET(addrbook.ctree), &allocation);
+	gint height = allocation.height;
+	gtk_widget_get_requisition(GTK_WIDGET(addrbook.ctree), &requisition);
+	gint total_height = requisition.height;
 	GtkAdjustment *pos = gtk_scrolled_window_get_vadjustment(
 				GTK_SCROLLED_WINDOW(addrbook.ctree_swin));
-	gfloat vpos = pos->value;
+	gfloat vpos = gtk_adjustment_get_value(pos);
 	
 	if (gtk_cmclist_get_selection_info
 		(GTK_CMCLIST(widget), x - 24, y - 24, &row, &column)) {
@@ -5683,7 +5679,7 @@ static gboolean addressbook_drag_motion_cb(GtkWidget      *widget,
 			(G_OBJECT(widget),
 			 G_CALLBACK(addressbook_tree_selected), NULL);
 		gdk_drag_status(context, 
-					(context->actions == GDK_ACTION_COPY ?
+					(gdk_drag_context_get_actions(context) == GDK_ACTION_COPY ?
 					GDK_ACTION_COPY : GDK_ACTION_MOVE) , time);
 	} else {
 		gdk_drag_status(context, 0, time);
@@ -5721,7 +5717,7 @@ static void addressbook_drag_received_cb(GtkWidget        *widget,
 	GtkCMCTreeNode *node;
 	GtkCMCTreeNode *lastopened = addrbook.opened;
 
-	if (!strncmp(data->data, "Dummy_addr", 10)) {
+	if (!strncmp(gtk_selection_data_get_data(data), "Dummy_addr", 10)) {
 		if (gtk_cmclist_get_selection_info
 			(GTK_CMCLIST(widget), x - 24, y - 24, &row, &column) == 0) {
 			return;
@@ -5732,8 +5728,8 @@ static void addressbook_drag_received_cb(GtkWidget        *widget,
 			return;
 		
 		gtk_cmclist_freeze(GTK_CMCLIST(addrbook.clist));
-		if (drag_context->action == GDK_ACTION_COPY || 
-		    !strcmp(data->data, "Dummy_addr_copy"))
+		if (gdk_drag_context_get_selected_action(drag_context) == GDK_ACTION_COPY || 
+		    !strcmp(gtk_selection_data_get_data(data), "Dummy_addr_copy"))
 			addressbook_clip_copy_cb(NULL, NULL);
 		else
 			addressbook_clip_cut_cb(NULL, NULL);

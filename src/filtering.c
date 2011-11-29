@@ -99,6 +99,19 @@ void filteringaction_free(FilteringAction * action)
 	g_free(action);
 }
 
+static gint action_list_sort(gconstpointer a, gconstpointer b)
+{
+	int first  = filtering_is_final_action((FilteringAction *) a) ? 1 : 0;
+	int second = filtering_is_final_action((FilteringAction *) b) ? 1 : 0;
+	
+	return (first - second);
+}
+
+GSList *filtering_action_list_sort(GSList *action_list)
+{
+	return g_slist_sort(action_list, action_list_sort);
+}
+
 FilteringProp * filteringprop_new(gboolean enabled,
 				  const gchar *name,
 				  gint account_id,
@@ -112,7 +125,7 @@ FilteringProp * filteringprop_new(gboolean enabled,
 	filtering->name = name ? g_strdup(name): NULL;
 	filtering->account_id = account_id;
 	filtering->matchers = matchers;
-	filtering->action_list = action_list;
+	filtering->action_list = filtering_action_list_sort(action_list);
 
 	return filtering;
 }
@@ -750,8 +763,8 @@ static gboolean filtering_apply_rule(FilteringProp *filtering, MsgInfo *info,
 							log_warning(LOG_DEBUG_FILTERING, _("action could not apply\n"));
 						log_print(LOG_DEBUG_FILTERING,
 								_("no further processing after action [ %s ]\n"), buf);
-					} else
-						g_warning("No further processing after rule %s\n", buf);
+					}
+ 					debug_print("No further processing after rule %s\n", buf);
                 }
                 g_free(buf);
                 if (filtering_is_final_action(action)) {
@@ -1124,4 +1137,95 @@ gboolean filtering_peek_per_account_rules(GSList *filtering_list)
 	}
 
 	return FALSE;
+}
+
+gboolean filtering_action_list_rename_path(GSList *action_list, const gchar *old_path,
+					   const gchar *new_path)
+{
+	gchar *base;
+	gchar *prefix;
+	gchar *suffix;
+	gchar *dest_path;
+	gchar *old_path_with_sep;
+	gint destlen;
+	gint prefixlen;
+	gint oldpathlen;
+        GSList * action_cur;
+	const gchar *separator=G_DIR_SEPARATOR_S;
+	gboolean matched = FALSE;
+#ifdef G_OS_WIN32
+again:
+#endif
+	oldpathlen = strlen(old_path);
+	old_path_with_sep = g_strconcat(old_path,separator,NULL);
+
+	for(action_cur = action_list ; action_cur != NULL ;
+		action_cur = action_cur->next) {
+
+		FilteringAction *action = action_cur->data;
+                        
+		if (action->type == MATCHACTION_SET_TAG ||
+		    action->type == MATCHACTION_UNSET_TAG)
+			continue;
+		if (!action->destination) 
+			continue;
+		
+		destlen = strlen(action->destination);
+                        
+		if (destlen > oldpathlen) {
+			prefixlen = destlen - oldpathlen;
+			suffix = action->destination + prefixlen;
+                                
+			if (!strncmp(old_path, suffix, oldpathlen)) {
+				prefix = g_malloc0(prefixlen + 1);
+				strncpy2(prefix, action->destination, prefixlen);
+                                        
+				base = suffix + oldpathlen;
+				while (*base == G_DIR_SEPARATOR) base++;
+                                if (*base == '\0')
+                                	dest_path = g_strconcat(prefix, separator,
+                                				new_path, NULL);
+				else
+					dest_path = g_strconcat(prefix,
+								separator,
+								new_path,
+								separator,
+								base, NULL);
+                                        
+					g_free(prefix);
+					g_free(action->destination);
+					action->destination = dest_path;
+					matched = TRUE;
+			} else { /* for non-leaf folders */
+				/* compare with trailing slash */
+				if (!strncmp(old_path_with_sep, action->destination, oldpathlen+1)) {
+                                                
+					suffix = action->destination + oldpathlen + 1;
+					dest_path = g_strconcat(new_path, separator,
+								suffix, NULL);
+					g_free(action->destination);
+					action->destination = dest_path;
+					matched = TRUE;
+				}
+			}
+		} else {
+			/* folder-moving a leaf */
+			if (!strcmp(old_path, action->destination)) {
+                        	dest_path = g_strdup(new_path);
+                        	g_free(action->destination);
+                        	action->destination = dest_path;
+                        	matched = TRUE;
+			}
+		}
+	}
+	
+	g_free(old_path_with_sep);
+#ifdef G_OS_WIN32
+	if (!strcmp(separator, G_DIR_SEPARATOR_S) && !matched) {
+		separator = "/";
+		goto again;
+	}
+#endif
+
+	return matched;
 }

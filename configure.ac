@@ -12,7 +12,7 @@ MINOR_VERSION=7
 MICRO_VERSION=10
 INTERFACE_AGE=0
 BINARY_AGE=0
-EXTRA_VERSION=16.3
+EXTRA_VERSION=16.4
 EXTRA_RELEASE=
 EXTRA_GTK2_VERSION=-new-contacts
 
@@ -158,7 +158,7 @@ fi
 CFLAGS="$CFLAGS -Wall"
 
 #if test $USE_MAINTAINER_MODE = yes; then
-#	CFLAGS="-g -Wall -Wno-pointer-sign -DGTK_DISABLE_DEPRECATED -DGDK_DISABLE_DEPRECATED -DG_DISABLE_DEPRECATED -DGTK_DISABLE_SINGLE_INCLUDES"
+#	CFLAGS="-g -Wall -Wno-pointer-sign -DGTK_DISABLE_DEPRECATED -DGDK_DISABLE_DEPRECATED -DG_DISABLE_DEPRECATED -DGTK_DISABLE_SINGLE_INCLUDES -DGDK_PIXBUF_DISABLE_DEPRECATED -DGSEAL_ENABLE"
 #fi
 
 pthread_name=
@@ -182,6 +182,9 @@ esac
   
 dnl Checks for iconv
 AM_ICONV
+
+dnl floor and ceil are  in -lm
+LIBS="$LIBS -lm"
 
 dnl
 dnl Check for bind_textdomain_codeset, including -lintl if GLib brings it in.
@@ -465,12 +468,23 @@ dnl ** GTK user interface **
 dnl ************************
 
 dnl Checks for GTK
-PKG_CHECK_MODULES(GTK, gtk+-2.0 >= 2.10)
+AC_ARG_ENABLE(gtk3,
+	AS_HELP_STRING([--enable-gtk3],
+		[Determines whether to use Gtk+ 3.0.]),
+		[ac_cv_enable_gtk3=$enableval],[ac_cv_enable_gtk3=no])
+AM_CONDITIONAL(GTK3, false)
+AM_CONDITIONAL(GTK2, true)
+if test x"$ac_cv_enable_gtk3" = x"yes"; then
+	PKG_CHECK_MODULES(GTK, gtk+-3.0 >= 3.0 cairo)
+	AM_CONDITIONAL(GTK3, true)
+	AM_CONDITIONAL(GTK2, false)
+else
+	PKG_CHECK_MODULES(GTK, gtk+-2.0 >= 2.18)
 
-dnl --disable-deprecated switch for GTK2 purification
-AC_ARG_ENABLE(deprecated, [  --disable-deprecated  disable deprecated GTK functions. ],
+	dnl --disable-deprecated switch for GTK2 purification
+	AC_ARG_ENABLE(deprecated, [  --disable-deprecated  disable deprecated GTK functions. ],
 			  [GTK_CFLAGS="$GTK_CFLAGS -DG_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED"], [])
-
+fi
 AC_SUBST(GTK_CFLAGS)
 AC_SUBST(GTK_LIBS)
 

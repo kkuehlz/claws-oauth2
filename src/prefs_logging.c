@@ -97,14 +97,14 @@ static void prefs_logging_create_widget(PrefsPage *_page, GtkWindow *window,
 	GtkWidget *hbox_clip_network_log;
 	GtkWidget *checkbtn_clip_network_log;
 	GtkWidget *spinbtn_network_log_length;
-	GtkObject *spinbtn_network_log_length_adj;
+	GtkAdjustment *spinbtn_network_log_length_adj;
 	GtkWidget *hbox_checkbtn;
 #ifndef G_OS_WIN32
 	GtkWidget *vbox1_filtering_log;
 	GtkWidget *hbox_clip_filtering_log;
 	GtkWidget *checkbtn_clip_filtering_log;
 	GtkWidget *spinbtn_filtering_log_length;
-	GtkObject *spinbtn_filtering_log_length_adj;
+	GtkAdjustment *spinbtn_filtering_log_length_adj;
 	GtkWidget *hbox_filtering_log;
 	GtkWidget *checkbtn_filtering_log;
 	GtkWidget *frame_filtering_log;
@@ -130,7 +130,6 @@ static void prefs_logging_create_widget(PrefsPage *_page, GtkWindow *window,
 	GtkWidget *checkbtn_log_error;
 	GtkWidget *checkbtn_log_status;
 	GtkSizeGroup *log_size_group;
-	CLAWS_TIP_DECL();
 	
 	vbox1 = gtk_vbox_new (FALSE, VSPACING);
 	gtk_widget_show (vbox1);

@@ -34,7 +34,6 @@
 #include "manage_window.h"
 #include "utils.h"
 #include "mainwindow.h"
-#include "gtksctree.h"
 #include "alertpanel.h"
 #include "sslcertwindow.h"
 #include "prefs_common.h"
@@ -375,7 +374,7 @@ static void ssl_manager_close_cb(GtkWidget *widget,
 
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-	if (event && event->keyval == GDK_Escape)
+	if (event && event->keyval == GDK_KEY_Escape)
 		ssl_manager_close();
 	return FALSE;
 }

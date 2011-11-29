@@ -38,6 +38,7 @@
 #include "mh.h"
 #include "foldersel.h"
 #include "prefs_common.h"
+#include "prefs_actions.h"
 
 static void new_folder_cb(GtkAction *action, gpointer data);
 static void delete_folder_cb(GtkAction *action, gpointer data);
@@ -282,6 +283,7 @@ static void rename_folder_cb(GtkAction *action, gpointer data)
 	new_id = folder_item_get_identifier(item);
 	prefs_filtering_rename_path(old_id, new_id);
 	account_rename_path(old_id, new_id);
+	prefs_actions_rename_path(old_id, new_id);
 	g_free(old_id);
 	g_free(new_id);
 

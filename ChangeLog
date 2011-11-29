@@ -1,3 +1,11 @@
+2011-11-29 [mir]	3.7.10cvs16.5-new-contacts
+
+	* src/gtk/gdkkeysyms-new.h
+	* src/gtk/gtkunit.c
+	* src/gtk/gtkunit.h
+	    New files added with 3.7.10cvs25 and 3.7.10cvs32.
+	    Forgot in last commit.
+
 2011-11-29 [mir]	3.7.10cvs16.4-new-contacts
 
 	* AUTHORS

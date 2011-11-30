@@ -1,3 +1,8 @@
+2011-11-30 [mir]	3.7.10cvs16.6-new-contacts
+
+	* src/addrgather.c
+	    Remove CLAWS_TIP_DECL since undefined
+
 2011-11-29 [mir]	3.7.10cvs16.5-new-contacts
 
 	* src/gtk/gdkkeysyms-new.h

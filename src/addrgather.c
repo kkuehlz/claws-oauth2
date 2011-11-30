@@ -324,7 +324,6 @@ static void addrgather_page_fields(gint pageNum, gchar *pageLbl)
 	GtkWidget *hboxs;
 	GtkWidget *spinbtnFolder;
 	GtkObject *adjFolder;
-	CLAWS_TIP_DECL();
 #endif
 	GtkWidget *checkRecurse;
 	gint top;
@@ -453,9 +452,6 @@ static void addrgather_page_finish( gint pageNum, gchar *pageLbl ) {
 	GtkWidget *clistCount;
 	gchar *titles[ FIELDS_N_COLS ];
 	gint i;
-#ifndef USE_NEW_ADDRBOOK
-	CLAWS_TIP_DECL();
-#endif
 	titles[ FIELD_COL_HEADER ] = _("Header Name");
 	titles[ FIELD_COL_COUNT  ] = _("Address Count");
 

@@ -1,3 +1,11 @@
+2011-12-03 [mir]	3.7.10cvs16.7-new-contacts
+
+	* src/mainwindow.c
+	* src/messageview.c
+	    Applied patch 3.7.10cvs108 and 3.7.10cvs109.
+	    Patch 3.7.10cvs107 was not needed since the fix
+	    provided by this patch was already done manual.
+
 2011-11-30 [mir]	3.7.10cvs16.6-new-contacts
 
 	* src/addrgather.c

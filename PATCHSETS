@@ -4226,3 +4226,4 @@
 ( diff -u /dev/null src/gtk/gdkkeysyms-new.h;  diff -u /dev/null src/gtk/gtkunit.c;  diff -u /dev/null src/gtk/gtkunit.h;  ) > 3.7.10cvs16.5-new-contacts.patchset
 ( cvs diff -u -r 1.5.10.33.2.2 -r 1.5.10.33.2.3 src/addrgather.c;  ) > 3.7.10cvs16.6-new-contacts.patchset
 ( cvs diff -u -r 1.274.2.328.2.2 -r 1.274.2.328.2.3 src/mainwindow.c;  cvs diff -u -r 1.94.2.218.2.2 -r 1.94.2.218.2.3 src/messageview.c;  ) > 3.7.10cvs16.7-new-contacts.patchset
+( cvs diff -u -r 1.382.2.580.2.2 -r 1.382.2.580.2.3 src/compose.c;  ) > 3.7.10cvs16.8-new-contacts.patchset

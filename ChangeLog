@@ -1,3 +1,8 @@
+2011-12-11 [mir]	3.7.10cvs16.8-new-contacts
+
+	* src/compose.c
+	    Applied patch 3.7.10cvs110 from HEAD
+
 2011-12-03 [mir]	3.7.10cvs16.7-new-contacts
 
 	* src/mainwindow.c

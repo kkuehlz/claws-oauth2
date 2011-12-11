@@ -4228,3 +4228,4 @@
 ( cvs diff -u -r 1.274.2.328.2.2 -r 1.274.2.328.2.3 src/mainwindow.c;  cvs diff -u -r 1.94.2.218.2.2 -r 1.94.2.218.2.3 src/messageview.c;  ) > 3.7.10cvs16.7-new-contacts.patchset
 ( cvs diff -u -r 1.382.2.580.2.2 -r 1.382.2.580.2.3 src/compose.c;  ) > 3.7.10cvs16.8-new-contacts.patchset
 ( cvs diff -u -r 1.83.2.170.2.1 -r 1.83.2.170.2.2 src/mimeview.c;  ) > 3.7.10cvs16.9-new-contacts.patchset
+( cvs diff -u -r 1.1.2.103.2.1 -r 1.1.2.103.2.2 src/gtk/quicksearch.c;  cvs diff -u -r 1.1.2.22 -r 1.1.2.23 src/gtk/quicksearch.h;  ) > 3.7.10cvs16.10-new-contacts.patchset

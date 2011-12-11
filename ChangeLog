@@ -1,3 +1,9 @@
+2011-12-11 [mir]	3.7.10cvs16.10-new-contacts
+
+	* src/gtk/quicksearch.c
+	* src/gtk/quicksearch.h
+	    Applied patch 3.7.10cvs112 from HEAD
+
 2011-12-11 [mir]	3.7.10cvs16.9-new-contacts
 
 	* src/mimeview.c

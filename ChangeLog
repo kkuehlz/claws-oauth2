@@ -1,3 +1,14 @@
+2011-12-16 [mir]	3.7.10cvs16.12-new-contacts
+
+	* src/procmsg.c
+	* src/stock_pixmap.c
+	* src/stock_pixmap.h
+	* src/summaryview.c
+	* src/gtk/icon_legend.c
+	* src/pixmaps/replied_and_forwarded.xpm
+	* tools/claws.i18n.status.pl
+	    Applied 3.8.0cvs1 and 3.8.0cvs2
+
 2011-12-16 [mir]	3.7.10cvs16.11-new-contacts
 
 	* po/bg.po

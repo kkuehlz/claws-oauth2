@@ -1,3 +1,8 @@
+2011-12-19 [mir]	3.7.10cvs16.14-new-contacts
+
+	* src/Makefile.am
+	    Applied patch 3.8.0cvs3 from HEAD
+
 2011-12-16 [mir]	3.7.10cvs16.13-new-contacts
 
 	* po/bg.po

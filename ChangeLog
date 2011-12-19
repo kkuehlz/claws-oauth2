@@ -1,3 +1,8 @@
+2011-12-19 [mir]	3.7.10cvs16.15-new-contacts
+
+	* src/ldapctrl.c
+	    Applied patch 3.8.0cvs4 from HEAD
+
 2011-12-19 [mir]	3.7.10cvs16.14-new-contacts
 
 	* src/Makefile.am

@@ -199,7 +199,7 @@ static struct RemoteCmd {
 	gboolean receive_all;
 	gboolean compose;
 	const gchar *compose_mailto;
-	GPtrArray *attach_files;
+	GList *attach_files;
 	gboolean search;
 	const gchar *search_folder;
 	const gchar *search_type;
@@ -229,7 +229,7 @@ static void lock_socket_input_cb	(gpointer	   data,
 					 GIOCondition      condition);
 
 static void open_compose_new		(const gchar	*address,
-					 GPtrArray	*attach_files);
+					 GList		*attach_files);
 
 static void send_queue			(void);
 static void initial_processing		(FolderItem *item, gpointer data);
@@ -1633,8 +1633,8 @@ int main(int argc, char *argv[])
 		open_compose_new(cmd.compose_mailto, cmd.attach_files);
 	}
 	if (cmd.attach_files) {
-		ptr_array_free_strings(cmd.attach_files);
-		g_ptr_array_free(cmd.attach_files, TRUE);
+		list_free_strings(cmd.attach_files);
+		g_list_free(cmd.attach_files);
 		cmd.attach_files = NULL;
 	}
 	if (cmd.subscribe) {
@@ -1888,6 +1888,7 @@ static GString * parse_cmd_compose_from_file(const gchar *fn)
 
 static void parse_cmd_opt(int argc, char *argv[])
 {
+	AttachInfo *ainfo;
 	gint i;
 
 	for (i = 1; i < argc; i++) {
@@ -1926,9 +1927,6 @@ static void parse_cmd_opt(int argc, char *argv[])
 			gchar *file = NULL;
 
 			while (p && *p != '\0' && *p != '-') {
-				if (!cmd.attach_files) {
-					cmd.attach_files = g_ptr_array_new();
-				}
 				if ((file = g_filename_from_uri(p, NULL, NULL)) != NULL) {
 					if (!is_file_exist(file)) {
 						g_free(file);
@@ -1942,7 +1940,9 @@ static void parse_cmd_opt(int argc, char *argv[])
 				} else if (file == NULL) {
 					file = g_strdup(p);
 				}
-				g_ptr_array_add(cmd.attach_files, file);
+				ainfo = g_new0(AttachInfo, 1);
+				ainfo->file = file;
+				cmd.attach_files = g_list_append(cmd.attach_files, ainfo);
 				i++;
 				p = (i+1 < argc)?argv[i+1]:NULL;
 			}
@@ -2262,6 +2262,7 @@ static gchar *get_crashfile_name(void)
 static gint prohibit_duplicate_launch(void)
 {
 	gint uxsock;
+	GList *curr;
 #ifdef G_OS_UNIX
 	gchar *path;
 
@@ -2304,7 +2305,6 @@ static gint prohibit_duplicate_launch(void)
 		fd_write_all(uxsock, "receive\n", 8);
 	} else if (cmd.compose && cmd.attach_files) {
 		gchar *str, *compose_str;
-		gint i;
 
 		if (cmd.compose_mailto) {
 			compose_str = g_strdup_printf("compose_attach %s\n",
@@ -2316,8 +2316,8 @@ static gint prohibit_duplicate_launch(void)
 		fd_write_all(uxsock, compose_str, strlen(compose_str));
 		g_free(compose_str);
 
-		for (i = 0; i < cmd.attach_files->len; i++) {
-			str = g_ptr_array_index(cmd.attach_files, i);
+		for (curr = cmd.attach_files; curr != NULL ; curr = curr->next) {
+			str = (gchar *) ((AttachInfo *)curr->data)->file;
 			fd_write_all(uxsock, str, strlen(str));
 			fd_write_all(uxsock, "\n", 1);
 		}
@@ -2481,20 +2481,29 @@ static void lock_socket_input_cb(gpointer data,
 	} else if (!strncmp(buf, "receive", 7)) {
 		inc_mail(mainwin, prefs_common.newmail_notify_manu);
 	} else if (!strncmp(buf, "compose_attach", 14)) {
-		GPtrArray *files;
+		GList *files = NULL, *curr;
+		AttachInfo *ainfo;
 		gchar *mailto;
 
 		mailto = g_strdup(buf + strlen("compose_attach") + 1);
-		files = g_ptr_array_new();
 		while (fd_gets(sock, buf, sizeof(buf)) > 0) {
 			strretchomp(buf);
 			if (!strcmp2(buf, "."))
 				break;
-			g_ptr_array_add(files, g_strdup(buf));
+				
+			ainfo = g_new0(AttachInfo, 1);
+			ainfo->file = g_strdup(buf);
+			files = g_list_append(files, ainfo);
 		}
 		open_compose_new(mailto, files);
-		ptr_array_free_strings(files);
-		g_ptr_array_free(files, TRUE);
+		
+		curr = g_list_first(files);
+		while (curr != NULL) {
+			ainfo = (AttachInfo *)curr->data;
+			g_free(ainfo->file);
+			g_free(ainfo);
+		}
+		g_list_free(files);
 		g_free(mailto);
 	} else if (!strncmp(buf, "compose", 7)) {
 		open_compose_new(buf + strlen("compose") + 1, NULL);
@@ -2598,7 +2607,7 @@ static void lock_socket_input_cb(gpointer data,
 
 }
 
-static void open_compose_new(const gchar *address, GPtrArray *attach_files)
+static void open_compose_new(const gchar *address, GList *attach_files)
 {
 	gchar *addr = NULL;
 

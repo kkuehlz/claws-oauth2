@@ -1,3 +1,13 @@
+2012-01-01 [mir]	3.7.10cvs16.16-new-contacts
+
+	* src/.cvsignore
+	* src/compose.c
+	* src/compose.h
+	* src/main.c
+	* src/mimeview.c
+	* src/prefs_account.c
+	    Applied patch 3.8.0cvs5 to 3.8.0cvs8 from HEAD.
+
 2011-12-19 [mir]	3.7.10cvs16.15-new-contacts
 
 	* src/ldapctrl.c

@@ -1,3 +1,8 @@
+2012-01-03 [mir]	3.7.10cvs16.17-new-contacts
+
+	* src/gtk/gtkcmctree.c
+	    Applied patch 3.8.0cvs9 and 3.8.0cvs10 from HEAD.
+
 2012-01-01 [mir]	3.7.10cvs16.16-new-contacts
 
 	* src/.cvsignore

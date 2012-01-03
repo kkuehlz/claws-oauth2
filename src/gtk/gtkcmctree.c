@@ -769,7 +769,6 @@ draw_row (GtkCMCList     *clist,
 	  else
 		gdk_cairo_set_source_color(cr, &style->base[state]);
 	  cairo_fill(cr);
-
 	  layout = create_cell_layout (clist, clist_row, i);
 	  if (layout)
 	    {
@@ -926,7 +925,6 @@ draw_row (GtkCMCList     *clist,
 	  cairo_move_to(cr, offset, row_rectangle.y + row_center_offset + clist_row->cell[i].vertical);
 	  gdk_cairo_set_source_color(cr, fgcolor);
 	  pango_cairo_show_layout(cr, layout);
-
           g_object_unref (G_OBJECT (layout));
 	}
     }

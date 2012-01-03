@@ -4235,3 +4235,4 @@
 ( cvs diff -u -r 1.155.2.97.2.1 -r 1.155.2.97.2.2 src/Makefile.am;  ) > 3.7.10cvs16.14-new-contacts.patchset
 ( cvs diff -u -r 1.2.2.23 -r 1.2.2.24 src/ldapctrl.c;  ) > 3.7.10cvs16.15-new-contacts.patchset
 ( cvs diff -u -r 1.11.2.2 -r 1.11.2.3 src/.cvsignore;  cvs diff -u -r 1.382.2.580.2.3 -r 1.382.2.580.2.4 src/compose.c;  cvs diff -u -r 1.50.2.62.2.1 -r 1.50.2.62.2.2 src/compose.h;  cvs diff -u -r 1.115.2.239.2.2 -r 1.115.2.239.2.3 src/main.c;  cvs diff -u -r 1.83.2.170.2.2 -r 1.83.2.170.2.3 src/mimeview.c;  cvs diff -u -r 1.105.2.168.2.1 -r 1.105.2.168.2.2 src/prefs_account.c;  ) > 3.7.10cvs16.16-new-contacts.patchset
+( cvs diff -u -r 1.1.2.17.2.1 -r 1.1.2.17.2.2 src/gtk/gtkcmctree.c;  ) > 3.7.10cvs16.17-new-contacts.patchset

@@ -1,3 +1,8 @@
+2012-01-07 [mir]	3.7.10cvs16.18-new-contacts
+
+	* src/main.c
+	    Applied patch 3.8.0cvs11 from HEAD.
+
 2012-01-03 [mir]	3.7.10cvs16.17-new-contacts
 
 	* src/gtk/gtkcmctree.c

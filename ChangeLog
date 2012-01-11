@@ -1,3 +1,11 @@
+2012-01-11 [mir]	3.7.10cvs16.19-new-contacts
+
+	* src/mainwindow.c
+	* src/mainwindow.h
+	* src/summaryview.c
+	* src/toolbar.c
+	    Applied patch 3.8.0cvs12 and 3.8.0cvs13 from HEAD.
+
 2012-01-07 [mir]	3.7.10cvs16.18-new-contacts
 
 	* src/main.c

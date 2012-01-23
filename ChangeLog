@@ -1,3 +1,11 @@
+2012-01-23 [mir]	3.7.10cvs16.20-new-contacts
+
+	* commitHelper
+	* src/addrbook.c
+	* src/exportldif.c
+	* src/mimeview.c
+	    Applied patch 3.8.0cvs14, 3.8.0cvs15, 3.8.0cvs16 from HEAD.
+
 2012-01-11 [mir]	3.7.10cvs16.19-new-contacts
 
 	* src/mainwindow.c

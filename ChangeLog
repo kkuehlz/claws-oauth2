@@ -1,3 +1,8 @@
+2012-01-25 [mir]	3.7.10cvs16.21-new-contacts
+
+	* src/addr_compl.c
+	    Applied patch 3.8.0cvs17 from HEAD.
+
 2012-01-23 [mir]	3.7.10cvs16.20-new-contacts
 
 	* commitHelper

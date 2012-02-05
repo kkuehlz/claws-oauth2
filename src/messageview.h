@@ -75,12 +75,15 @@ struct _MessageView
 	gboolean all_headers;
 
 	gint msginfo_update_callback_id;
+	gint msginfo_moved_callback_id;
 	gboolean updating;
 	gboolean deferred_destroy;
 	
 	gboolean show_full_text;
 	gboolean partial_display_shown;
 	GtkUIManager *ui_manager;
+	GList *trail;
+	gint trail_pos;
 };
 
 MessageView *messageview_create			(MainWindow	*mainwin);
@@ -127,4 +130,9 @@ void messageview_list_urls			(MessageView	*msgview);
 void messageview_show_partial_display		(MessageView 	*msgview, 
 						 MsgInfo 	*msginfo,
 						 size_t 	 length);
+gboolean messageview_nav_has_prev(MessageView *messageview);
+gboolean messageview_nav_has_next(MessageView *messageview);
+MsgInfo *messageview_nav_get_prev(MessageView *messageview);
+MsgInfo *messageview_nav_get_next(MessageView *messageview);
+
 #endif /* __MESSAGEVIEW_H__ */

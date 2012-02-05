@@ -40,12 +40,16 @@
 	    <arg type="a(sss)" name="contact_emails" direction="in" />
     </method>
 
-<!--
-    <method name="AddContact1">
+    <method name="AddVCard">
+        <!-- if addressbook is NULL add to default address book -->
         <arg type="s" name="addressbook" direction="in" /> 
-	    <arg type="(a{ss}a(sss))" name="contact" direction="in" />
+	    <arg type="s" name="vcard" direction="in" />
     </method>
--->
+
+    <method name="GetVCard">
+        <arg type="s" name="acount" direction="in" /> 
+	    <arg type="s" name="vcard" direction="out" />
+    </method>
 
     <signal name="ContactMailTo">
 		<arg type="s" name="contact_add_to" direction="out" />

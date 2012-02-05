@@ -51,6 +51,7 @@ typedef struct {
 } ContactData;
 
 gboolean addressbook_start_service(GError** error);
+void addressbook_install_hooks(GError** error);
 int addressbook_dbus_add_contact(ContactData* contact, GError** error);
 gboolean addrindex_dbus_load_completion(gint (*callBackFunc)
 										(const gchar* name,
@@ -66,6 +67,8 @@ void addressbook_harvest(FolderItem *folderItem,
 						 gboolean sourceInd,
 						 GList *msgList );
 void addressbook_connect_signals(Compose* compose);
+gchar* addressbook_get_vcard(const gchar* account, GError** error);
+gboolean addressbook_add_vcard(const gchar* abook, const gchar* vcard, GError** error);
 
 G_END_DECLS
 

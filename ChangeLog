@@ -1,3 +1,34 @@
+2012-02-05 [mir]	3.7.10cvs16.22-new-contacts
+
+	* src/addressbook-dbus.c
+	* src/addressbook-dbus.h
+	* src/claws-contacts.xml
+	* src/compose.c
+	* src/folder.c
+	* src/folderview.c
+	* src/inc.c
+	* src/jpilot.c
+	* src/main.c
+	* src/mainwindow.c
+	* src/messageview.c
+	* src/messageview.h
+	* src/mutt.c
+	* src/pine.c
+	* src/prefs_common.c
+	* src/prefs_common.h
+	* src/procmime.c
+	* src/procmsg.c
+	* src/procmsg.h
+	* src/send_message.c
+	* src/summaryview.c
+	* src/summaryview.h
+	* src/vcard.c
+	* src/gtk/gtkutils.c
+	* src/gtk/progressdialog.c
+	* src/gtk/progressdialog.h
+	* src/gtk/sslcertwindow.c
+	    Applied patch 3.8.0cvs18 to 3.8.0cvs26 from HEAD.
+
 2012-01-25 [mir]	3.7.10cvs16.21-new-contacts
 
 	* src/addr_compl.c

@@ -174,7 +174,8 @@ typedef guint32 MsgTmpFlags;
 
 typedef enum {
 	MSGINFO_UPDATE_FLAGS = 1 << 0,
-	MSGINFO_UPDATE_DELETED = 1 << 1
+	MSGINFO_UPDATE_DELETED = 1 << 1,
+	MSGINFO_UPDATE_ADDED = 1 << 2
 } MsgInfoUpdateFlags;
 
 #include "procmime.h"
@@ -400,4 +401,6 @@ gchar *procmsg_msginfo_get_tags_str(MsgInfo *msginfo);
 void procmsg_msginfo_update_tags(MsgInfo *msginfo, gboolean set, gint id);
 void procmsg_msginfo_clear_tags(MsgInfo *msginfo);
 void procmsg_msginfo_commit_tags(GSList *msglist);
+MsgInfo *procmsg_get_msginfo_from_identifier(const gchar *id);
+gchar *procmsg_msginfo_get_identifier(MsgInfo *msginfo);
 #endif /* __PROCMSG_H__ */

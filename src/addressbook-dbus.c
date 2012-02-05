@@ -42,6 +42,7 @@
 #include "addrgather.h"
 #include "folder.h"
 #include "compose.h"
+#include "hooks.h"
 
 #include "addressbook-dbus.h"
 #include "client-bindings.h"
@@ -429,4 +430,58 @@ void addressbook_connect_signals(Compose* compose) {
     	return;
 	}
 	dbus_connection_add_filter(bus, contact_add_signal, NULL, NULL);
+}
+
+gchar* addressbook_get_vcard(const gchar* account, GError** error) {
+	gchar* vcard = NULL;
+	
+	g_return_val_if_fail(account != NULL, vcard);
+	
+	if (! init(error)) {
+		return vcard;
+	}
+	
+	if (!org_clawsmail_Contacts_get_vcard(proxy, account, &vcard, error)) {
+		if (! *error)
+			g_set_error(error, client_object_error_quark(), 1, "Woops remote method failed");
+		g_warning ("Woops remote method failed: %s", (*error)->message);
+		g_free(vcard);
+		vcard = NULL;
+	}
+	
+	return vcard;
+}
+
+gboolean addressbook_add_vcard(const gchar* abook, const gchar* vcard, GError** error) {
+	gboolean result = FALSE;
+	
+	return result;
+}
+
+static gboolean my_compose_create_hook(gpointer source, gpointer user_data) {
+	Compose *compose = (Compose*) source;
+	GError* error = NULL;
+
+	gchar* vcard = addressbook_get_vcard("test", &error);
+	if (error) {
+		g_warning("%s", error->message);
+		g_clear_error(&error);
+	}
+	else {
+		debug_print("test.vcf:\n%s\n", vcard);
+		g_free(vcard);
+	}
+	
+	return FALSE;
+}
+
+void addressbook_install_hooks(GError** error) {
+	if ((guint)-1 == hooks_register_hook(
+			COMPOSE_CREATED_HOOKLIST, my_compose_create_hook, NULL)) {
+		g_warning("Could not register hook for adding vCards\n");
+		if (error) {
+			g_set_error(error, client_object_error_quark(), 1,
+				"Could not register hook for adding vCards");
+		}
+	}
 }

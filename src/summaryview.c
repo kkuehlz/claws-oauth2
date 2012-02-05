@@ -1139,7 +1139,6 @@ gboolean summary_show(SummaryView *summaryview, FolderItem *item)
 	if (!summaryview->mainwin)
 		return FALSE;
 	START_TIMING("");
-	summaryview->last_displayed = NULL;
 	summary_switch_from_to(summaryview, item);
 
 	inc_lock();
@@ -1388,7 +1387,6 @@ gboolean summary_show(SummaryView *summaryview, FolderItem *item)
 
 	if (is_refresh) {
 		if (!quicksearch_is_in_typing(summaryview->quicksearch)) {
-			summaryview->last_displayed = summaryview->displayed;
 			summaryview->displayed =
 				summary_find_msg_by_msgnum(summaryview,
 							   displayed_msgnum);
@@ -2049,12 +2047,6 @@ void summary_select_next_labeled(SummaryView *summaryview)
 		summary_select_node(summaryview, node, TRUE, FALSE);
 }
 
-void summary_select_last_read(SummaryView *summaryview)
-{
-	if (summaryview->last_displayed)
-		summary_select_node(summaryview, summaryview->last_displayed, TRUE, FALSE);
-}
-
 void summary_select_parent(SummaryView *summaryview)
 {
 	GtkCMCTreeNode *node = NULL;
@@ -2071,6 +2063,14 @@ void summary_select_by_msgnum(SummaryView *summaryview, guint msgnum)
 
 	node = summary_find_msg_by_msgnum(summaryview, msgnum);
 	summary_select_node(summaryview, node, FALSE, TRUE);
+}
+
+void summary_display_by_msgnum(SummaryView *summaryview, guint msgnum)
+{
+	GtkCMCTreeNode *node;
+
+	node = summary_find_msg_by_msgnum(summaryview, msgnum);
+	summary_select_node(summaryview, node, TRUE, FALSE);
 }
 
 void summary_select_by_msg_list(SummaryView	*summaryview, GSList *msginfos)
@@ -3507,7 +3507,6 @@ static void summary_display_msg_full(SummaryView *summaryview,
 			else
 				gtkut_window_popup(summaryview->ext_messageview->window);
 			msgview = summaryview->ext_messageview;
-			summaryview->last_displayed = summaryview->displayed;
 			summaryview->displayed = row;
 			val = messageview_show(msgview, msginfo, all_headers);
 			if (mimeview_tree_is_empty(msgview->mimeview))
@@ -3516,7 +3515,6 @@ static void summary_display_msg_full(SummaryView *summaryview,
 				GTK_CMCLIST(summaryview->ctree)->focus_row);
 		} else {
 			msgview = summaryview->messageview;
-			summaryview->last_displayed = summaryview->displayed;
 			summaryview->displayed = row;
 			if (!messageview_is_visible(msgview) &&
 			    gtk_window_is_active(GTK_WINDOW(summaryview->mainwin->window))) {
@@ -6528,7 +6526,6 @@ void summary_set_column_order(SummaryView *summaryview)
 
 	summaryview->selected = summary_find_msg_by_msgnum(summaryview, selected_msgnum);
 	summaryview->displayed = summary_find_msg_by_msgnum(summaryview, displayed_msgnum);
-	summaryview->last_displayed = summaryview->displayed;
 	if (!summaryview->displayed)
 		messageview_clear(summaryview->messageview);
 	else

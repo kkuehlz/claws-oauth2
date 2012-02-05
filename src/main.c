@@ -1327,6 +1327,9 @@ int main(int argc, char *argv[])
 		g_warning("%s", error->message);
 		g_clear_error(&error);
 	}
+	else {
+		addressbook_install_hooks(&error);
+	}
 #endif
 	gtkut_widget_init();
 	stock_pixbuf_gdk(NULL, STOCK_PIXMAP_CLAWS_MAIL_ICON, &icon);
@@ -2567,7 +2570,7 @@ static void lock_socket_input_cb(gpointer data,
 		if (folder_name)
 			folderItem = folder_find_item_from_identifier(folder_name);
 		if (folder_name && folderItem == NULL) {
-			debug_print("Unknow folder item : '%s', searching folder\n",folder_name);
+			debug_print("Unknown folder item : '%s', searching folder\n",folder_name);
 			Folder* folder = folder_find_from_path(folder_name);
 			if (folder != NULL)
 				folderItem = FOLDER_ITEM(folder->node->data);

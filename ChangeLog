@@ -1,3 +1,16 @@
+2012-02-19 [mir]	3.7.10cvs16.23-new-contacts
+
+	* src/filtering.c
+	* src/messageview.c
+	* src/prefs_actions.c
+	* src/prefs_actions.h
+	* src/prefs_toolbar.c
+	* src/prefs_toolbar.h
+	* src/toolbar.c
+	* src/toolbar.h
+	    Applied patch 3.8.0cvs27, 3.8.0cvs28, and 3.8.0cvs29
+	    from cvs HEAD.
+
 2012-02-05 [mir]	3.7.10cvs16.22-new-contacts
 
 	* src/addressbook-dbus.c

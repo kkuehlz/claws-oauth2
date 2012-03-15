@@ -1,3 +1,16 @@
+2012-03-15 [mir]	3.7.10cvs16.24-new-contacts
+
+	* src/folder.c
+	* src/messageview.c
+	* src/messageview.h
+	* src/procmsg.h
+	* src/summaryview.c
+	* src/textview.c
+	* src/textview.h
+	* src/gtk/authors.h
+	* src/gtk/gtkcmctree.c
+	    Applied patch 3.8.0cvs30 to 3.8.0cvs33 from HEAD
+
 2012-02-19 [mir]	3.7.10cvs16.23-new-contacts
 
 	* src/filtering.c

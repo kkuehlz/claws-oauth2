@@ -1,3 +1,8 @@
+2012-03-26 [mir]	3.7.10cvs16.25-new-contacts
+
+	* src/common/plugin.c
+	    Applied patch 3.8.0cvs34 from HEAD.
+
 2012-03-15 [mir]	3.7.10cvs16.24-new-contacts
 
 	* src/folder.c

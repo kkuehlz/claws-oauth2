@@ -430,7 +430,7 @@ static gchar *input_dialog_open(const gchar *title, const gchar *message,
 		gtk_button_set_label(GTK_BUTTON(remember_checkbtn), _("Remember this"));
 
 	input_dialog_set(title, message, default_string);
-	gtk_widget_show(dialog);
+	gtk_window_present(GTK_WINDOW(dialog));
 
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(remember_checkbtn),
 				     default_checkbtn_state);
@@ -448,7 +448,6 @@ static gchar *input_dialog_open(const gchar *title, const gchar *message,
 		gtk_main_iteration();
 
 	manage_window_focus_out(dialog, NULL, NULL);
-	gtk_widget_hide(dialog);
 
 	if (ack) {
 		GtkEditable *editable;
@@ -471,6 +470,10 @@ static gchar *input_dialog_open(const gchar *title, const gchar *message,
 	if (remember) {
 		*remember = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(remember_checkbtn));
 	}
+
+	gtk_widget_destroy(dialog);
+	dialog = NULL;
+
 	if (is_pass)
 		debug_print("return string = %s\n", str ? "********": ("none"));
 	else

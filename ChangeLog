@@ -1,3 +1,8 @@
+2012-11-18 [colin]	3.9.0cvs1
+
+	* configure.ac
+		Open stable_3_9 branch
+
 2012-11-14 [paul]	3.9.0
 	* NEWS
 	* README

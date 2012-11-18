@@ -1,3 +1,14 @@
+2012-11-18 [colin]	3.9.0cvs5-stable
+
+	* src/advsearch.c
+		Backport 3.9.0cvs8 and 3.9.0cvs9:
+		Fix missing initialisation of bool_and which could
+		lead to From/To/Subject/Tag searches searching with
+		binary and.
+		Also clean up tag expansion. No need to create a
+		matcher string and re-parse it.
+		Also initialize is_fast.
+
 2012-11-18 [colin]	3.9.0cvs4-stable
 
 	* po/de.po

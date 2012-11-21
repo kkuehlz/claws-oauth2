@@ -1,3 +1,9 @@
+2012-11-21 [colin]	3.9.0cvs7-stable
+
+	* src/etpan/imap-thread.c
+		Backport 3.9.0cvs18: Don't set charset on simple searches.
+		Fixes Exchange 2007.
+
 2012-11-18 [colin]	3.9.0cvs6-stable
 
 	* src/foldersel.c

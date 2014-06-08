@@ -1029,6 +1029,10 @@ AC_ARG_ENABLE(vcalendar-plugin,
 		[  --disable-vcalendar-plugin      Do not build vcalendar plugin],
 		[enable_vcalendar_plugin=$enableval], [enable_vcalendar_plugin=auto])
 
+AC_ARG_ENABLE(vfolder-plugin,
+		[  --disable-vfolder-plugin      Do not build vfolder plugin],
+		[enable_vfolder_plugin=$enableval], [enable_vfolder_plugin=auto])
+
 dnl disabled by default
 AC_ARG_ENABLE(demo-plugin,
 		[  --enable-demo-plugin		Build demo plugin],
@@ -1058,6 +1062,7 @@ dnl Python:		Python
 dnl RSSyl:		libxml2 libcurl
 dnl SpamReport:		libcurl
 dnl vCalendar:		libcurl
+dnl VFolder:		none
 
 dnl libcurl ********************************************************************
 PKG_CHECK_MODULES(CURL, libcurl, HAVE_CURL=yes, HAVE_CURL=no)
@@ -1158,9 +1163,9 @@ if test x"$HAVE_PERL" = xyes; then
 	PERL_LDFLAGS=`echo $PERL_LDFLAGS |sed 's/-lc//'`
 	AC_MSG_RESULT(ok)
 	AC_MSG_NOTICE([Adding perl LIBS ${PERL_CFLAGS}])
-	
+
 	if test x"$HAVE_PERL" = xyes; then
-		AC_CHECK_LIB(perl,perl_alloc,[AC_DEFINE(HAVE_LIBPERL, 1, Check for libperl.)], 
+		AC_CHECK_LIB(perl,perl_alloc,[AC_DEFINE(HAVE_LIBPERL, 1, Check for libperl.)],
 			 		     [ HAVE_LIBPERL=no ])
 	fi
 	if test x"$HAVE_LIBPERL" = xno; then
@@ -1172,7 +1177,7 @@ if test x"$HAVE_PERL" = xyes; then
 			HAVE_LIBPERL=yes
 		else
 			AC_MSG_RESULT(no)
-		fi	
+		fi
 	fi
 	PERL="perl"
 	AC_SUBST(PERL)
@@ -1817,32 +1822,24 @@ else
 	AC_MSG_RESULT(no)
 fi
 
-AC_MSG_CHECKING([whether to build vcalendar plugin])
-if test x"$enable_vcalendar_plugin" != xno; then
+AC_MSG_CHECKING([whether to build vfolder plugin])
+if test x"$enable_vfolder_plugin" != xno; then
 	dependencies_missing=""
 
-	if test x"$HAVE_CURL" = xno; then
-		dependencies_missing="libcurl $dependencies_missing"
-	fi
-
-	if test x"$HAVE_PERL" = xno; then
-		dependencies_missing="perl $dependencies_missing"
-	fi
-
 	if test x"$dependencies_missing" = x; then
-		PLUGINS="$PLUGINS vcalendar"
+		PLUGINS="$PLUGINS vfolder"
 		AC_MSG_RESULT(yes)
-	elif test x"$enable_vcalendar_plugin" = xauto; then
+	elif test x"$enable_vfolder_plugin" = xauto; then
 		AC_MSG_RESULT(no)
-		AC_MSG_WARN("Plugin vcalendar will not be built; missing $dependencies_missing")
-		enable_vcalendar_plugin=no
-		MISSING_DEPS_PLUGINS="$MISSING_DEPS_PLUGINS vcalendar"
+		AC_MSG_WARN("Plugin vfolder will not be built; missing $dependencies_missing")
+		enable_vfolder_plugin=no
+		MISSING_DEPS_PLUGINS="$MISSING_DEPS_PLUGINS vfolder"
 	else
 		AC_MSG_RESULT(no)
-		AC_MSG_ERROR("Plugin vcalendar cannot be built; missing $dependencies_missing")
+		AC_MSG_ERROR("Plugin vfolder cannot be built; missing $dependencies_missing")
 	fi
 else
-	DISABLED_PLUGINS="$DISABLED_PLUGINS vcalendar"
+	DISABLED_PLUGINS="$DISABLED_PLUGINS vfolder"
 	AC_MSG_RESULT(no)
 fi
 
@@ -1878,6 +1875,7 @@ AM_CONDITIONAL(BUILD_SPAMASSASSIN_PLUGIN,	test x"$enable_spamassassin_plugin" !=
 AM_CONDITIONAL(BUILD_SPAM_REPORT_PLUGIN,	test x"$enable_spam_report_plugin" != xno)
 AM_CONDITIONAL(BUILD_TNEF_PARSE_PLUGIN,		test x"$enable_tnef_parse_plugin" != xno)
 AM_CONDITIONAL(BUILD_VCALENDAR_PLUGIN,		test x"$enable_vcalendar_plugin" != xno)
+AM_CONDITIONAL(BUILD_VFOLDER_PLUGIN,		test x"$enable_vfolder_plugin" != xno)
 
 
 dnl ****************************
@@ -1933,6 +1931,7 @@ src/plugins/vcalendar/libical/libical/icalversion.h
 src/plugins/vcalendar/libical/libical/Makefile
 src/plugins/vcalendar/libical/design-data/Makefile
 src/plugins/vcalendar/libical/scripts/Makefile
+src/plugins/vfolder/Makefile
 doc/Makefile
 doc/man/Makefile
 tools/Makefile

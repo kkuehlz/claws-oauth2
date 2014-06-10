@@ -88,9 +88,6 @@ struct _VCalMeeting
 	GtkWidget *total_avail_msg;
 	PrefsAccount *account;
 	gboolean visible;
-#if !GTK_CHECK_VERSION(2,12,0)
-	GtkTooltips *tips;
-#endif
 };
 
 struct _VCalAttendee {
@@ -278,9 +275,6 @@ VCalAttendee *attendee_add(VCalMeeting *meet, gchar *address, gchar *name, gchar
 {
 	GtkWidget *att_hbox = gtk_hbox_new(FALSE, 6);
 	VCalAttendee *attendee 	= g_new0(VCalAttendee, 1);
-#if !(GTK_CHECK_VERSION(2,12,0))
-	GtkTooltips *tips = meet->tips;
-#endif
 
 	attendee->address	= gtk_entry_new();
 	attendee->cutype	= gtk_combo_box_new_text();
@@ -368,7 +362,7 @@ static gchar *get_organizer(VCalMeeting *meet)
 		cur = cur->next;
 		i++;
 	}
-	if (cur)
+	if (cur && cur->data)
 		return g_strdup(((PrefsAccount *)(cur->data))->address);
 	else
 		return g_strdup("");
@@ -384,7 +378,7 @@ static gchar *get_organizer_name(VCalMeeting *meet)
 		cur = cur->next;
 		i++;
 	}
-	if (cur)
+	if (cur && cur->data)
 		return g_strdup(((PrefsAccount *)(cur->data))->name);
 	else
 		return g_strdup("");
@@ -714,9 +708,6 @@ static void meeting_end_changed(GtkWidget *widget, gpointer data)
 static void att_update_icon(VCalMeeting *meet, VCalAttendee *attendee, gint avail, gchar *text)
 {
 	const gchar *icon = GTK_STOCK_DIALOG_INFO;
-#if !(GTK_CHECK_VERSION(2,12,0))
-	GtkTooltips *tips = meet->tips;
-#endif
 
 	switch (avail) {
 		case 0:  icon = GTK_STOCK_DIALOG_WARNING;	break;
@@ -867,9 +858,6 @@ static gboolean find_availability(const gchar *dtstart, const gchar *dtend, GSLi
 	GHashTable *avail_table_avail = g_hash_table_new(NULL, g_direct_equal);
 	GHashTable *avail_table_before = g_hash_table_new(NULL, g_direct_equal);
 	GHashTable *avail_table_after = g_hash_table_new(NULL, g_direct_equal);
-#if !(GTK_CHECK_VERSION(2,12,0))
-	GtkTooltips *tips = meet->tips;
-#endif
 	
 	for (cur = attendees; cur; cur = cur->next) {
 		VCalAttendee *attendee = (VCalAttendee *)cur->data;
@@ -1015,9 +1003,6 @@ static gboolean check_attendees_availability(VCalMeeting *meet, gboolean tell_if
 				"internal.ifb", NULL);
 	gboolean local_only = FALSE;
 	GSList *attlist;
-#if !(GTK_CHECK_VERSION(2,12,0))
-	GtkTooltips *tips = meet->tips;
-#endif
 
 	if (vcalprefs.freebusy_get_url == NULL
 	||  *vcalprefs.freebusy_get_url == '\0') {
@@ -1262,10 +1247,17 @@ static gboolean send_meeting_cb(GtkButton *widget, gpointer data)
 		gdk_window_set_cursor(meet->window->window, watch_cursor);
 
 	organizer	= get_organizer(meet);
-	organizer_name	= get_organizer_name(meet);
 	account		= account_find_from_address(organizer, FALSE);
 
-	if (account && account->set_domain && account->domain) {
+	if(account == NULL) {
+		debug_print("can't get account from address %s\n", organizer);
+		g_free(organizer);
+		return FALSE;
+	}
+
+	organizer_name	= get_organizer_name(meet);
+
+	if (account->set_domain && account->domain) {
 		g_snprintf(buf, sizeof(buf), "%s", account->domain); 
 	} else if (!strncmp(get_domain_name(), "localhost", strlen("localhost"))) {
 		g_snprintf(buf, sizeof(buf), "%s", 
@@ -1405,9 +1397,6 @@ static VCalMeeting *vcal_meeting_create_real(VCalEvent *event, gboolean visible)
 	if (!watch_cursor)
 		watch_cursor = gdk_cursor_new(GDK_WATCH);
 
-#if !(GTK_CHECK_VERSION(2,12,0))
-    	meet->tips = tips;
-#endif
 	meet->visible = visible;
 
 	meet->window 		= gtkut_window_new(GTK_WINDOW_TOPLEVEL, "vcal_meeting_gtk");
@@ -1961,12 +1950,11 @@ void multisync_export(void)
 	icalcomponent *calendar = NULL;
 	FILE *fp;
 
-	if (is_dir_exist(path))
-		remove_dir_recursive(path);
-	if (!is_dir_exist(path))
-		make_dir(path);
-	if (!is_dir_exist(path)) {
-		perror(path);
+	if (is_dir_exist(path) && remove_dir_recursive(path) < 0) {
+		g_free(path);
+		return;
+	}
+	if (make_dir(path) != 0) {
 		g_free(path);
 		return;
 	}

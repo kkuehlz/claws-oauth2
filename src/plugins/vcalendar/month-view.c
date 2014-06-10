@@ -53,9 +53,7 @@
 struct _month_win
 {
     GtkAccelGroup *accel_group;
-#if !GTK_CHECK_VERSION(2,12,0)
-    GtkTooltips   *Tooltips;
-#endif
+
     GtkWidget *Window;
     GtkWidget *Vbox;
 
@@ -142,9 +140,7 @@ void mw_close_window(month_win *mw)
 {
     vcal_view_set_summary_page(mw->Vbox, mw->selsig);
     
-#if !(GTK_CHECK_VERSION(2,12,0))
-    gtk_object_destroy(G_OBJECT(mw->Tooltips));
-#endif
+
     g_free(mw);
     mw = NULL;
 }
@@ -156,6 +152,11 @@ static char *orage_tm_date_to_i18_date(struct tm *tm_date)
     t.tm_mday = tm_date->tm_mday;
     t.tm_mon = tm_date->tm_mon - 1;
     t.tm_year = tm_date->tm_year - 1900;
+    t.tm_sec = 0;
+    t.tm_min = 0;
+    t.tm_hour = 0;
+    t.tm_wday = 0;
+    t.tm_yday = 0;
     if (strftime(i18_date, 32, "%x", &t) == 0)
         g_error("Orage: orage_tm_date_to_i18_date too long string in strftime");
     return(i18_date);
@@ -353,10 +354,6 @@ static void add_row(month_win *mw, VCalEvent *event, gint days)
     struct tm tm_today;
     gboolean start_prev_mon = FALSE;
 
-#if !(GTK_CHECK_VERSION(2,12,0))
-	GtkTooltips *tips = mw->Tooltips;
-#endif
-
     localtime_r(&now, &tm_today);
 
     tm_today.tm_year += 1900;
@@ -495,14 +492,10 @@ static void add_row(month_win *mw, VCalEvent *event, gint days)
 	CLAWS_SET_TIP(ev, tip);
         gtk_box_pack_start(GTK_BOX(hb), ev, TRUE, TRUE, 0);
     } else {
-#if !GTK_CHECK_VERSION(2,12,0)
-        GtkTooltipsData *tdata = gtk_tooltips_data_get(ev);
-	gchar *new = g_strdup_printf("%s\n\n%s", tdata?tdata->tip_text:"", tip);
-#else
 	gchar *old = gtk_widget_get_tooltip_text(ev);
 	gchar *new = g_strdup_printf("%s\n\n%s", old?old:"", tip);
 	g_free(old);
-#endif
+
 	CLAWS_SET_TIP(ev, new);
 	g_free(new);
     }
@@ -560,7 +553,7 @@ static void app_rows(month_win *mw, FolderItem *item)
 {
    GSList *events = vcal_get_events_list(item);
    GSList *cur = NULL;
-   int days = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mw->day_spin));
+   int days = 7;
    for (cur = events; cur ; cur = cur->next) {
    	VCalEvent *event = (VCalEvent *) (cur->data);
 	add_row(mw, event, days);
@@ -584,10 +577,6 @@ static void fill_days(month_win *mw, gint days, FolderItem *item)
     int weekoffset = -1;
     time_t now = time(NULL);
     struct tm tm_today;
-#if !(GTK_CHECK_VERSION(2,12,0))
-	GtkTooltips *tips = mw->Tooltips;
-#endif
-
     
     localtime_r(&now, &tm_today);
 
@@ -799,9 +788,6 @@ static void build_month_view_colours(month_win *mw)
 static void fill_hour(month_win *mw, gint col, gint row, char *text)
 {
     GtkWidget *name, *ev;
-#if !(GTK_CHECK_VERSION(2,12,0))
-	GtkTooltips *tips = mw->Tooltips;
-#endif
 
     ev = gtk_event_box_new();
     name = gtk_label_new(text);
@@ -833,9 +819,6 @@ static void build_month_view_table(month_win *mw)
     int weekoffset = -1;
     GDate *date;
     int first_week=0;
-#if !(GTK_CHECK_VERSION(2,12,0))
-	GtkTooltips *tips = mw->Tooltips;
-#endif
 
     if (mainwindow_get_mainwindow()) {
         GtkAllocation allocation;
@@ -863,7 +846,7 @@ static void build_month_view_table(month_win *mw)
 		t = 1;
 #endif
     localtime_r(&t, &tm_today);
-    days = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(mw->day_spin));
+    days = 7;
     /****** header of day table = days columns ******/
     mw->scroll_win_h = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(mw->scroll_win_h)
@@ -990,9 +973,7 @@ month_win *create_month_win(FolderItem *item, struct tm tmdate)
     /* initialisation + main window + base vbox */
     mw = g_new0(month_win, 1);
     mw->scroll_pos = -1; /* not set */
-#if !(GTK_CHECK_VERSION(2,12,0))
-    mw->Tooltips = tips;
-#endif
+
     mw->accel_group = gtk_accel_group_new();
 
     while (tmdate.tm_mday != 1)

@@ -227,7 +227,10 @@ gchar *sgpgme_sigstat_info_short(gpgme_ctx_t ctx, gpgme_verify_result_t status)
 		result = g_strdup_printf(_("Expired signature from %s."), uname);
 		break;
 	case GPG_ERR_KEY_EXPIRED:
-		result = g_strdup_printf(_("Expired key from %s."), uname);
+		result = g_strdup_printf(_("Good signature from %s, but the key has expired."), uname);
+		break;
+	case GPG_ERR_CERT_REVOKED:
+		result = g_strdup_printf(_("Good signature from %s, but the key has been revoked."), uname);
 		break;
 	case GPG_ERR_BAD_SIGNATURE:
 		result = g_strdup_printf(_("Bad signature from %s."), uname);
@@ -301,15 +304,24 @@ gchar *sgpgme_sigstat_info_full(gpgme_ctx_t ctx, gpgme_verify_result_t status)
 		
 		switch (gpg_err_code(sig->status)) {
 		case GPG_ERR_NO_ERROR:
-		case GPG_ERR_KEY_EXPIRED:
 			g_string_append_printf(siginfo,
 				_("Good signature from uid \"%s\" (Validity: %s)\n"),
 				uid, get_validity_str(user?user->validity:GPGME_VALIDITY_UNKNOWN));
+			break;
+		case GPG_ERR_KEY_EXPIRED:
+			g_string_append_printf(siginfo,
+				_("Expired key uid \"%s\"\n"),
+				uid);
 			break;
 		case GPG_ERR_SIG_EXPIRED:
 			g_string_append_printf(siginfo,
 				_("Expired signature from uid \"%s\" (Validity: %s)\n"),
 				uid, get_validity_str(user?user->validity:GPGME_VALIDITY_UNKNOWN));
+			break;
+		case GPG_ERR_CERT_REVOKED:
+			g_string_append_printf(siginfo,
+				_("Revoked key uid \"%s\"\n"),
+				uid);
 			break;
 		case GPG_ERR_BAD_SIGNATURE:
 			g_string_append_printf(siginfo,
@@ -788,9 +800,9 @@ again:
 	}
 	
 	key_parms = g_strdup_printf("<GnupgKeyParms format=\"internal\">\n"
-					"Key-Type: DSA\n"
-					"Key-Length: 1024\n"
-					"Subkey-Type: ELG-E\n"
+					"Key-Type: RSA\n"
+					"Key-Length: 2048\n"
+					"Subkey-Type: RSA\n"
 					"Subkey-Length: 2048\n"
 					"Name-Real: %s\n"
 					"Name-Email: %s\n"

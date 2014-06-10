@@ -525,9 +525,6 @@ SummaryView *summary_create(MainWindow *mainwin)
 	debug_print("Creating summary view...\n");
 	summaryview = g_new0(SummaryView, 1);
 
-#if !(GTK_CHECK_VERSION(2,12,0))
-	summaryview->tooltips = tips;
-#endif
 #define SUMMARY_VBOX_SPACING 3
 	vbox = gtk_vbox_new(FALSE, SUMMARY_VBOX_SPACING);
 	
@@ -2508,6 +2505,8 @@ static void summary_set_marks_func(GtkCMCTree *ctree, GtkCMCTreeNode *node,
 
 	msginfo = gtk_cmctree_node_get_row_data(ctree, node);
 
+	cm_return_if_fail(msginfo != NULL);
+
 	if (MSG_IS_DELETED(msginfo->flags))
 		summaryview->deleted++;
 
@@ -3363,7 +3362,8 @@ static inline void summary_set_header(SummaryView *summaryview, gchar *text[],
 				from_text = msginfo->from;
 			else {
 				from_text = msginfo->from;
-				extract_address(from_text);
+				if (from_text)
+					extract_address(from_text);
 			}
 			if (!from_text)
 				_("(No From)");		
@@ -3632,16 +3632,9 @@ static void summary_display_msg_full(SummaryView *summaryview,
 			data->msginfo = procmsg_msginfo_new_ref(msginfo);
 			if (summaryview->mark_as_read_timeout_tag != 0)
 				g_source_remove(summaryview->mark_as_read_timeout_tag);
-
-#if GLIB_CHECK_VERSION(2,14,0)
 			summaryview->mark_as_read_timeout_tag = 
 				g_timeout_add_seconds(prefs_common.mark_as_read_delay,
 					msginfo_mark_as_read_timeout, data);
-#else
-			summaryview->mark_as_read_timeout_tag = 
-				g_timeout_add(prefs_common.mark_as_read_delay * 1000,
-					msginfo_mark_as_read_timeout, data);
-#endif
 		} else if (new_window || !prefs_common.mark_as_read_on_new_window) {
 			msginfo_mark_as_read(summaryview, msginfo, row);
 		}
@@ -8015,9 +8008,6 @@ void summary_update_unread(SummaryView *summaryview, FolderItem *removed_item)
 	guint new, unread, unreadmarked, marked, total;
 	guint replied, forwarded, locked, ignored, watched;
 	static gboolean tips_initialized = FALSE;
-#if !(GTK_CHECK_VERSION(2,12,0))
-	GtkTooltips *tips = summaryview->tooltips;
-#endif
 
 	if (prefs_common.layout_mode != SMALL_LAYOUT) {
 		if (tips_initialized) {

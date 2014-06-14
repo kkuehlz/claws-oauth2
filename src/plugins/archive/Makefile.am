@@ -1,6 +1,14 @@
 # Makefile.am for "src/plugins/archive" directory
 # This file is part of Claws Mail package.
 # See COPYING file for license details.
+#
+appdata_in_files = claws-mail-archive.metainfo.xml.in
+appdatadir=$(datadir)/appdata
+appdata_DATA = $(appdata_in_files:.xml.in=.xml)
+
+@INTLTOOL_XML_RULE@
+
+EXTRA_DIST = $(appdata_DATA)
 
 plugindir = $(pkglibdir)/plugins
 

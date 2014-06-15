@@ -290,6 +290,12 @@ static FolderItem *imap_create_special_folder
 static gint imap_do_copy_msgs		(Folder		*folder,
 					 FolderItem	*dest,
 					 MsgInfoList	*msglist,
+					 GHashTable	*relation,
+					 gboolean	 same_dest_ok);
+
+static gint imap_do_remove_msgs		(Folder		*folder,
+					 FolderItem	*dest,
+					 MsgInfoList	*msglist,
 					 GHashTable	*relation);
 
 static void imap_delete_all_cached_messages	(FolderItem	*item);
@@ -1324,19 +1330,37 @@ static guint get_file_size_with_crs(const gchar *filename)
 	return cnt;
 }
 
-static void imap_remove_cached_msg(Folder *folder, FolderItem *item, MsgInfo *msginfo)
+static gchar *imap_get_cached_filename(FolderItem *item, guint msgnum)
 {
 	gchar *path, *filename;
+
+	cm_return_val_if_fail(item != NULL, NULL);
 
 	path = folder_item_get_path(item);
 
 	if (!is_dir_exist(path)) {
 		g_free(path);
-		return;
+		return NULL;
 	}
 
-	filename = g_strconcat(path, G_DIR_SEPARATOR_S, itos(msginfo->msgnum), NULL);
+	filename = g_strconcat(path, G_DIR_SEPARATOR_S, itos(msgnum), NULL);
+
+	if (is_dir_exist(filename)) {
+		g_free(filename);
+		filename = g_strconcat(path, G_DIR_SEPARATOR_S, ".", itos(msgnum), NULL);
+	}
 	g_free(path);
+
+	return filename;
+}
+
+static void imap_remove_cached_msg(Folder *folder, FolderItem *item, MsgInfo *msginfo)
+{
+	gchar *filename;
+
+	filename = imap_get_cached_filename(item, msginfo->msgnum);
+
+	cm_return_if_fail(filename != NULL);
 
 	if (is_file_exist(filename)) {
 		claws_unlink(filename);
@@ -1475,9 +1499,11 @@ static gchar *imap_fetch_msg_full(Folder *folder, FolderItem *item, gint uid,
 	path = folder_item_get_path(item);
 	if (!is_dir_exist(path))
 		make_dir_hier(path);
-	filename = g_strconcat(path, G_DIR_SEPARATOR_S, itos(uid), NULL);
 	g_free(path);
+
+	filename = imap_get_cached_filename(item, uid);
 	debug_print("trying to fetch cached %s\n", filename);
+
 	if (is_file_exist(filename)) {
 		/* see whether the local file represents the whole message
 		 * or not. As the IMAP server reports size with \r chars,
@@ -1575,7 +1601,7 @@ static gchar *imap_fetch_msg_full(Folder *folder, FolderItem *item, gint uid,
 
 static gboolean imap_is_msg_fully_cached(Folder *folder, FolderItem *item, gint uid)
 {
-	gchar *path, *filename;
+	gchar *filename;
 	guint size = 0;
 	MsgInfo *cached = msgcache_get_msg(item->cache,uid);
 	
@@ -1586,14 +1612,9 @@ static gboolean imap_is_msg_fully_cached(Folder *folder, FolderItem *item, gint 
 		procmsg_msginfo_free(cached);
 		return TRUE;
 	}
-	path = folder_item_get_path(item);
-	if (!is_dir_exist(path)) {
-		g_free(path);
-		return FALSE;
-	}
 
-	filename = g_strconcat(path, G_DIR_SEPARATOR_S, itos(uid), NULL);
-	g_free(path);
+	filename = imap_get_cached_filename(item, uid);
+
 	if (is_file_exist(filename)) {
 		if (cached && cached->total_size == cached->size) {
 			/* fast path */
@@ -1810,7 +1831,8 @@ static GSList *flatten_mailimap_set(struct mailimap_set * set)
 	return result;
 }
 static gint imap_do_copy_msgs(Folder *folder, FolderItem *dest, 
-			      MsgInfoList *msglist, GHashTable *relation)
+			      MsgInfoList *msglist, GHashTable *relation,
+			      gboolean same_dest_ok)
 {
 	FolderItem *src;
 	gchar *destdir;
@@ -1834,7 +1856,7 @@ static gint imap_do_copy_msgs(Folder *folder, FolderItem *dest,
 
 	msginfo = (MsgInfo *)msglist->data;
 	src = msginfo->folder;
-	if (src == dest) {
+	if (!same_dest_ok && src == dest) {
 		g_warning("the src folder is identical to the dest.\n");
 		return -1;
 	}
@@ -2018,8 +2040,30 @@ static gint imap_copy_msgs(Folder *folder, FolderItem *dest,
 	msginfo = (MsgInfo *)msglist->data;
 	g_return_val_if_fail(msginfo->folder != NULL, -1);
 
-	ret = imap_do_copy_msgs(folder, dest, msglist, relation);
+	ret = imap_do_copy_msgs(folder, dest, msglist, relation, FALSE);
 	return ret;
+}
+
+static gboolean imap_renumber_msg(MsgInfo *info)
+{
+	GSList msglist;
+	int ret;
+
+	g_return_val_if_fail(info != NULL, -1);
+
+	msglist.data = info;
+	msglist.next = NULL;
+
+	ret = imap_do_copy_msgs(info->folder->folder, info->folder, &msglist,
+				NULL, TRUE);
+	if (ret == 0)
+		ret = imap_do_remove_msgs(info->folder->folder, info->folder,
+					  &msglist, NULL);
+
+	if (ret == 0)
+		ret = folder_item_scan_full(info->folder, FALSE);
+
+	return ret == 0;
 }
 
 static gboolean imap_matcher_type_is_local(gint matchertype)
@@ -3068,6 +3112,17 @@ static FolderItem *imap_create_folder(Folder *folder, FolderItem *parent,
 	g_return_val_if_fail(folder->account != NULL, NULL);
 	g_return_val_if_fail(parent != NULL, NULL);
 	g_return_val_if_fail(name != NULL, NULL);
+
+	if (to_number(name) > 0) {
+		MsgInfo *info = folder_item_get_msginfo(parent, to_number(name));
+		if (info != NULL) {
+			gboolean ok = imap_renumber_msg(info);
+			procmsg_msginfo_free(info);
+			if (!ok) {
+				return NULL;
+			}
+		}
+	}
 
 	debug_print("getting session...\n");
 	session = imap_session_get(folder);

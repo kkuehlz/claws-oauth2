@@ -1497,8 +1497,11 @@ static gchar *imap_fetch_msg_full(Folder *folder, FolderItem *item, gint uid,
 		return NULL;
 
 	path = folder_item_get_path(item);
-	if (!is_dir_exist(path))
+	if (!is_dir_exist(path)) {
+		if(is_file_exist(path))
+			claws_unlink(path);
 		make_dir_hier(path);
+	}
 	g_free(path);
 
 	filename = imap_get_cached_filename(item, uid);
@@ -2042,28 +2045,6 @@ static gint imap_copy_msgs(Folder *folder, FolderItem *dest,
 
 	ret = imap_do_copy_msgs(folder, dest, msglist, relation, FALSE);
 	return ret;
-}
-
-static gboolean imap_renumber_msg(MsgInfo *info)
-{
-	GSList msglist;
-	int ret;
-
-	g_return_val_if_fail(info != NULL, -1);
-
-	msglist.data = info;
-	msglist.next = NULL;
-
-	ret = imap_do_copy_msgs(info->folder->folder, info->folder, &msglist,
-				NULL, TRUE);
-	if (ret == 0)
-		ret = imap_do_remove_msgs(info->folder->folder, info->folder,
-					  &msglist, NULL);
-
-	if (ret == 0)
-		ret = folder_item_scan_full(info->folder, FALSE);
-
-	return ret == 0;
 }
 
 static gboolean imap_matcher_type_is_local(gint matchertype)
@@ -3114,11 +3095,9 @@ static FolderItem *imap_create_folder(Folder *folder, FolderItem *parent,
 	g_return_val_if_fail(name != NULL, NULL);
 
 	if (to_number(name) > 0) {
-		MsgInfo *info = folder_item_get_msginfo(parent, to_number(name));
-		if (info != NULL) {
-			gboolean ok = imap_renumber_msg(info);
-			procmsg_msginfo_free(info);
-			if (!ok) {
+		gchar *cached_msg = imap_get_cached_filename(parent, to_number(name));
+		if (is_file_exist(cached_msg)) {
+			if (claws_unlink(cached_msg) != 0) {
 				return NULL;
 			}
 		}
@@ -4546,6 +4525,8 @@ gint imap_get_num_list(Folder *folder, FolderItem *_item, GSList **msgnum_list, 
 	GSList *uidlist = NULL;
 	gchar *dir;
 	gint known_list_len = 0;
+	gchar *path;
+
 	debug_print("get_num_list\n");
 	
 	g_return_val_if_fail(folder != NULL, -1);
@@ -4574,6 +4555,14 @@ gint imap_get_num_list(Folder *folder, FolderItem *_item, GSList **msgnum_list, 
 		return -1;
 	}
 	
+	path = folder_item_get_path(_item);
+	if (!is_dir_exist(path)) {
+		if(is_file_exist(path))
+			claws_unlink(path);
+		make_dir_hier(path);
+	}
+	g_free(path);
+
 	debug_print("getting session...\n");
 	session = imap_session_get(folder);
 	g_return_val_if_fail(session != NULL, -1);

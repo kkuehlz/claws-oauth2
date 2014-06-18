@@ -6862,7 +6862,11 @@ static void compose_create_header_entry(Compose *compose)
 	g_signal_connect(G_OBJECT(gtk_bin_get_child(GTK_BIN(combo))), "grab_focus",
 			 G_CALLBACK(compose_grab_focus_cb), compose);
 	gtk_widget_show(combo);
-	
+
+	/* Putting only the combobox child into focus chain of its parent causes
+	 * the parent to be skipped when changing focus via Tab or Shift+Tab.
+	 * This eliminates need to pres Tab twice in order to really get from the
+	 * combobox to next widget. */
 	GList *l = NULL;
 	l = g_list_prepend(l, gtk_bin_get_child(GTK_BIN(combo)));
 	gtk_container_set_focus_chain(GTK_CONTAINER(combo), l);
@@ -8101,6 +8105,15 @@ static GtkWidget *compose_account_option_menu_create(Compose *compose)
 
 	gtk_box_pack_start(GTK_BOX(hbox), optmenubox, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(hbox), from_name, TRUE, TRUE, 0);
+
+	/* Putting only the GtkEntry into focus chain of parent hbox causes
+	 * the account selector combobox next to it to be unreachable when
+	 * navigating widgets in GtkTable with up/down arrow keys.
+	 * Note: gtk_widget_set_can_focus() was not enough. */
+	GList *l = NULL;
+	l = g_list_prepend(l, from_name);
+	gtk_container_set_focus_chain(GTK_CONTAINER(hbox), l);
+	g_list_free(l);
 	
 	CLAWS_SET_TIP(optmenubox,
 		_("Account to use for this email"));
@@ -11065,10 +11078,6 @@ static gboolean completion_set_focus_to_subject
 					 GdkEventKey  *event,
 					 Compose      *compose)
 {
-	GtkTextBuffer *buffer;
-	GtkTextMark *mark;
-	GtkTextIter iter;
-
 	cm_return_val_if_fail(compose != NULL, FALSE);
 
 	/* make backtab move to subject field */
@@ -11076,25 +11085,6 @@ static gboolean completion_set_focus_to_subject
 		gtk_widget_grab_focus(compose->subject_entry);
 		return TRUE;
 	}
-
-	// Up key should also move the focus to subject field, if the cursor
-	// is on the first line.
-	if ((event->keyval == GDK_KEY_Up || event->keyval == GDK_KEY_KP_Up)
-	  && (event->state & (GDK_SHIFT_MASK|GDK_CONTROL_MASK)) == 0) {
-		buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(widget));
-		g_return_val_if_fail(buffer != NULL, FALSE);
-
-		mark = gtk_text_buffer_get_mark(buffer, "insert");
-		g_return_val_if_fail(mark != NULL, FALSE);
-
-		gtk_text_buffer_get_iter_at_mark(buffer, &iter, mark);
-
-		if (gtk_text_iter_get_line(&iter) == 0) {
-			gtk_widget_grab_focus(compose->subject_entry);
-			return TRUE;
-		}
-	}
-
 	return FALSE;
 }
 

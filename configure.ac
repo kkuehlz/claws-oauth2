@@ -904,6 +904,19 @@ else
 fi
 AM_CONDITIONAL(CLAWS_VALGRIND, test x"$enable_valgrind" = x"yes")
 
+dnl disabled by default
+AC_ARG_ENABLE(appdata,
+		[  --enable-appdata		Build appdata],
+		[enable_appdata=$enableval], [enable_appdata=no])
+
+AC_MSG_CHECKING([whether to build appdata])
+if test x"$enable_appdata" != xno; then
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(BUILD_APPDATA, test x"$enable_appdata" = x"yes")
+
 dnl *************************
 dnl ** section for plugins **
 dnl *************************
@@ -1060,7 +1073,7 @@ dnl PGP/Mime:		pgpcore libgpgme
 dnl PGP/Inline:		pgpcore libgpgme
 dnl S/Mime:		pgpcore libgpgme
 dnl Python:		Python
-dnl RSSyl:		libxml2 libcurl
+dnl RSSyl:		expat libcurl
 dnl SpamReport:		libcurl
 dnl vCalendar:		libcurl
 dnl VFolder:		none
@@ -1070,10 +1083,15 @@ PKG_CHECK_MODULES(CURL, libcurl, HAVE_CURL=yes, HAVE_CURL=no)
 AC_SUBST(CURL_LIBS)
 AC_SUBST(CURL_CFLAGS)
 
-dnl libxml2 ********************************************************************
-PKG_CHECK_MODULES(LIBXML, libxml-2.0, HAVE_LIBXML=yes, HAVE_LIBXML=no)
-AC_SUBST(LIBXML_LIBS)
-AC_SUBST(LIBXML_CFLAGS)
+dnl expat **********************************************************************
+HAVE_EXPAT=no
+AC_CHECK_HEADER(expat.h, [expat_header=yes], [])
+AC_CHECK_LIB(expat, XML_ParserCreate, [expat_lib=yes], [])
+if test x"$expat_header" = xyes -a x"$expat_lib"=xyes; then
+	HAVE_EXPAT=yes
+	AC_DEFINE(HAVE_EXPAT, 1, [Define if expat is available])
+	EXPAT_LIBS="-lexpat"
+fi
 
 dnl webkit *********************************************************************
 PKG_CHECK_MODULES(WEBKIT, webkit-1.0 >= 1.1.14, HAVE_WEBKIT=yes, HAVE_WEBKIT=no)
@@ -1727,8 +1745,8 @@ AC_MSG_CHECKING([whether to build rssyl plugin])
 if test x"$enable_rssyl_plugin" != xno; then
 	dependencies_missing=""
 
-	if test x"$HAVE_LIBXML" = xno; then
-		dependencies_missing="libxml2 $dependencies_missing"
+	if test x"$HAVE_EXPAT" = xno; then
+		dependencies_missing="expat $dependencies_missing"
 	fi
 	if test x"$HAVE_CURL" = xno; then
 		dependencies_missing="libcurl $dependencies_missing"
@@ -1885,6 +1903,7 @@ dnl ****************************
 
 AC_OUTPUT([
 Makefile
+appdata/Makefile
 m4/Makefile
 po/Makefile.in
 src/common/version.h
@@ -1922,6 +1941,7 @@ src/plugins/pgpcore/Makefile
 src/plugins/pgpmime/Makefile
 src/plugins/pgpinline/Makefile
 src/plugins/rssyl/Makefile
+src/plugins/rssyl/libfeed/Makefile
 src/plugins/smime/Makefile
 src/plugins/spamassassin/Makefile
 src/plugins/spam_report/Makefile
@@ -1995,6 +2015,7 @@ echo "DBUS               : $enable_dbus"
 echo "NetworkManager     : $enable_networkmanager"
 echo "Manual             : $enable_manual"
 echo "Generic UMPC code  : $enable_generic_umpc"
+echo "AppData            : $enable_appdata"
 echo "Config dir         : $ac_cv_with_config_dir"
 
 echo "Plugins"

@@ -41,6 +41,22 @@ G_BEGIN_DECLS
 #define VFOLDER_DEFAULT_MAILBOX	_("Virtual folders")
 
 typedef struct _VFolderItem VFolderItem;
+typedef struct _MsgVault MsgVault;
+
+typedef enum {
+	FOLDER_ITEM_PROPS_OK,
+	FOLDER_ITEM_PROPS_NO_ITEM,
+	FOLDER_ITEM_PROPS_BACKUP_FAIL,
+	FOLDER_ITEM_PROPS_READ_DATA_FAIL,
+	FOLDER_ITEM_PROPS_MAKE_RC_DIR_FAIL,
+	FOLDER_ITEM_PROPS_READ_USING_DEFAULT
+} FolderPropsResponse;
+
+typedef enum {
+	SEARCH_HEADERS	= 1,				/* from/to/subject */
+	SEARCH_BODY		= 2,				/* message */
+	SEARCH_BOTH		= 4					/* both */
+} SearchType;
 
 typedef MsgInfoList* (*MSGFILTERFUNC) (MsgInfoList* msgs, VFolderItem* item);
 
@@ -50,9 +66,12 @@ struct _VFolderItem {
 	gchar*			filter;				/* Regex used to select messages */
 	gboolean		frozen;				/* Automatic update or not */
 	gboolean		updating;			/* Is this VFolder currently updating */
+	gboolean		changed;
 
+	SearchType		search;
 	FolderItem*		source;				/* Source folder for virtual folder */
-	GHashTable*		msg_store;		    /* Hashtable containing MsgInfo. Key is msginfo_identifier */
+	gchar*			source_id;
+	MsgVault*		msgvault;		    /* Message store */
 	MSGFILTERFUNC	msg_filter_func;	/* Active filter function */
 };
 
@@ -70,6 +89,18 @@ gboolean vfolder_init(void);
 void vfolder_done(void);
 
 FolderClass* vfolder_folder_get_class(void);
+gint vfolder_get_virtual_msg_num(VFolderItem* vitem, gint srcnum);
+gint vfolder_get_source_msg_num(VFolderItem* vitem, gint virtnum);
+void vfolder_set_last_num(Folder *folder, FolderItem *item);
+gboolean vfolder_msgvault_add(VFolderItem* vitem);
+void vfolder_msgvault_free(MsgVault* data);
+MsgVault* vfolder_msgvault_new();
+gboolean vfolder_msgvault_serialize(VFolderItem* vitem, GKeyFile* config);
+gboolean vfolder_msgvault_restore(VFolderItem* vitem, GKeyFile* config);
+void vfolder_scan_source_folder(VFolderItem * vitem);
+void vfolder_scan_source_folder_list(GSList* vitems);
+void vfolder_scan_source_folder_all();
+VFolderItem* vfolder_folder_item_watch(FolderItem* item);
 
 G_END_DECLS
 

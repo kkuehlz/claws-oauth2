@@ -60,7 +60,7 @@
 static guint folder_hook_id;
 static guint item_hook_id;
 static guint msginfo_hook_id;
-static GSList* widgets = NULL;
+//static GSList* widgets = NULL;
 
 typedef struct {
 	MsgInfoList*	list;
@@ -84,8 +84,8 @@ static char* vfolder_popup_menu_labels[] = {
 };
 
 static GtkActionEntry vfolder_popup_entries[] = {
-	{"FolderViewPopup/RefreshFolder",		NULL, NULL, NULL, NULL, NULL /*G_CALLBACK(vfolder_refresh_cb)*/ },
-	{"FolderViewPopup/RefreshAllFolders",	NULL, NULL, NULL, NULL, NULL /*G_CALLBACK(vfolder_refresh_cb)*/ },
+	{"FolderViewPopup/RefreshFolder",		NULL, NULL, NULL, NULL, G_CALLBACK(vfolder_refresh_cb) },
+	{"FolderViewPopup/RefreshAllFolders",	NULL, NULL, NULL, NULL, G_CALLBACK(vfolder_refresh_all_cb) },
 
 	{"FolderViewPopup/FolderProperties",	NULL, NULL, NULL, NULL, G_CALLBACK(vfolder_properties_cb) },
 
@@ -112,9 +112,9 @@ static void vfolder_set_sensitivity(GtkUIManager *ui_manager, FolderItem *item) 
 #define SET_SENS(name, sens) \
 	cm_menu_set_sensitive_full(ui_manager, "Popup/"name, sens)
 
-	VFolderItem *ritem = (VFolderItem *)item;
-	SET_SENS("FolderViewPopup/RefreshFolder", folder_item_parent(item) != NULL && ! ritem->frozen);
-	SET_SENS("FolderViewPopup/RefreshAllFolders", folder_item_parent(item) == NULL && ! ritem->frozen);
+	VFolderItem* vitem = VFOLDER_ITEM(item);
+	SET_SENS("FolderViewPopup/RefreshFolder", folder_item_parent(item) != NULL && ! vitem->frozen);
+	SET_SENS("FolderViewPopup/RefreshAllFolders", folder_item_parent(item) == NULL && ! vitem->frozen);
 	SET_SENS("FolderViewPopup/FolderProperties", folder_item_parent(item) != NULL);
 	SET_SENS("FolderViewPopup/RenameFolder", folder_item_parent(item) != NULL);
 	SET_SENS("FolderViewPopup/NewFolder", TRUE);
@@ -142,325 +142,6 @@ static void vfolder_fill_popup_menu_labels(void) {
 	}
 }
 
-static void gslist_menu_item_free(GSList** menu_list) {
-	GSList* list;
-
-	if (! menu_list || ! *menu_list)
-		return;
-
-	for (list = *menu_list; list; list = g_slist_next(list)) {
-		MenuItem* menu = (MenuItem *) list->data;
-		g_free(menu);
-	}
-
-	g_slist_free(*menu_list);
-	*menu_list = NULL;
-}
-
-static gboolean get_menu_widgets() {
-	MainWindow* mainwindow;
-	MenuItem* menuitem = NULL;
-	GtkWidget* widget;
-
-	mainwindow = mainwindow_get_mainwindow();
-	if (mainwindow && mainwindow->ui_manager) {
-		widget = gtk_ui_manager_get_widget(
-			mainwindow->ui_manager, "/Menus/SummaryViewPopup/Move/");
-		if (widget) {
-			menuitem = g_new0(MenuItem, 1);
-			menuitem->widget = widget;
-			menuitem->action = gtk_ui_manager_get_action(
-				mainwindow->ui_manager, "/Menus/SummaryViewPopup/Move/");
-			widgets = g_slist_prepend(widgets, menuitem);
-		}
-		else
-			return FALSE;
-
-		widget = gtk_ui_manager_get_widget(
-			mainwindow->ui_manager, "/Menus/SummaryViewPopup/Trash/");
-		if (widget) {
-			menuitem = g_new0(MenuItem, 1);
-			menuitem->widget = widget;
-			menuitem->action = gtk_ui_manager_get_action(
-				mainwindow->ui_manager, "/Menus/SummaryViewPopup/Trash/");
-			widgets = g_slist_prepend(widgets, menuitem);
-		}
-		else {
-			gslist_menu_item_free(&widgets);
-			return FALSE;
-		}
-
-		widget = gtk_ui_manager_get_widget(
-			mainwindow->ui_manager, "/Menus/SummaryViewPopup/Delete/");
-		if (widget) {
-			menuitem = g_new0(MenuItem, 1);
-			menuitem->widget = widget;
-			menuitem->action = gtk_ui_manager_get_action(
-				mainwindow->ui_manager, "/Menus/SummaryViewPopup/Delete/");
-			widgets = g_slist_prepend(widgets, menuitem);
-		}
-		else {
-			gslist_menu_item_free(&widgets);
-			return FALSE;
-		}
-
-		widget = gtk_ui_manager_get_widget(
-			mainwindow->ui_manager, "/Menu/Message/Move/");
-		if (widget) {
-			menuitem = g_new0(MenuItem, 1);
-			menuitem->widget = widget;
-			menuitem->action = gtk_ui_manager_get_action(
-				mainwindow->ui_manager, "/Menu/Message/Move/");
-			widgets = g_slist_prepend(widgets, menuitem);
-		}
-		else {
-			gslist_menu_item_free(&widgets);
-			return FALSE;
-		}
-
-		widget = gtk_ui_manager_get_widget(
-			mainwindow->ui_manager, "/Menu/Message/Trash/");
-		if (widget) {
-			menuitem = g_new0(MenuItem, 1);
-			menuitem->widget = widget;
-			menuitem->action = gtk_ui_manager_get_action(
-				mainwindow->ui_manager, "/Menu/Message/Trash/");
-			widgets = g_slist_prepend(widgets, menuitem);
-		}
-		else {
-			gslist_menu_item_free(&widgets);
-			return FALSE;
-		}
-
-		widget = gtk_ui_manager_get_widget(
-			mainwindow->ui_manager, "/Menu/Message/Delete/");
-		if (widget) {
-			menuitem = g_new0(MenuItem, 1);
-			menuitem->widget = widget;
-			menuitem->action = gtk_ui_manager_get_action(
-				mainwindow->ui_manager, "/Menu/Message/Delete/");
-			widgets = g_slist_prepend(widgets, menuitem);
-		}
-		else {
-			gslist_menu_item_free(&widgets);
-			return FALSE;
-		}
-
-	}
-	else
-		return FALSE;
-
-	return TRUE;
-}
-/*
-static gboolean vfolder_widgets_is_visible() {
-	gboolean visible = TRUE;
-
-	if (widgets && widgets->data) {
-		MenuItem* menu = (MenuItem *) widgets->data;
-		visible = gtk_widget_get_visible(menu->widget);
-	}
-
-	return visible;
-}
-
-static gboolean vfolder_hide_widgets(VFolderItem* item) {
-	GSList* list;
-	MainWindow* mainwindow;
-
-//	if (! item->deep_copy) {
-		for (list = widgets; list; list = g_slist_next(list)) {
-			MenuItem* menu = (MenuItem *) list->data;
-			gtk_widget_hide(menu->widget);
-			gtk_action_block_activate(menu->action);
-		}
-
-		mainwindow = mainwindow_get_mainwindow();
-		if (mainwindow && mainwindow->toolbar) {
-			if (mainwindow->toolbar->trash_btn)
-				gtk_widget_hide(mainwindow->toolbar->trash_btn);
-			if (mainwindow->toolbar->delete_btn)
-				gtk_widget_hide(mainwindow->toolbar->delete_btn);
-		}
-//	}
-	return TRUE;
-}
-*/
-static gboolean vfolder_show_widgets(VFolderItem* item) {
-	GSList* list;
-	MainWindow* mainwindow;
-
-//	if (! item->deep_copy) {
-		for (list = widgets; list; list = g_slist_next(list)) {
-			MenuItem* menu = (MenuItem *) list->data;
-			gtk_widget_show(menu->widget);
-			gtk_action_unblock_activate(menu->action);
-		}
-
-		mainwindow = mainwindow_get_mainwindow();
-		if (mainwindow && mainwindow->toolbar) {
-			if (mainwindow->toolbar->trash_btn)
-				gtk_widget_show(mainwindow->toolbar->trash_btn);
-			if (mainwindow->toolbar->delete_btn)
-				gtk_widget_show(mainwindow->toolbar->delete_btn);
-		}
-//	}
-	return TRUE;
-}
-/*
-static gchar* vfolder_get_message_file_path(VFolderItem* item, MsgInfo* msg) {
-	gchar* path;
-	GSList* list = NULL, *cur;
-	Folder* folder;
-	gboolean old_uid;
-	guint last = 0;
-
-	if (item->deep_copy) {
-		path = procmsg_get_message_file_path(msg);
-	}
-	else {
-		gchar* root = folder_item_get_path(msg->to_folder);
-		folder = msg->to_folder->folder;
-		guint num = folder->klass->get_num_list(folder, msg->to_folder, &list, &old_uid);
-		if (num >= 0) {
-			for (cur = list, last = 0; cur; cur = g_slist_next(cur)) {
-				guint tmp = GPOINTER_TO_UINT(cur->data);
-				if (tmp > last)
-					last = tmp;
-			}
-		}
-		g_slist_free(list);
-
-		path = g_strdup_printf("%s%s%u", root, G_DIR_SEPARATOR_S, last + 1);
-		g_free(root);
-	}
-	return path;
-}
-*/
-
-/*
-static void vfolder_item_update(AddMsgData* msgdata) {
-	MsgInfoList* cur;
-	GSList update;
-	MsgFileInfo fileinfo;
-
-	if (!msgdata->item || !msgdata->list->data)
-		return;
-
-	for (cur = msgdata->list; cur; cur = g_slist_next(cur)) {
-		MsgInfo* msg = (MsgInfo *) cur->data;
-		if (MSG_IS_DELETED(msg->flags)) {
-			folder_item_remove_msg(FOLDER_ITEM(msgdata->item), msg->msgnum);
-		}
-		else {
-			fileinfo.msginfo = msg;
-			fileinfo.flags = &msg->flags;
-			fileinfo.file = msgdata->file;
-			update.data = &fileinfo;
-			update.next = NULL;
-			folder_item_scan(msg->folder);
-			gint n = folder_item_add_msgs(FOLDER_ITEM(msgdata->item), &update, FALSE);
-			gchar* p = strrchr(fileinfo.file, G_DIR_SEPARATOR);
-			p += 1;
-			guint num = to_number((const gchar *) p);
-			vfolder_replace_key_in_bridge(msgdata->item, msg->msgnum, num);
-			FOLDER_ITEM(msgdata->item)->last_num = n;
-		}
-	}
-
-	//procmsg_message_file_list_free(list);
-	//item->msginfos = folder_item_get_msg_list(FOLDER_ITEM(item));
-}
-*/
-/*
-static void add_msg_data_free(AddMsgData** rec) {
-	if (rec && *rec) {
-		AddMsgData* data = *rec;
-		g_slist_free(data->list);
-		g_free(data->file);
-		g_free(data);
-		*rec = NULL;
-	}
-}
-*/
-/*
-static void vfolder_update_affected_folder_items(MsgInfo* msginfo) {
-	GList *vfolders, *cur;
-	GSList* cur_msg;
-	gchar* src;
-	AddMsgData* data;
-	MsgInfo* msg;
-
-	if (! msginfo)
-		return;
-
-	if (MSG_IS_NEW(msginfo->flags) ||
-		MSG_IS_MOVE(msginfo->flags) ||
-		MSG_IS_COPY(msginfo->flags) ||
-		MSG_IS_DELETED(msginfo->flags)) {
-		vfolders = vfolder_get_vfolder_items();
-		for (cur = vfolders; cur; cur = g_list_next(cur)) {
-			data = g_new0(AddMsgData, 1);
-			VFolderItem* vitem = VFOLDER_ITEM(cur->data);
-			if (MSG_IS_MOVE(msginfo->flags) || MSG_IS_COPY(msginfo->flags))
-				src = folder_item_get_identifier(msginfo->to_folder);
-			else
-				src = folder_item_get_identifier(msginfo->folder);
-			gchar* shadow = folder_item_get_identifier(vitem->source);
-			debug_print("cmp %s : %s\n", src, shadow);
-			if (src && shadow && strcmp(src, shadow) == 0) {
-				if (MSG_IS_DELETED(msginfo->flags)) {
-					msg = vfolder_find_msg_from_claws_num(vitem, msginfo->msgnum);
-					if (msg)
-						data->list = g_slist_append(data->list, msg);
-					else {
-						add_msg_data_free(&data);
-						g_slist_free(add_msg_data);
-						add_msg_data = NULL;
-						g_free(src);
-						g_free(shadow);
-						return;
-					}
-				}
-				else {
-					data->list = g_slist_append(data->list, msginfo);
-					data->item = vitem;
-					data->file = vfolder_get_message_file_path(vitem, msginfo);
-					add_msg_data = g_slist_prepend(add_msg_data, data);
-				}
-				if (data->list && MSG_IS_DELETED(msginfo->flags)) {
-					GSList* list = vfolder_filter_msgs_list(data->list, vitem);
-					if (list && list->data) {
-						MsgInfo* msg = (MsgInfo *) list->data;
-						MSG_SET_PERM_FLAGS(msg->flags, MSG_DELETED);
-					}
-					g_slist_free(data->list);
-					data->list = list;
-					data->item = vitem;
-					vfolder_item_update(data);
-					add_msg_data_free(&data);
-					g_slist_free(add_msg_data);
-					add_msg_data = NULL;
-				}
-			}
-			g_free(src);
-			g_free(shadow);
-		}
-	}
-	if (add_msg_data) {
-		for (cur_msg = add_msg_data; cur_msg; cur_msg = g_slist_next(cur_msg)) {
-			data = (AddMsgData *) cur_msg->data;
-			GSList* list = vfolder_filter_msgs_list(data->list, data->item);
-			g_slist_free(data->list);
-			data->list = list;
-			vfolder_item_update(data);
-			add_msg_data_free(&data);
-		}
-		g_slist_free(add_msg_data);
-		add_msg_data = NULL;
-	}
-}
-*/
 static gboolean vfolder_folder_update_hook(gpointer source, gpointer data) {
 	FolderUpdateData* hookdata;
 
@@ -470,9 +151,9 @@ static gboolean vfolder_folder_update_hook(gpointer source, gpointer data) {
 	if (! hookdata->folder || IS_VFOLDER_FOLDER(hookdata->folder))
 		return FALSE;
 
-	if (hookdata->update_flags & FOLDER_REMOVE_FOLDERITEM) {
-		/* TODO: check if the removed folder item is foundation for vfolder */
-		debug_print("FOLDER_REMOVE_FOLDERITEM\n");
+	if (hookdata->update_flags & FOLDER_ADD_FOLDER) {
+		/* TODO: check if the added folder is foundation for vfolder */
+		debug_print("FOLDER_ADD_FOLDER\n");
 	}
 
 	if (hookdata->update_flags & FOLDER_REMOVE_FOLDER) {
@@ -481,13 +162,28 @@ static gboolean vfolder_folder_update_hook(gpointer source, gpointer data) {
 	}
 
 	if (hookdata->update_flags & FOLDER_TREE_CHANGED) {
-		/* TODO: check if the removed folder is foundation for vfolder */
+		/* TODO: check if the changed folder tree affects any vfolder */
 		debug_print("FOLDER_TREE_CHANGED\n");
 	}
 
+	if (hookdata->update_flags & FOLDER_ADD_FOLDERITEM) {
+		/* TODO: check if the added folder item affects any vfolder */
+		debug_print("FOLDER_ADD_FOLDERITEM\n");
+	}
+
+	if (hookdata->update_flags & FOLDER_REMOVE_FOLDERITEM) {
+		/* TODO: check if the removed folder item is foundation for vfolder */
+		debug_print("FOLDER_REMOVE_FOLDERITEM\n");
+	}
+
 	if (hookdata->update_flags & FOLDER_RENAME_FOLDERITEM) {
-		/* TODO: check if the removed folder is foundation for vfolder */
+		/* TODO: can renaming a folder item affect any vfolder? */
 		debug_print("FOLDER_RENAME_FOLDERITEM\n");
+	}
+
+	if (hookdata->update_flags & FOLDER_MOVE_FOLDERITEM) {
+		/* TODO: check if the moved folder item is foundation for vfolder */
+		debug_print("FOLDER_MOVE_FOLDERITEM\n");
 	}
 
 	return FALSE;
@@ -495,10 +191,7 @@ static gboolean vfolder_folder_update_hook(gpointer source, gpointer data) {
 
 static gboolean vfolder_folder_item_update_hook(gpointer source, gpointer data) {
 	FolderItemUpdateData* hookdata;
-//	gint save_state = -1;
-	GList *items = NULL, *cur;
-//	gboolean r;
-//	MainWindow* mainwindow;
+	VFolderItem* vitem;
 
 	g_return_val_if_fail(source != NULL, FALSE);
 	hookdata = (FolderItemUpdateData *) source;
@@ -506,161 +199,112 @@ static gboolean vfolder_folder_item_update_hook(gpointer source, gpointer data) 
 	if (! hookdata->item || IS_VFOLDER_FOLDER_ITEM(hookdata->item))
 		return FALSE;
 
+	if (hookdata->update_flags & F_ITEM_UPDATE_MSGCNT &&
+	    ~ hookdata->update_flags & (F_ITEM_UPDATE_MSGCNT | F_ITEM_UPDATE_CONTENT)) {
+		debug_print("F_ITEM_UPDATE_MSGCNT\n");
+/*		vitem = vfolder_folder_item_watch(hookdata->item);
+		if (vitem && ! vitem->updating)
+			vfolder_scan_source_folder(vitem);*/
+	}
+
+	if (hookdata->update_flags & F_ITEM_UPDATE_CONTENT /*&&
+		~ hookdata->update_flags & (F_ITEM_UPDATE_MSGCNT | F_ITEM_UPDATE_CONTENT)*/) {
+		debug_print("F_ITEM_UPDATE_CONTENT\n");
+		vitem = vfolder_folder_item_watch(hookdata->item);
+		if (vitem && ! vitem->updating)
+			vfolder_scan_source_folder(vitem);
+	}
+
+	if (hookdata->update_flags & F_ITEM_UPDATE_ADDMSG) {
+		debug_print("F_ITEM_UPDATE_ADDMSG\n");
+	}
+
 	if (hookdata->update_flags & F_ITEM_UPDATE_REMOVEMSG ) {
 		debug_print("F_ITEM_UPDATE_REMOVEMSG\n");
-		//items = vfolder_get_vfolder_from_source(hookdata->item);
-		if (items) {
-			for (cur = items; cur; cur = g_list_next(cur)) {
-				//vfolder_folder_item_update_msgs(VFOLDER_ITEM(cur->data), F_ITEM_UPDATE_REMOVEMSG);
-			}
-			g_list_free(items);
-		}
 	}
 
-	else if (hookdata->update_flags & F_ITEM_UPDATE_CONTENT) {
-		debug_print("F_ITEM_UPDATE_CONTENT\n");
-		//items = vfolder_get_vfolder_from_source(hookdata->item);
-		if (items) {
-			for (cur = items; cur; cur = g_list_next(cur)) {
-				//vfolder_folder_item_update_msgs(VFOLDER_ITEM(cur->data), F_ITEM_UPDATE_CONTENT);
-			}
-			g_list_free(items);
-		}
-		//mainwindow = mainwindow_get_mainwindow();
-		//summary_execute(mainwindow->summaryview);
-	}
-
-	else if (hookdata->update_flags & F_ITEM_UPDATE_ADDMSG) {
-		debug_print("F_ITEM_UPDATE_ADDMSG\n");
-		//items = vfolder_get_vfolder_from_source(hookdata->item);
-		if (items) {
-			for (cur = items; cur; cur = g_list_next(cur)) {
-				//vfolder_folder_item_update_msgs(VFOLDER_ITEM(cur->data), F_ITEM_UPDATE_ADDMSG);
-			}
-			g_list_free(items);
-		}
-	}
-
-	else if (hookdata->update_flags & F_ITEM_UPDATE_MSGCNT) {
-		debug_print("F_ITEM_UPDATE_MSGCNT\n");
-/*		if (IS_VFOLDER_FOLDER_ITEM(item)) {
-
-			if (! (VFOLDER_ITEM(item))->deep_copy) {
-				if (! (VFOLDER_ITEM(item))->active) {
-					r = vfolder_hide_widgets(VFOLDER_ITEM(item));
-					if (r)
-						VFOLDER_ITEM(item)->active = TRUE;
-				}
-				else {
-					r = vfolder_show_widgets(VFOLDER_ITEM(item));
-					if (r)
-						VFOLDER_ITEM(item)->active = FALSE;
-				}
-
-				if (r)
-					save_state = 1;
-				else
-					save_state = 0;
-			}
-			else
-				vfolder_show_widgets(VFOLDER_ITEM(item));
-		}
-		else {
-			if (!vfolder_widgets_is_visible())
-				vfolder_show_widgets(VFOLDER_ITEM(item));
-		}*/
-/*
-		items = vfolder_get_vfolder_from_source(hookdata->item);
-		if (items) {
-			for (cur = items; cur; cur = g_list_next(cur)) {
-				vfolder_folder_item_update_msgs(VFOLDER_ITEM(cur->data), F_ITEM_UPDATE_MSGCNT);
-			}
-			g_list_free(items);
-		}
-*/
-	}
-
-	else if (hookdata->update_flags & F_ITEM_UPDATE_NAME) {
+	if (hookdata->update_flags & F_ITEM_UPDATE_NAME) {
 		/* TODO: need update? */
 		debug_print("F_ITEM_UPDATE_NAME\n");
-		//items = vfolder_get_vfolder_from_source(hookdata->item);
-		if (items) {
-			for (cur = items; cur; cur = g_list_next(cur)) {
-				//vfolder_folder_item_update_msgs(VFOLDER_ITEM(cur->data), F_ITEM_UPDATE_NAME);
-			}
-			g_list_free(items);
-		}
 	}
 
-	else {
-		/* Unhandled callback */
-		debug_print("Unhandled FolderItem callback\n");
-	}
-/*
-	if (!save_state) {
-		MainWindow* mainwindow = mainwindow_get_mainwindow();
-		alertpanel_error(_("%s: Could not hide dangerous actions"), hookdata->item->name);
-		summary_lock(mainwindow->summaryview);
-	}
-*/
 	return FALSE;
 }
-/*
+
 static gboolean vfolder_msg_info_update_hook(gpointer source, gpointer data) {
 	MsgInfoUpdate* hookdata;
-	MainWindow* mainwindow;
 	MsgInfo* msginfo;
+	VFolderItem* vitem;
 
-	g_return_val_if_fail(source != NULL, FALSE);
+	cm_return_val_if_fail(source != NULL, FALSE);
+
 	hookdata = (MsgInfoUpdate *) source;
 	msginfo = hookdata->msginfo;
 
-	g_return_val_if_fail(msginfo != NULL, TRUE);
+	cm_return_val_if_fail(msginfo != NULL, FALSE);
 
 	if (IS_VFOLDER_MSGINFO(msginfo))
 		return FALSE;
 
-	debug_print("\n\nPermflag: %u Tmpflag: %u (scanned: %u)\n\n\n",
-		(guint32) msginfo->flags.perm_flags, (guint32) msginfo->flags.tmp_flags, 1U << 31);
 	if (MSG_IS_NEW(msginfo->flags)) {
-		debug_print("MSG_IS_NEW\n");
-		vfolder_update_affected_folder_items(msginfo);
-		mainwindow = mainwindow_get_mainwindow();
-		summary_execute(mainwindow->summaryview);
+		vitem = vfolder_folder_item_watch(msginfo->folder);
+		if (vitem) {
+			debug_print("MSG_IS_NEW\n");
+		}
 	}
 
 	if (MSG_IS_DELETED(msginfo->flags)) {
-		debug_print("MSG_IS_DELETED\n");
-		vfolder_update_affected_folder_items(msginfo);
-		mainwindow = mainwindow_get_mainwindow();
-		summary_execute(mainwindow->summaryview);
+		vitem = vfolder_folder_item_watch(msginfo->folder);
+		if (vitem) {
+			debug_print("MSG_IS_DELETED\n");
+			folder_item_remove_msg(FOLDER_ITEM(vitem), msginfo->msgnum);
+		}
 	}
 
 	if (MSG_IS_MOVE(msginfo->flags)) {
+		debug_print("MSG_IS_MOVE to VFolder\n");
+		if (IS_VFOLDER_FOLDER_ITEM(msginfo->to_folder)) {
+			vitem = VFOLDER_ITEM(msginfo->to_folder);
+			gchar* msg = g_strconcat(vitem->source_id, ":\n",
+							_("Cannot move to VFolder"), NULL);
+			alertpanel_error(msg);
+			g_free(msg);
+			return FALSE;
+		}
+		vitem = vfolder_folder_item_watch(msginfo->to_folder);
+		if (! vitem) {
+			/*
+			 * if folder we move to is already monitored we need not
+			 * do anything since distination folder will be automatically
+			 * scanned when F_ITEM_UPDATE_MSGCNT is invoked
+			 */
+			 folder_item_remove_msg(FOLDER_ITEM(vitem), msginfo->msgnum);
+		}
+	}
+
+	if (MSG_IS_MOVE_DONE(msginfo->flags)) {
+		vitem = vfolder_folder_item_watch(msginfo->to_folder);
+		if (vitem) {
+			return FALSE;
+		}
 		debug_print("MSG_IS_MOVE\n");
-		vfolder_update_affected_folder_items(msginfo);
-		mainwindow = mainwindow_get_mainwindow();
-		summary_execute(mainwindow->summaryview);
 	}
 
 	if (MSG_IS_COPY(msginfo->flags)) {
 		debug_print("MSG_IS_COPY\n");
-		vfolder_update_affected_folder_items(msginfo);
-		mainwindow = mainwindow_get_mainwindow();
-		summary_execute(mainwindow->summaryview);
+		if (IS_VFOLDER_FOLDER_ITEM(msginfo->to_folder)) {
+			vitem = VFOLDER_ITEM(msginfo->to_folder);
+			gchar* msg = g_strconcat(vitem->source_id, ":\n",
+							_("Cannot copy to VFolder"), NULL);
+			alertpanel_error(msg);
+			g_free(msg);
+			return FALSE;
+		}
 	}
-
-//	if (MSG_IS_POSTFILTERED(msginfo->flags)) {
-//		debug_print("MSG_IS_POSTFILTERED\n");
-//		vfolder_update_affected_folder_items(msginfo);
-//		mainwindow = mainwindow_get_mainwindow();
-//		summary_execute(mainwindow->summaryview);
-//	}
-
 
 	return FALSE;
 }
-*/
+
 static gchar* vfolder_get_rc_file(VFolderItem* item) {
 	gchar* (*item_get_path)	(Folder* folder, FolderItem* item);
 	gchar* path;
@@ -675,56 +319,32 @@ static gchar* vfolder_get_rc_file(VFolderItem* item) {
 	return rc_file;
 }
 
-FolderPropsResponse vfolder_folder_item_props_write(VFolderItem* item) {
+FolderPropsResponse vfolder_folder_item_props_write(VFolderItem* vitem) {
 	gchar* rc_file;
 	GKeyFile* config;
-	gchar* id;
 	gchar* data = NULL;
 	FILE* fp;
 	gsize len = 0;
 	FolderPropsResponse resp = FOLDER_ITEM_PROPS_NO_ITEM;
-/*	gchar* numstr;
-	GHashTableIter iter;
-	gpointer key, value;*/
 
-	g_return_val_if_fail(item != NULL, resp);
+	g_return_val_if_fail(vitem != NULL, resp);
 
-	rc_file = vfolder_get_rc_file(item);
+	if (! vitem->changed) return FOLDER_ITEM_PROPS_OK;
+
+	debug_print("%s: Writing configuration\n", vitem->source_id);
+
+	rc_file = vfolder_get_rc_file(vitem);
 	config = g_key_file_new();
 
-	if (item->filter)
-		g_key_file_set_string(config, CONFIG_GROUP, "filter", item->filter);
+	if (vitem->filter)
+		g_key_file_set_string(config, CONFIG_GROUP, "filter", vitem->filter);
+	if (vitem->source_id)
+		g_key_file_set_string(config, CONFIG_GROUP, "source_id", vitem->source_id);
+	g_key_file_set_boolean(config, CONFIG_GROUP, "frozen", vitem->frozen);
+	g_key_file_set_integer(config, CONFIG_GROUP, "searchtype", vitem->search);
 
-	g_key_file_set_boolean(config, CONFIG_GROUP, "frozen", item->frozen);
-
-	if (item->source) {
-		id = folder_item_get_identifier(item->source);
-		if (id) {
-			g_key_file_set_string(config, CONFIG_GROUP, "source", id);
-			g_free(id);
-		}
-	}
-
-/*	if (item->claws_to_me && item->me_to_claws) {
-		numstr = NULL;
-		g_hash_table_iter_init(&iter, item->claws_to_me);
-		while (g_hash_table_iter_next(&iter, &key, &value)) {
-			len++;
-			MsgBridge* bridge = value;
-			if (numstr) {
-				gchar* tmp = g_strdup(numstr);
-				g_free(numstr);
-				numstr = g_strdup_printf("%s, %u:%u",
-					tmp, bridge->my_num, bridge->claws_num);
-				g_free(tmp);
-			}
-			else
-				numstr = g_strdup_printf("%u:%u", bridge->my_num, bridge->claws_num);
-		}
-
-		g_key_file_set_string(config, CONFIG_GROUP, "file_id_list", numstr);
-		g_free(numstr);
-	}*/
+	if (vitem->msgvault)
+		vfolder_msgvault_serialize(vitem, config);
 
 	if (g_file_test(rc_file, G_FILE_TEST_EXISTS)) {
 		gchar* bakpath = g_strconcat(rc_file, ".bak", NULL);
@@ -734,8 +354,6 @@ FolderPropsResponse vfolder_folder_item_props_write(VFolderItem* item) {
 		}
 		g_free(bakpath);
 	}
-
-//	g_key_file_set_integer(config, CONFIG_GROUP, "filter-function", item->filter_func);
 
 	data = g_key_file_to_data(config, &len, NULL);
 	if (len < 1) {
@@ -762,6 +380,7 @@ FolderPropsResponse vfolder_folder_item_props_write(VFolderItem* item) {
 		}
 		fwrite(data, len, 1, fp);
 		fclose(fp);
+		vitem->changed = FALSE;
 		resp = FOLDER_ITEM_PROPS_OK;
 	}
 
@@ -774,18 +393,17 @@ error:
 	return resp;
 }
 
-FolderPropsResponse vfolder_folder_item_props_read(VFolderItem* item) {
+FolderPropsResponse vfolder_folder_item_props_read(VFolderItem* vitem) {
 	gchar* rc_file;
 	GKeyFile* config;
 	GError* error = NULL;
-	gchar *id, *msgnums;
-	gchar **list, **head;
 	FolderPropsResponse resp = FOLDER_ITEM_PROPS_NO_ITEM;
-	gint lastnum;
 
-	g_return_val_if_fail(item != NULL, resp);
+	g_return_val_if_fail(vitem != NULL, resp);
 
-	rc_file = vfolder_get_rc_file(item);
+	if (! vitem->changed) return FOLDER_ITEM_PROPS_OK;
+
+	rc_file = vfolder_get_rc_file(vitem);
 	config = g_key_file_new();
 
 	if (g_file_test(rc_file, G_FILE_TEST_EXISTS)) {
@@ -796,39 +414,24 @@ FolderPropsResponse vfolder_folder_item_props_read(VFolderItem* item) {
 			resp = FOLDER_ITEM_PROPS_READ_USING_DEFAULT;
 		}
 		else {
-			item->filter = g_key_file_get_string(config, CONFIG_GROUP, "filter", NULL);
-//			item->search = g_key_file_get_integer(config, CONFIG_GROUP, "searchtype", NULL);
-			item->frozen = g_key_file_get_boolean(config, CONFIG_GROUP, "frozen", NULL);
-//			item->deep_copy = g_key_file_get_boolean(config, CONFIG_GROUP, "deep_copy", NULL);
-//			item->filter_func = g_key_file_get_integer(config, CONFIG_GROUP, "filter_function", NULL);
+			vitem->filter = g_key_file_get_string(config, CONFIG_GROUP, "filter", NULL);
+			vitem->search = g_key_file_get_integer(config, CONFIG_GROUP, "searchtype", NULL);
+			vitem->frozen = g_key_file_get_boolean(config, CONFIG_GROUP, "frozen", NULL);
+			vitem->source_id = g_key_file_get_string(config, CONFIG_GROUP, "source_id", NULL);
+			if (vitem->source_id)
+				vitem->source = folder_find_item_from_identifier(vitem->source_id);
+			vfolder_msgvault_restore(vitem, config);
 
-			id = g_key_file_get_string(config, CONFIG_GROUP, "source", NULL);
-			if (id) {
-				item->source = folder_find_item_from_identifier(id);
-				g_free(id);
-			}
-			msgnums = g_key_file_get_string(config, CONFIG_GROUP, "file_id_list", NULL);
-			if (msgnums) {
-				list = g_strsplit(msgnums, ",", 0);
-				head = list;
-				lastnum = -1;
-				while (*list) {
-					/*gchar* anum = g_strdup(*list++);
-					g_strstrip(anum);
-					MsgBridge* bridge = vfolder_split_file_id(anum);
-					g_free(anum);
-					if (lastnum < (gint) bridge->my_num)
-						lastnum = bridge->my_num;
-					if (bridge->my_num > 0) {
-						vfolder_add_message_to_bridge(item, bridge);
-					}
-					g_free(bridge);*/
-				}
-				FOLDER_ITEM(item)->last_num = lastnum;
-				g_strfreev(head);
-				g_free(msgnums);
-			}
+			FolderItem* item = FOLDER_ITEM(vitem);
+			vfolder_set_last_num(item->folder, item);
+
+			vfolder_msgvault_add(vitem);
+
 			resp = FOLDER_ITEM_PROPS_OK;
+
+			vitem->changed = FALSE;
+
+			debug_print("%s: Read configuration\n", vitem->source_id);
 		}
 	}
 
@@ -857,20 +460,12 @@ gboolean vfolder_gtk_init(gchar** error) {
 		return FALSE;
 	}
 
-/*	msginfo_hook_id = hooks_register_hook(MSGINFO_UPDATE_HOOKLIST,
+	msginfo_hook_id = hooks_register_hook(MSGINFO_UPDATE_HOOKLIST,
 		vfolder_msg_info_update_hook, NULL);
 	if (msginfo_hook_id == -1) {
 		*error = g_strdup(_("Failed to register message info update hook"));
 		hooks_unregister_hook(FOLDER_UPDATE_HOOKLIST, folder_hook_id);
 		hooks_unregister_hook(FOLDER_ITEM_UPDATE_HOOKLIST, item_hook_id);
-		return FALSE;
-	}*/
-
-	if (! get_menu_widgets()) {
-		*error = g_strdup(_("Failed to get menu widgets"));
-		hooks_unregister_hook(FOLDER_UPDATE_HOOKLIST, folder_hook_id);
-		hooks_unregister_hook(FOLDER_ITEM_UPDATE_HOOKLIST, item_hook_id);
-		hooks_unregister_hook(MSGINFO_UPDATE_HOOKLIST, msginfo_hook_id);
 		return FALSE;
 	}
 
@@ -879,26 +474,13 @@ gboolean vfolder_gtk_init(gchar** error) {
 
 void vfolder_gtk_done(void) {
 	MainWindow *mainwin = mainwindow_get_mainwindow();
-	FolderView *folderview = NULL;
-	FolderItem *fitem = NULL;
 
 	hooks_unregister_hook(FOLDER_UPDATE_HOOKLIST, folder_hook_id);
 	hooks_unregister_hook(FOLDER_ITEM_UPDATE_HOOKLIST, item_hook_id);
-	//hooks_unregister_hook(MSGINFO_UPDATE_HOOKLIST, msginfo_hook_id);
+	hooks_unregister_hook(MSGINFO_UPDATE_HOOKLIST, msginfo_hook_id);
 
 	if (mainwin == NULL || claws_is_exiting())
 		return;
-
-	folderview = mainwin->folderview;
-	fitem = folderview->summaryview->folder_item;
-
-	if (fitem && IS_VFOLDER_FOLDER_ITEM(fitem)) {
-		vfolder_show_widgets(VFOLDER_ITEM(fitem));
-		gslist_menu_item_free(&widgets);
-
-		folderview_unselect(folderview);
-		summary_clear_all(folderview->summaryview);
-	}
 
 	folderview_unregister_popup(&vfolder_popup);
 }
@@ -915,7 +497,7 @@ void vfolder_properties_cb(GtkAction* action, gpointer data) {
 	g_return_if_fail(item->path != NULL);
 	g_return_if_fail(item->folder != NULL);
 
-	if (vfolder_edit_item_dialog(VFOLDER_ITEM(item))) {
+	if (vfolder_edit_item_dialog(VFOLDER_ITEM(item), NULL)) {
 		/* TODO: update */
 		if (debug_get_mode()) {
 //			GHashTableIter iter;
@@ -938,31 +520,21 @@ void vfolder_properties_cb(GtkAction* action, gpointer data) {
 				fclose(msg);
 			}*/
 		}
-		vfolder_folder_item_props_write(VFOLDER_ITEM(item));
 	}
 }
 
 void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
 	FolderView *folderview = (FolderView *)data;
-	GtkCMCTree *ctree = NULL;
-	FolderItem *item;
-	FolderItem *new_item;
-	gchar *new_folder;
-	gchar *name;
-	gchar *p;
+	FolderItem *item, *new_item, *parent;
+	gchar* new_folder;
+	gchar* name;
+	gchar* p;
+	gchar* id;
 
-	if (!folderview->selected) return;
-    if (!GTK_IS_CMCTREE(folderview->ctree)) return;
-
-    ctree = GTK_CMCTREE(folderview->ctree);
-	item = gtk_cmctree_node_get_row_data(ctree, folderview->selected);
-    //item = folderview_get_selected_item(folderview);
-	if (! item) {
-		//item = FOLDER_ITEM(vfolder_get_vfolder_item(NULL));
-	}
-
-    cm_return_if_fail(item != NULL);
-    cm_return_if_fail(item->folder != NULL);
+    item = folderview_get_selected_item(folderview);
+	cm_return_if_fail(item != NULL);
+	cm_return_if_fail(item->path != NULL);
+	cm_return_if_fail(item->folder != NULL);
 
 	if (item->no_sub) {
 		alertpanel_error(N_("Virtual folders cannot contain subfolders"));
@@ -985,49 +557,76 @@ void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
 	name = trim_string(new_folder, 32);
 	AUTORELEASE_STR(name, {g_free(name); return;});
 
+	Folder* folder = folder_find_from_name(VFOLDER_DEFAULT_MAILBOX, vfolder_folder_get_class());
+	parent = FOLDER_ITEM(folder->node->data);
 	/* find whether the directory already exists */
-	if (folder_find_child_item_by_name(item, new_folder)) {
+	if (folder_find_child_item_by_name(parent, new_folder)) {
 		alertpanel_error(_("The folder '%s' already exists."), name);
 		return;
 	}
 
-	new_item = folder_create_folder(item, new_folder);
+	new_item = folder_create_folder(parent, new_folder);
 	if (!new_item) {
 		alertpanel_error(_("Can't create the folder '%s'."), name);
 		return;
 	}
 
-	if (! vfolder_create_item_dialog(new_item)) {
-		//VFolderItem* vitem = VFOLDER_ITEM(new_item);
+	if (! vfolder_create_item_dialog(VFOLDER_ITEM(new_item), item)) {
 		new_item->folder->klass->remove_folder(new_item->folder, new_item);
 		new_item = NULL;
 		return;
 	}
 
+	id = folder_item_get_identifier(item);
+	if (vfolder_msgvault_add(VFOLDER_ITEM(new_item))) {
+		new_item->folder->klass->remove_folder(new_item->folder, new_item);
+		new_item = NULL;
+		g_free(id);
+		return;
+	}
+
+	g_free(id);
+
 	folder_write_list();
+}
+
+void vfolder_refresh_cb(GtkAction* action, gpointer data) {
+	FolderView *folderview = (FolderView *)data;
+	FolderItem *item;
+
+	g_return_if_fail(folderview != NULL);
+
+	item = folderview_get_selected_item(folderview);
+
+	g_return_if_fail(item != NULL);
+	g_return_if_fail(item->path != NULL);
+	g_return_if_fail(item->folder != NULL);
+
+	vfolder_scan_source_folder(VFOLDER_ITEM(item));
+}
+
+void vfolder_refresh_all_cb(GtkAction* action, gpointer data) {
+	vfolder_scan_source_folder_all();
 }
 
 void vfolder_remove_folder_cb(GtkAction* action, gpointer data) {
 	FolderView *folderview = (FolderView *)data;
-	GtkCMCTree *ctree = GTK_CMCTREE(folderview->ctree);
+	GtkCMCTree *ctree;
 	FolderItem *item;
 	gchar *message, *name;
 	AlertValue avalue;
-	gchar *old_path = NULL;
-	gchar *old_id;
-
-	/* Silence lame warnings */
-	old_id = (old_path) ? NULL : old_path;
 
 	item = folderview_get_selected_item(folderview);
 	g_return_if_fail(item != NULL);
 	g_return_if_fail(item->path != NULL);
 	g_return_if_fail(item->folder != NULL);
 
+	ctree = GTK_CMCTREE(folderview->ctree);
+
 	name = trim_string(item->name, 32);
 	AUTORELEASE_STR(name, {g_free(name); return;});
 	message = g_strdup_printf
-		(_("All folders and messages under '%s' will be permanently deleted. "
+		(_("All messages under '%s' will be permanently deleted. "
 		   "Recovery will not be possible.\n\n"
 		   "Do you really want to delete?"), name);
 	avalue = alertpanel_full(_("Delete folder"), message,
@@ -1035,9 +634,6 @@ void vfolder_remove_folder_cb(GtkAction* action, gpointer data) {
 				 NULL, ALERT_WARNING, G_ALERTDEFAULT);
 	g_free(message);
 	if (avalue != G_ALERTALTERNATE) return;
-
-	Xstrdup_a(old_path, item->path, return);
-	old_id = folder_item_get_identifier(item);
 
 	if (folderview->opened == folderview->selected ||
 	    gtk_cmctree_is_ancestor(ctree,
@@ -1050,11 +646,24 @@ void vfolder_remove_folder_cb(GtkAction* action, gpointer data) {
 	if (item->folder->klass->remove_folder(item->folder, item) < 0) {
 		folder_item_scan(item);
 		alertpanel_error(_("Can't remove the folder '%s'."), name);
-		g_free(old_id);
 		return;
 	}
 
 	folder_write_list();
+}
 
-	g_free(old_id);
+GtkResponseType vfolder_msg_dialog(GtkMessageType msgtype, GtkButtonsType btntype,
+								   const gchar* message) {
+	GtkResponseType ret;
+	GtkWidget* dialog;
+
+	MainWindow* mainwin = mainwindow_get_mainwindow();
+	dialog = gtk_message_dialog_new (GTK_WINDOW(mainwin->window),
+									 GTK_DIALOG_DESTROY_WITH_PARENT,
+									 msgtype, btntype, message);
+
+	ret = gtk_dialog_run (GTK_DIALOG (dialog));
+	gtk_widget_destroy (dialog);
+
+	return ret;
 }

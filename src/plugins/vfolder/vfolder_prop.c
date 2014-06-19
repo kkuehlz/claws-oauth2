@@ -52,7 +52,6 @@
 typedef struct {
 	GtkWidget* filter;
 	GtkWidget* frozen;
-	GtkWidget* deep_copy;
 	GtkWidget* source;
 	GtkWidget* label_btn;
 	GtkWidget* message_btn;
@@ -70,7 +69,6 @@ static void add_current_config(VFolderItem* item, PropsDialog* props) {
 		}
 	}
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(props->frozen), item->frozen);
-/*	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(props->deep_copy), item->deep_copy);
 	switch (item->search) {
 		case SEARCH_BODY:
 			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(props->message_btn), TRUE);
@@ -78,7 +76,7 @@ static void add_current_config(VFolderItem* item, PropsDialog* props) {
 			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(props->both_btn), TRUE);
 		case SEARCH_HEADERS:
 			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(props->label_btn), TRUE);
-	}*/
+	}
 }
 
 static gboolean is_source_widget(GtkWidget* widget) {
@@ -144,7 +142,7 @@ static gboolean vfolder_set_search_type(VFolderItem* item, GtkWidget* list) {
 	if (active) {
 		const gchar* label = gtk_button_get_label(GTK_BUTTON(btn));
 		if (label) {
-/*			if (strcmp(BOTH, label) == 0) {
+			if (strcmp(BOTH, label) == 0) {
 				if (item->search != SEARCH_BOTH) {
 					item->search = SEARCH_BOTH;
 					return TRUE;
@@ -161,23 +159,11 @@ static gboolean vfolder_set_search_type(VFolderItem* item, GtkWidget* list) {
 					item->search = SEARCH_HEADERS;
 					return TRUE;
 				}
-			}*/
+			}
 		}
 	}
 
 	return FALSE;
-}
-/*
-static void vfolder_copy_msginfo_list(gpointer data, gpointer user_data) {
-	MsgInfo* msg = (MsgInfo *) data;
-	MsgInfo* new_msg;
-	VFolderItem* item = (VFolderItem *) user_data;
-
-	g_return_if_fail(msg != NULL);
-	g_return_if_fail(item != NULL);
-
-	new_msg = procmsg_msginfo_copy(msg);
-	item->msginfos = g_slist_prepend(item->msginfos, new_msg);
 }
 
 static gboolean vfolder_search_headers(MsgInfo* msg, GPatternSpec* pattern) {
@@ -201,7 +187,7 @@ static gboolean vfolder_search_body(MsgInfo* msg, GPatternSpec* pattern) {
 
 	return found;
 }
-*/
+
 static MsgInfoList* vfolder_filter_msgs_list(MsgInfoList* msgs, VFolderItem* item) {
 	MsgInfoList *list = NULL, *tmp;
 	GPatternSpec* pattern;
@@ -214,7 +200,7 @@ static MsgInfoList* vfolder_filter_msgs_list(MsgInfoList* msgs, VFolderItem* ite
 
 	for (tmp = msgs; tmp; tmp = g_slist_next(tmp)) {
 		msg = (MsgInfo *) tmp->data;
-/*		switch (item->search) {
+		switch (item->search) {
 			case SEARCH_HEADERS:
 				if (vfolder_search_headers(msg, pattern))
 					list = g_slist_prepend(list, msg);
@@ -231,21 +217,23 @@ static MsgInfoList* vfolder_filter_msgs_list(MsgInfoList* msgs, VFolderItem* ite
 				if (vfolder_search_body(msg, pattern))
 					list = g_slist_prepend(list, msg);
 				break;
-		}*/
+		}
 	}
+
+	if (list)
+		list = g_slist_reverse(list);
 
 	g_pattern_spec_free(pattern);
 
 	return list;
 }
 
-static gboolean vfolder_create_msgs_list(VFolderItem* item, gboolean copy) {
+static gboolean vfolder_create_msgs_list(VFolderItem* item) {
 	MsgInfoList *msgs = NULL, *filtered = NULL;
 	gboolean ok = FALSE;
 	GSList* filelist = NULL;
 
 	if (item->filter && item->msg_filter_func) {
-//		item->deep_copy = copy;
 		ok = TRUE;
 		msgs = folder_item_get_msg_list(item->source);
 		filtered = item->msg_filter_func(msgs, item);
@@ -258,7 +246,7 @@ static gboolean vfolder_create_msgs_list(VFolderItem* item, gboolean copy) {
 			}
 			g_slist_free(filtered);
 		}
-		g_slist_free(msgs);
+		procmsg_msg_list_free(msgs);
 	}
 	return ok;
 }
@@ -269,28 +257,21 @@ void vfolder_set_msgs_filter(VFolderItem* vfolder_item) {
 	vfolder_item->msg_filter_func = vfolder_filter_msgs_list;
 }
 
-gboolean vfolder_create_item_dialog(FolderItem* folder_item) {
+gboolean vfolder_create_item_dialog(VFolderItem* vitem, FolderItem* item) {
 	gboolean created = FALSE;
-	VFolderItem* item = NULL;
 
-	g_return_val_if_fail(folder_item != NULL, created);
-	g_return_val_if_fail(IS_VFOLDER_FOLDER_ITEM(folder_item), created);
+	g_return_val_if_fail(vitem != NULL, created);
+	g_return_val_if_fail(item != NULL, created);
 
-	item = VFOLDER_ITEM(folder_item);
-	item->msg_filter_func = vfolder_filter_msgs_list;
+	vitem->msg_filter_func = vfolder_filter_msgs_list;
 
-	if (vfolder_edit_item_dialog(item)) {
-		/* save properties */
-		if (FOLDER_ITEM_PROPS_OK != vfolder_folder_item_props_write(item))
-			created = FALSE;
-		else
-			created = TRUE;
-	}
+	if (vfolder_edit_item_dialog(vitem, item))
+		created = TRUE;
 
 	return created;
 }
 
-gboolean vfolder_edit_item_dialog(VFolderItem* vfolder_item) {
+gboolean vfolder_edit_item_dialog(VFolderItem* vitem, FolderItem* item) {
 	gboolean ok = FALSE;
 	PropsDialog* props_dialog;
 	GtkWidget* dialog;
@@ -298,19 +279,19 @@ gboolean vfolder_edit_item_dialog(VFolderItem* vfolder_item) {
 	GtkWidget* row;
 	GtkWidget* box;
 	gint response;
-	gchar* name;
+	gchar *name, *id;
 	const gchar* str;
-	gboolean frozen, deep_copy;
-	FolderItem* source;
+	gboolean frozen;
 	gchar* old_filter = NULL;
+	FolderItem* old_source;
 
-	g_return_val_if_fail(vfolder_item != NULL, ok);
+	g_return_val_if_fail(vitem != NULL, ok);
+	g_return_val_if_fail(item != NULL || vitem->source != NULL, ok);
 
 	MainWindow *mainwin = mainwindow_get_mainwindow();
 	props_dialog = g_new0(PropsDialog, 1);
 	props_dialog->filter = gtk_entry_new();
 	props_dialog->frozen = gtk_check_button_new();
-	props_dialog->deep_copy = gtk_check_button_new();
 	props_dialog->source = gtk_entry_new();
 	props_dialog->label_btn =
 		gtk_radio_button_new_with_mnemonic(NULL, HEADERS);
@@ -321,7 +302,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem* vfolder_item) {
 		gtk_radio_button_new_with_mnemonic_from_widget(
 			GTK_RADIO_BUTTON(props_dialog->label_btn), BOTH);
 	gtk_widget_set_name(props_dialog->source, "source");
-	add_current_config(vfolder_item, props_dialog);
+	add_current_config(vitem, props_dialog);
 
 	dialog = gtk_dialog_new_with_buttons(
 			N_("Edit VFolder Properties"),
@@ -335,8 +316,16 @@ gboolean vfolder_edit_item_dialog(VFolderItem* vfolder_item) {
 
 	GtkWidget* vbox = gtk_vbox_new(FALSE, 5);
 
-	row = vfolder_prop_row(props_dialog->source, N_("_Source folder"), 110, FALSE);
+	row = vfolder_prop_row(props_dialog->source, N_("_Source folder"), 130, FALSE);
 	gtk_box_pack_start(GTK_BOX(vbox), row, FALSE, FALSE, 5);
+
+	if (!item)
+		id = folder_item_get_identifier(vitem->source);
+	else
+		id = folder_item_get_identifier(item);
+	gtk_entry_set_text(GTK_ENTRY(props_dialog->source), id);
+	gtk_widget_set_sensitive(props_dialog->source, FALSE);
+	g_free(id);
 
 	GtkWidget* frame1 = gtk_frame_new(_("Message filter"));
 	GtkWidget* vbox1 = gtk_vbox_new(TRUE, 2);
@@ -356,94 +345,95 @@ gboolean vfolder_edit_item_dialog(VFolderItem* vfolder_item) {
 	row = vfolder_prop_row(props_dialog->frozen, N_("F_reeze content"), 110, TRUE);
 	gtk_box_pack_start(GTK_BOX(vbox), row, FALSE, FALSE, 5);
 
-	row = vfolder_prop_row(props_dialog->deep_copy, N_("Co_py messages"), 110, TRUE);
-	gtk_box_pack_start(GTK_BOX(vbox), row, FALSE, FALSE, 5);
-
-	name = g_strconcat(FOLDER_ITEM(vfolder_item)->name, N_(": settings"), NULL);
+	name = g_strconcat(FOLDER_ITEM(vitem)->name, N_(": settings"), NULL);
 	GtkWidget* frame = gtk_frame_new(name);
 	g_free(name);
 	gtk_container_add(GTK_CONTAINER(frame), vbox);
-	gtk_widget_show_all(frame);
 
 	gtk_container_add(GTK_CONTAINER(content), frame);
+	gtk_widget_show_all(content);
 
 	response = gtk_dialog_run(GTK_DIALOG(dialog));
 	if (response == GTK_RESPONSE_ACCEPT) {
 		frozen = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(props_dialog->frozen));
-		deep_copy = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(props_dialog->deep_copy));
 
 		str = gtk_entry_get_text(GTK_ENTRY(props_dialog->filter));
 		if (str) {
-			old_filter = g_strdup(vfolder_item->filter);
+			old_filter = g_strdup(vitem->filter);
 			if (strlen(str) == 0) {
-				if (vfolder_item->filter) {
-					g_free(vfolder_item->filter);
-					vfolder_item->filter = NULL;
+				if (vitem->filter) {
+					g_free(vitem->filter);
+					vitem->filter = NULL;
 					ok = TRUE;
 				}
 			}
 			else {
-				if (!vfolder_item->filter || strcmp(vfolder_item->filter, str) != 0) {
-					g_free(vfolder_item->filter);
-					vfolder_item->filter = g_strdup(str);
+				if (!vitem->filter || strcmp(vitem->filter, str) != 0) {
+					g_free(vitem->filter);
+					vitem->filter = g_strdup(str);
 					ok = TRUE;
 				}
 			}
 		}
-		if (vfolder_set_search_type(vfolder_item, props_dialog->label_btn))
+		if (vfolder_set_search_type(vitem, props_dialog->label_btn))
 			ok = TRUE;
 
 		str = gtk_entry_get_text(GTK_ENTRY(props_dialog->source));
 		if (str) {
-			source = folder_find_item_from_identifier(str);
-			if (source && (source->stype != F_NORMAL && source->stype != F_INBOX)) {
-				alertpanel_error(_("%s: Not suitable for virtual folders\n"
-								   "Use only folder type: Normal or Inbox\n"), str);
-				g_free(vfolder_item->filter);
-				vfolder_item->filter = g_strdup(old_filter);
-				ok = FALSE;
-				goto error;
+			if (item) {
+				vitem->source = item;
+			} else {
+				/* remove msgvault */
+				vfolder_msgvault_free(vitem->msgvault);
+				vitem->msgvault = vfolder_msgvault_new();
 			}
 
 			if (strlen(str) == 0) {
-				if (vfolder_item->source) {
-					vfolder_item->source = NULL;
-					folder_item_remove_all_msg(FOLDER_ITEM(vfolder_item));
+				if (vitem->source) {
+					vitem->source = NULL;
+					folder_item_remove_all_msg(FOLDER_ITEM(vitem));
 					ok = TRUE;
 				}
-			}
-			else {
-				folder_item_remove_all_msg(FOLDER_ITEM(vfolder_item));
-				gchar* id = (vfolder_item->source) ?
-					folder_item_get_identifier(vfolder_item->source) : NULL;
-				if (!id || strcmp(id, str) != 0)
-					vfolder_item->source = source;
-				if (vfolder_item->source) {
-					ok =  vfolder_create_msgs_list(vfolder_item, deep_copy);
-					if (ok == FALSE) {
-						g_free(vfolder_item->filter);
-						vfolder_item->filter = g_strdup(old_filter);
-						goto error;
-					}
+			} else {
+				old_source = NULL;
+				id = (vitem->source) ? folder_item_get_identifier(vitem->source) : NULL;
+				if (!id || strcmp(id, str) != 0) {
+					old_source = vitem->source;
+					vitem->source = folder_get_item_from_identifier(str);
 				}
-				else {
-					g_free(vfolder_item->filter);
-					vfolder_item->filter = g_strdup(old_filter);
+				g_free(id);
+				if (vitem->source && (vitem->source->stype != F_NORMAL && vitem->source->stype != F_INBOX)) {
+					alertpanel_error(_("%s: Not suitable for virtual folders\n"
+									   "Use only folder type: Normal or Inbox\n"), str);
+					g_free(vitem->filter);
+					vitem->filter = g_strdup(old_filter);
+					if (old_source)
+						vitem->source = old_source;
 					ok = FALSE;
 					goto error;
 				}
+				if (vitem->source_id)
+					g_free(vitem->source_id);
+				vitem->source_id = folder_item_get_identifier(vitem->source);
+				if (FOLDER_ITEM(vitem)->total_msgs > 0)
+					folder_item_remove_all_msg(FOLDER_ITEM(vitem));
+				ok =  vfolder_create_msgs_list(vitem);
+				if (ok == FALSE) {
+					g_free(vitem->filter);
+					vitem->filter = g_strdup(old_filter);
+					goto error;
+				}
+				vitem->changed = TRUE;
 			}
+		} else {
+			ok = FALSE;
+			goto error;
 		}
 
-		if (vfolder_item->frozen != frozen) {
-			vfolder_item->frozen = frozen;
+		if (vitem->frozen != frozen) {
+			vitem->frozen = frozen;
 			ok = TRUE;
 		}
-
-/*		if (vfolder_item->deep_copy != deep_copy) {
-			vfolder_item->deep_copy = deep_copy;
-			ok = TRUE;
-		}*/
 
 	}
 
@@ -453,4 +443,36 @@ error:
 	g_free(old_filter);
 
 	return ok;
+}
+
+void vfolder_item_props_response(FolderPropsResponse resp) {
+	GtkResponseType ret;
+
+	switch (resp) {
+		case FOLDER_ITEM_PROPS_OK: break;
+		case FOLDER_ITEM_PROPS_BACKUP_FAIL:
+			vfolder_msg_dialog(GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
+							   "Making backup of config failed");
+			break;
+		case FOLDER_ITEM_PROPS_READ_USING_DEFAULT:
+			vfolder_msg_dialog(GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
+							   "Missing config file. Using defaults");
+			break;
+		case FOLDER_ITEM_PROPS_NO_ITEM:
+			ret = vfolder_msg_dialog(GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
+									 "Writing config failed\nContinue?");
+			if (ret != GTK_RESPONSE_YES)
+				vfolder_done();
+			break;
+		case FOLDER_ITEM_PROPS_READ_DATA_FAIL:
+			vfolder_msg_dialog(GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+							   "Reading config failed. Unloading plugin");
+			vfolder_done();
+			break;
+		case FOLDER_ITEM_PROPS_MAKE_RC_DIR_FAIL:
+			vfolder_msg_dialog(GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+							   "Creating top folder failed. Unloading plugin");
+			vfolder_done();
+			break;
+	}
 }

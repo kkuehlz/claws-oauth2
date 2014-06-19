@@ -55,23 +55,14 @@ static GtkActionEntry vfolder_main_menu[] = {{
 static gint main_menu_id = 0;
 
 gint plugin_init(gchar** error) {
-	debug_set_mode(TRUE);
 	MainWindow *mainwin = mainwindow_get_mainwindow();
 
-/*
-#ifdef G_OS_UNIX
-	bindtextdomain(TEXTDOMAIN, LOCALEDIR);
-#else
-	bindtextdomain(TEXTDOMAIN, get_locale_dir());
-#endif
-	bind_textdomain_codeset(TEXTDOMAIN, "UTF-8");
-*/
 	if (!check_plugin_version(MAKE_NUMERIC_VERSION(0,0,1,0),
 				VERSION_NUMERIC, PLUGIN_NAME, error))
 		return -1;
 
 	gtk_action_group_add_actions(mainwin->action_group, vfolder_main_menu,
-			1, (gpointer)mainwin);
+			1, (gpointer)mainwin->folderview);
 	MENUITEM_ADDUI_ID_MANAGER(mainwin->ui_manager, "/Menu/View", "CreateVfolder",
 			  "View/CreateVfolder", GTK_UI_MANAGER_MENUITEM,
 			  main_menu_id)
@@ -92,15 +83,13 @@ gboolean plugin_done(void) {
 
 	vfolder_done();
 
-	if (mainwin == NULL)
-		return FALSE;
-
-	MENUITEM_REMUI_MANAGER(mainwin->ui_manager,mainwin->action_group, "View/CreateVfolder", main_menu_id);
-	main_menu_id = 0;
+	if (mainwin) {
+		MENUITEM_REMUI_MANAGER(mainwin->ui_manager,mainwin->action_group, "View/CreateVfolder", main_menu_id);
+		main_menu_id = 0;
+	}
 
 	debug_print("vfolder plugin unloaded\n");
 
-	debug_set_mode(FALSE);
 	return TRUE;
 }
 

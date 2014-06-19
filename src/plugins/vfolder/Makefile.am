@@ -35,3 +35,5 @@ vfolder_la_CPPFLAGS = \
 		-I$(top_srcdir)/src/gtk \
 		$(GLIB_CFLAGS) \
 		$(GTK_CFLAGS)
+
+EXTRA_DIST = TODO

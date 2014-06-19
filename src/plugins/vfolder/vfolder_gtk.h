@@ -33,24 +33,19 @@ G_BEGIN_DECLS
 #include "vfolder.h"
 #include <gtk/gtk.h>
 
-typedef enum {
-	FOLDER_ITEM_PROPS_OK,
-	FOLDER_ITEM_PROPS_NO_ITEM,
-	FOLDER_ITEM_PROPS_BACKUP_FAIL,
-	FOLDER_ITEM_PROPS_READ_DATA_FAIL,
-	FOLDER_ITEM_PROPS_MAKE_RC_DIR_FAIL,
-	FOLDER_ITEM_PROPS_READ_USING_DEFAULT
-} FolderPropsResponse;
-
 gboolean vfolder_gtk_init(gchar** error);
 void vfolder_gtk_done(void);
 FolderPropsResponse vfolder_folder_item_props_read(VFolderItem* item);
 FolderPropsResponse vfolder_folder_item_props_write(VFolderItem* item);
+GtkResponseType vfolder_msg_dialog(GtkMessageType msgtype, GtkButtonsType btntype,
+								   const gchar* message);
 
 /* Callback functions */
 void vfolder_new_folder_cb(GtkAction* action, gpointer data);
 void vfolder_remove_folder_cb(GtkAction* action, gpointer data);
 void vfolder_properties_cb(GtkAction* action, gpointer data);
+void vfolder_refresh_cb(GtkAction* action, gpointer data);
+void vfolder_refresh_all_cb(GtkAction* action, gpointer data);
 
 G_END_DECLS
 

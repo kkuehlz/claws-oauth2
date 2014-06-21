@@ -12,13 +12,11 @@ vfolder_la_SOURCES = \
 		vfolder.c \
 		vfolder_init.c \
 		vfolder_gtk.c \
-		vfolder_prop.c
-
-nodist_include_HEADERS = \
+		vfolder_prop.c \
 		vfolder_gtk.h \
 		vfolder_prop.h
 
-vfolderincludedir = $(pkgincludedir)/plugins/@PACKAGE@
+vfolderincludedir = $(includedir)/claws-mail/vfolder
 vfolderinclude_HEADERS = \
 			vfolder.h
 

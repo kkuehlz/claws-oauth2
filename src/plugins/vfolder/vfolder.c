@@ -6,7 +6,8 @@
 /*
  * Virtual folder plugin for claws-mail
  *
- * Claws Mail is Copyright (C) 1999-2012 by the Claws Mail Team
+ * Claws Mail is Copyright (C) 1999-2014 by Michael Rasmussen and
+ * the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,6 +44,8 @@
 #include "main.h"
 #include "localfolder.h"
 #include "statusbar.h"
+#include "mainwindow.h"
+#include "folderview.h"
 
 #include "vfolder.h"
 #include "vfolder_gtk.h"
@@ -92,6 +95,20 @@ static void vfolder_free_hashtable(gpointer data) {
 static GHashTable* vfolder_vfolders_new() {
 	return g_hash_table_new_full(g_str_hash,
 			g_str_equal, g_free, vfolder_free_hashtable);
+}
+
+static void vfolder_vfolders_config_save() {
+	GHashTableIter iter;
+	gpointer key, value;
+
+	g_hash_table_iter_init (&iter, vfolders);
+	while (g_hash_table_iter_next(&iter, &key, &value)) {
+		if (value) {
+			VFolderItem* vitem = VFOLDER_ITEM(value);
+			FolderPropsResponse resp = vfolder_folder_item_props_write(vitem);
+			vfolder_item_props_response(resp);
+		}
+	}
 }
 
 static void vfolder_msgvault_add_msg(MsgPair* msgpair) {
@@ -147,9 +164,11 @@ static void vfolder_init_read_func(FolderItem* item, gpointer data) {
 
 	vfolder_set_msgs_filter(VFOLDER_ITEM(item));
 
-/*	if (! IS_VFOLDER_FROZEN(VFOLDER_ITEM(item))) {
+/*
+	if (! VFOLDER_ITEM(item)->frozen) {
 		folder_item_scan(VFOLDER_ITEM(item)->source);
-	}*/
+	}
+*/
 }
 
 static void vfolder_make_rc_dir(void) {
@@ -555,6 +574,8 @@ static gint vfolder_add_msg(Folder* folder, FolderItem* dest, const gchar* file,
 }
 
 static gchar* vfolder_fetch_msg(Folder* folder, FolderItem* item, gint num) {
+	if (num < 0) return NULL;
+
 	gchar* snum = g_strdup_printf("%d", num);
 	gchar* file = g_strconcat(get_rc_dir(), G_DIR_SEPARATOR_S, VFOLDER_DIR,
 			G_DIR_SEPARATOR_S, item->path, G_DIR_SEPARATOR_S, snum, NULL);
@@ -608,11 +629,11 @@ static gint vfolder_remove_msg(Folder* folder, FolderItem* item, gint num) {
 	file = vfolder_fetch_msg(folder, item, num);
 	if (! is_file_exist(file)) {
 		/* num relates to source */
-		vnum = vfolder_get_virtual_msg_num(VFOLDER_ITEM(item), num);
 		g_free(file);
+		vnum = vfolder_get_virtual_msg_num(VFOLDER_ITEM(item), num);
 		file = vfolder_fetch_msg(folder, item, vnum);
 	}
-	cm_return_val_if_fail(file != NULL, -1);
+	if (! file) return -1;
 
 	if (claws_unlink(file) < 0) {
 		FILE_OP_ERROR(file, "unlink");
@@ -658,6 +679,16 @@ static gboolean vfolder_subscribe_uri(Folder* folder, const gchar* uri) {
 	return FALSE;
 }
 
+static gint vfolder_folder_rename(Folder *folder, FolderItem *item, const gchar	*name) {
+	cm_return_val_if_fail(item != NULL, -1);
+
+	if (item->name)
+		g_free(item->name);
+	item->name = g_strdup(name);
+
+	return 0;
+}
+
 FolderClass* vfolder_folder_get_class() {
 	if (vfolder_class.idstr == NULL ) {
 		vfolder_class.type = F_UNKNOWN;
@@ -673,14 +704,11 @@ FolderClass* vfolder_folder_get_class() {
 		vfolder_class.create_tree = vfolder_create_tree;
 
 		/* FolderItem functions */
-/*
-		vfolder_class.rename_folder = NULL;
-*/
 		vfolder_class.item_new = vfolder_item_new;
 		vfolder_class.item_destroy = vfolder_item_destroy;
 		vfolder_class.item_get_path = vfolder_item_get_path;
 		vfolder_class.create_folder = vfolder_folder_create;
-		vfolder_class.rename_folder = NULL;
+		vfolder_class.rename_folder = vfolder_folder_rename;
 		vfolder_class.remove_folder = vfolder_folder_remove;
 		vfolder_class.get_num_list = vfolder_get_num_list;
 		vfolder_class.scan_required = vfolder_scan_required;
@@ -734,7 +762,9 @@ void vfolder_done(void) {
 
 	vfolder_gtk_done();
 
-    g_hash_table_destroy(vfolders);
+	vfolder_vfolders_config_save();
+
+	g_hash_table_destroy(vfolders);
 
 	if (!claws_is_exiting())
 		folder_unregister_class(vfolder_folder_get_class());
@@ -1000,4 +1030,42 @@ VFolderItem* vfolder_folder_item_watch(FolderItem* item) {
 	g_free(id);
 
 	return match;
+}
+
+void vfolder_source_path_change(VFolderItem* vitem, FolderItem* newItem) {
+	VFolderItem* newVitem = NULL;
+	gpointer key, value;
+
+	cm_return_if_fail(vitem != NULL);
+
+	if (g_hash_table_lookup_extended(vfolders, vitem->source_id, &key, &value)) {
+		g_hash_table_steal(vfolders, vitem->source_id);
+		g_free(key);
+		newVitem = VFOLDER_ITEM(value);
+		newVitem->source = newItem;
+		g_free(newVitem->source_id);
+		newVitem->source_id = folder_item_get_identifier(newItem);
+		g_hash_table_replace(vfolders, g_strdup(newVitem->source_id), newVitem);
+	}
+}
+
+void vfolder_source_folder_remove(VFolderItem* vitem) {
+	cm_return_if_fail(vitem != NULL);
+
+	MainWindow* mainwindow = mainwindow_get_mainwindow();
+	FolderView* folderview = mainwindow->folderview;
+	gchar *id1, *id2;
+
+	if (! vitem->frozen) {
+		FolderItem* item = folderview_get_selected_item(folderview);
+		if (item) {
+			id1 = folder_item_get_identifier(item);
+			id2 = folder_item_get_identifier(FOLDER_ITEM(vitem));
+			if (strcmp(id1, id2) == 0)
+				folderview_close_opened(folderview);
+			g_free(id1);
+			g_free(id2);
+		}
+		vfolder_folder_remove(FOLDER_ITEM(vitem)->folder, FOLDER_ITEM(vitem));
+	}
 }

@@ -6,7 +6,9 @@
 
 /*
  * Virtual folder plugin for claws-mail
- * Claws Mail is Copyright (C) 1999-2012 by the Claws Mail Team
+ *
+ * Claws Mail is Copyright (C) 1999-2014 by Michael Rasmussen and
+ * the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,7 +65,7 @@ typedef MsgInfoList* (*MSGFILTERFUNC) (MsgInfoList* msgs, VFolderItem* item);
 struct _VFolderItem {
 	FolderItem		item;
 
-	gchar*			filter;				/* Regex used to select messages */
+	gchar*			filter;				/* Glob used to select messages */
 	gboolean		frozen;				/* Automatic update or not */
 	gboolean		updating;			/* Is this VFolder currently updating */
 	gboolean		changed;
@@ -101,6 +103,8 @@ void vfolder_scan_source_folder(VFolderItem * vitem);
 void vfolder_scan_source_folder_list(GSList* vitems);
 void vfolder_scan_source_folder_all();
 VFolderItem* vfolder_folder_item_watch(FolderItem* item);
+void vfolder_source_path_change(VFolderItem* vitem, FolderItem* newItem);
+void vfolder_source_folder_remove(VFolderItem* vitem);
 
 G_END_DECLS
 

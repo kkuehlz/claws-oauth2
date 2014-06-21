@@ -6,7 +6,8 @@
 /*
  * Virtual folder plugin for claws-mail
  *
- * Claws Mail is Copyright (C) 1999-2012 by the Claws Mail Team
+ * Claws Mail is Copyright (C) 1999-2014 by Michael Rasmussen and
+ * the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,7 +61,6 @@
 static guint folder_hook_id;
 static guint item_hook_id;
 static guint msginfo_hook_id;
-//static GSList* widgets = NULL;
 
 typedef struct {
 	MsgInfoList*	list;
@@ -89,7 +89,7 @@ static GtkActionEntry vfolder_popup_entries[] = {
 
 	{"FolderViewPopup/FolderProperties",	NULL, NULL, NULL, NULL, G_CALLBACK(vfolder_properties_cb) },
 
-	{"FolderViewPopup/RenameFolder",	NULL, NULL, NULL, NULL, NULL /*G_CALLBACK(vfolder_refresh_cb)*/ },
+	{"FolderViewPopup/RenameFolder",	NULL, NULL, NULL, NULL, G_CALLBACK(vfolder_rename_cb) },
 
 	{"FolderViewPopup/NewFolder",		NULL, NULL, NULL, NULL, G_CALLBACK(vfolder_new_folder_cb) },
 	{"FolderViewPopup/RemoveFolder",	NULL, NULL, NULL, NULL, G_CALLBACK(vfolder_remove_folder_cb) },
@@ -112,9 +112,8 @@ static void vfolder_set_sensitivity(GtkUIManager *ui_manager, FolderItem *item) 
 #define SET_SENS(name, sens) \
 	cm_menu_set_sensitive_full(ui_manager, "Popup/"name, sens)
 
-	VFolderItem* vitem = VFOLDER_ITEM(item);
-	SET_SENS("FolderViewPopup/RefreshFolder", folder_item_parent(item) != NULL && ! vitem->frozen);
-	SET_SENS("FolderViewPopup/RefreshAllFolders", folder_item_parent(item) == NULL && ! vitem->frozen);
+	SET_SENS("FolderViewPopup/RefreshFolder", folder_item_parent(item) != NULL);
+	SET_SENS("FolderViewPopup/RefreshAllFolders", folder_item_parent(item) == NULL);
 	SET_SENS("FolderViewPopup/FolderProperties", folder_item_parent(item) != NULL);
 	SET_SENS("FolderViewPopup/RenameFolder", folder_item_parent(item) != NULL);
 	SET_SENS("FolderViewPopup/NewFolder", TRUE);
@@ -144,6 +143,7 @@ static void vfolder_fill_popup_menu_labels(void) {
 
 static gboolean vfolder_folder_update_hook(gpointer source, gpointer data) {
 	FolderUpdateData* hookdata;
+	VFolderItem* vitem;
 
 	g_return_val_if_fail(source != NULL, FALSE);
 	hookdata = (FolderUpdateData *) source;
@@ -151,39 +151,21 @@ static gboolean vfolder_folder_update_hook(gpointer source, gpointer data) {
 	if (! hookdata->folder || IS_VFOLDER_FOLDER(hookdata->folder))
 		return FALSE;
 
-	if (hookdata->update_flags & FOLDER_ADD_FOLDER) {
-		/* TODO: check if the added folder is foundation for vfolder */
-		debug_print("FOLDER_ADD_FOLDER\n");
-	}
-
-	if (hookdata->update_flags & FOLDER_REMOVE_FOLDER) {
-		/* TODO: check if the removed folder is foundation for vfolder */
-		debug_print("FOLDER_REMOVE_FOLDER\n");
-	}
-
-	if (hookdata->update_flags & FOLDER_TREE_CHANGED) {
-		/* TODO: check if the changed folder tree affects any vfolder */
-		debug_print("FOLDER_TREE_CHANGED\n");
-	}
-
-	if (hookdata->update_flags & FOLDER_ADD_FOLDERITEM) {
-		/* TODO: check if the added folder item affects any vfolder */
-		debug_print("FOLDER_ADD_FOLDERITEM\n");
-	}
-
 	if (hookdata->update_flags & FOLDER_REMOVE_FOLDERITEM) {
 		/* TODO: check if the removed folder item is foundation for vfolder */
 		debug_print("FOLDER_REMOVE_FOLDERITEM\n");
-	}
-
-	if (hookdata->update_flags & FOLDER_RENAME_FOLDERITEM) {
-		/* TODO: can renaming a folder item affect any vfolder? */
-		debug_print("FOLDER_RENAME_FOLDERITEM\n");
+		vitem = vfolder_folder_item_watch(hookdata->item);
+		if (vitem) {
+			vfolder_source_folder_remove(vitem);
+		}
 	}
 
 	if (hookdata->update_flags & FOLDER_MOVE_FOLDERITEM) {
-		/* TODO: check if the moved folder item is foundation for vfolder */
 		debug_print("FOLDER_MOVE_FOLDERITEM\n");
+		/* item = from item2 = to */
+		vitem = vfolder_folder_item_watch(hookdata->item);
+		if (vitem)
+			vfolder_source_path_change(vitem, hookdata->item2);
 	}
 
 	return FALSE;
@@ -199,33 +181,11 @@ static gboolean vfolder_folder_item_update_hook(gpointer source, gpointer data) 
 	if (! hookdata->item || IS_VFOLDER_FOLDER_ITEM(hookdata->item))
 		return FALSE;
 
-	if (hookdata->update_flags & F_ITEM_UPDATE_MSGCNT &&
-	    ~ hookdata->update_flags & (F_ITEM_UPDATE_MSGCNT | F_ITEM_UPDATE_CONTENT)) {
-		debug_print("F_ITEM_UPDATE_MSGCNT\n");
-/*		vitem = vfolder_folder_item_watch(hookdata->item);
-		if (vitem && ! vitem->updating)
-			vfolder_scan_source_folder(vitem);*/
-	}
-
-	if (hookdata->update_flags & F_ITEM_UPDATE_CONTENT /*&&
-		~ hookdata->update_flags & (F_ITEM_UPDATE_MSGCNT | F_ITEM_UPDATE_CONTENT)*/) {
+	if (hookdata->update_flags & F_ITEM_UPDATE_CONTENT) {
 		debug_print("F_ITEM_UPDATE_CONTENT\n");
 		vitem = vfolder_folder_item_watch(hookdata->item);
-		if (vitem && ! vitem->updating)
+		if (vitem && ! vitem->updating && ! vitem->frozen)
 			vfolder_scan_source_folder(vitem);
-	}
-
-	if (hookdata->update_flags & F_ITEM_UPDATE_ADDMSG) {
-		debug_print("F_ITEM_UPDATE_ADDMSG\n");
-	}
-
-	if (hookdata->update_flags & F_ITEM_UPDATE_REMOVEMSG ) {
-		debug_print("F_ITEM_UPDATE_REMOVEMSG\n");
-	}
-
-	if (hookdata->update_flags & F_ITEM_UPDATE_NAME) {
-		/* TODO: need update? */
-		debug_print("F_ITEM_UPDATE_NAME\n");
 	}
 
 	return FALSE;
@@ -246,13 +206,6 @@ static gboolean vfolder_msg_info_update_hook(gpointer source, gpointer data) {
 	if (IS_VFOLDER_MSGINFO(msginfo))
 		return FALSE;
 
-	if (MSG_IS_NEW(msginfo->flags)) {
-		vitem = vfolder_folder_item_watch(msginfo->folder);
-		if (vitem) {
-			debug_print("MSG_IS_NEW\n");
-		}
-	}
-
 	if (MSG_IS_DELETED(msginfo->flags)) {
 		vitem = vfolder_folder_item_watch(msginfo->folder);
 		if (vitem) {
@@ -271,8 +224,8 @@ static gboolean vfolder_msg_info_update_hook(gpointer source, gpointer data) {
 			g_free(msg);
 			return FALSE;
 		}
-		vitem = vfolder_folder_item_watch(msginfo->to_folder);
-		if (! vitem) {
+		vitem = vfolder_folder_item_watch(msginfo->folder);
+		if (vitem && ! vitem->frozen) {
 			/*
 			 * if folder we move to is already monitored we need not
 			 * do anything since distination folder will be automatically
@@ -280,14 +233,6 @@ static gboolean vfolder_msg_info_update_hook(gpointer source, gpointer data) {
 			 */
 			 folder_item_remove_msg(FOLDER_ITEM(vitem), msginfo->msgnum);
 		}
-	}
-
-	if (MSG_IS_MOVE_DONE(msginfo->flags)) {
-		vitem = vfolder_folder_item_watch(msginfo->to_folder);
-		if (vitem) {
-			return FALSE;
-		}
-		debug_print("MSG_IS_MOVE\n");
 	}
 
 	if (MSG_IS_COPY(msginfo->flags)) {
@@ -498,29 +443,30 @@ void vfolder_properties_cb(GtkAction* action, gpointer data) {
 	g_return_if_fail(item->folder != NULL);
 
 	if (vfolder_edit_item_dialog(VFOLDER_ITEM(item), NULL)) {
-		/* TODO: update */
-		if (debug_get_mode()) {
-//			GHashTableIter iter;
-//			gpointer key, value;
-
-/*			g_hash_table_iter_init(&iter, VFOLDER_ITEM(item)->me_to_claws);
-			while (g_hash_table_iter_next(&iter, &key, &value)) {
-				gchar* buf = g_new0(gchar, BUFSIZ);
-				MsgInfo* msginfo = vfolder_find_msg_from_vfolder_num(
-					VFOLDER_ITEM(item), GPOINTER_TO_UINT(key));
-				FILE* msg = procmsg_open_message(msginfo);
-				while (fread(buf, 1, BUFSIZ - 1, msg) > 0) {
-					fprintf(stderr, "%s", buf);
-					g_free(buf);
-					buf = g_new0(gchar, BUFSIZ);
-				}
-				fprintf(stderr, "\n");
-				if (buf)
-					g_free(buf);
-				fclose(msg);
-			}*/
-		}
+		FolderPropsResponse resp = vfolder_folder_item_props_write(VFOLDER_ITEM(item));
+		vfolder_item_props_response(resp);
 	}
+}
+
+void vfolder_rename_cb(GtkAction* action, gpointer data) {
+	FolderView *folderview = (FolderView *)data;
+	FolderItem *item;
+	gchar *new_name, *old_name;
+
+    item = folderview_get_selected_item(folderview);
+	cm_return_if_fail(item != NULL);
+	cm_return_if_fail(item->path != NULL);
+	cm_return_if_fail(item->folder != NULL);
+
+	old_name = folder_item_get_name(item);
+	new_name = input_dialog(_("Rename folder"),
+					_("Input the new name for folder:"),
+					old_name);
+	g_free(old_name);
+	if (!new_name) return;
+	AUTORELEASE_STR(new_name, {g_free(new_name); return;});
+
+	folder_item_rename(item, new_name);
 }
 
 void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
@@ -529,18 +475,17 @@ void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
 	gchar* new_folder;
 	gchar* name;
 	gchar* p;
-	gchar* id;
 
     item = folderview_get_selected_item(folderview);
-	cm_return_if_fail(item != NULL);
-	cm_return_if_fail(item->path != NULL);
-	cm_return_if_fail(item->folder != NULL);
+    if (item) {
+		cm_return_if_fail(item->path != NULL);
+		cm_return_if_fail(item->folder != NULL);
 
-	if (item->no_sub) {
-		alertpanel_error(N_("Virtual folders cannot contain subfolders"));
-		return;
+		if (item->no_sub) {
+			alertpanel_error(N_("Virtual folders cannot contain subfolders"));
+			return;
+		}
 	}
-
 	new_folder = input_dialog(_("New folder"),
 				  _("Input the name of new folder:"),
 				  _("NewFolder"));
@@ -577,15 +522,11 @@ void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
 		return;
 	}
 
-	id = folder_item_get_identifier(item);
 	if (vfolder_msgvault_add(VFOLDER_ITEM(new_item))) {
 		new_item->folder->klass->remove_folder(new_item->folder, new_item);
 		new_item = NULL;
-		g_free(id);
 		return;
 	}
-
-	g_free(id);
 
 	folder_write_list();
 }

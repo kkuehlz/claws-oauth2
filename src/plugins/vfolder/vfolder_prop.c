@@ -2,11 +2,11 @@
  * $Id: $
  */
 /* vim:et:ts=4:sw=4:et:sts=4:ai:set list listchars=tab\:»·,trail\:·: */
-
 /*
  * Virtual folder plugin for claws-mail
  *
- * Claws Mail is Copyright (C) 1999-2012 by the Claws Mail Team
+ * Claws Mail is Copyright (C) 1999-2014 by Michael Rasmussen and
+ * the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -129,7 +129,7 @@ static GtkWidget* vfolder_prop_row(GtkWidget* widget,
 	return row;
 }
 
-static gboolean vfolder_set_search_type(VFolderItem* item, GtkWidget* list) {
+static gboolean vfolder_set_search_type(VFolderItem* item, GtkWidget* list, gboolean* update) {
 	GSList *btn_list, *btns;
 	gboolean active = FALSE;
 	GtkToggleButton* btn = NULL;
@@ -164,6 +164,16 @@ static gboolean vfolder_set_search_type(VFolderItem* item, GtkWidget* list) {
 	}
 
 	return FALSE;
+}
+
+static gboolean vfolder_change_source(VFolderItem* vitem, const gchar* str) {
+	if (! vitem->source_id && ! str)
+		return FALSE;
+	if (! vitem->source_id && str)
+		return TRUE;
+	if (vitem->source_id && ! str)
+		return TRUE;
+	return (strcmp(vitem->source_id, str)) ? TRUE : FALSE;
 }
 
 static gboolean vfolder_search_headers(MsgInfo* msg, GPatternSpec* pattern) {
@@ -252,7 +262,7 @@ static gboolean vfolder_create_msgs_list(VFolderItem* item) {
 }
 
 void vfolder_set_msgs_filter(VFolderItem* vfolder_item) {
-	g_return_if_fail(vfolder_item != NULL);
+	cm_return_if_fail(vfolder_item != NULL);
 
 	vfolder_item->msg_filter_func = vfolder_filter_msgs_list;
 }
@@ -260,8 +270,7 @@ void vfolder_set_msgs_filter(VFolderItem* vfolder_item) {
 gboolean vfolder_create_item_dialog(VFolderItem* vitem, FolderItem* item) {
 	gboolean created = FALSE;
 
-	g_return_val_if_fail(vitem != NULL, created);
-	g_return_val_if_fail(item != NULL, created);
+	cm_return_val_if_fail(vitem != NULL, created);
 
 	vitem->msg_filter_func = vfolder_filter_msgs_list;
 
@@ -284,9 +293,9 @@ gboolean vfolder_edit_item_dialog(VFolderItem* vitem, FolderItem* item) {
 	gboolean frozen;
 	gchar* old_filter = NULL;
 	FolderItem* old_source;
+	gboolean update = TRUE;
 
-	g_return_val_if_fail(vitem != NULL, ok);
-	g_return_val_if_fail(item != NULL || vitem->source != NULL, ok);
+	cm_return_val_if_fail(vitem != NULL, ok);
 
 	MainWindow *mainwin = mainwindow_get_mainwindow();
 	props_dialog = g_new0(PropsDialog, 1);
@@ -319,13 +328,15 @@ gboolean vfolder_edit_item_dialog(VFolderItem* vitem, FolderItem* item) {
 	row = vfolder_prop_row(props_dialog->source, N_("_Source folder"), 130, FALSE);
 	gtk_box_pack_start(GTK_BOX(vbox), row, FALSE, FALSE, 5);
 
-	if (!item)
-		id = folder_item_get_identifier(vitem->source);
-	else
-		id = folder_item_get_identifier(item);
-	gtk_entry_set_text(GTK_ENTRY(props_dialog->source), id);
-	gtk_widget_set_sensitive(props_dialog->source, FALSE);
-	g_free(id);
+	if (item || vitem->source) {
+		if (!item)
+			id = folder_item_get_identifier(vitem->source);
+		else
+			id = folder_item_get_identifier(item);
+		gtk_entry_set_text(GTK_ENTRY(props_dialog->source), id);
+		gtk_widget_set_sensitive(props_dialog->source, FALSE);
+		g_free(id);
+	}
 
 	GtkWidget* frame1 = gtk_frame_new(_("Message filter"));
 	GtkWidget* vbox1 = gtk_vbox_new(TRUE, 2);
@@ -368,18 +379,26 @@ gboolean vfolder_edit_item_dialog(VFolderItem* vitem, FolderItem* item) {
 				}
 			}
 			else {
-				if (!vitem->filter || strcmp(vitem->filter, str) != 0) {
+				if (vitem->filter && strcmp(vitem->filter, str) == 0)
+					update = FALSE;
+				else {
 					g_free(vitem->filter);
 					vitem->filter = g_strdup(str);
 					ok = TRUE;
 				}
 			}
 		}
-		if (vfolder_set_search_type(vitem, props_dialog->label_btn))
+
+		if (vfolder_set_search_type(vitem, props_dialog->label_btn, &update)) {
+			update = TRUE;
 			ok = TRUE;
+		} else {
+			update = FALSE;
+		}
+
 
 		str = gtk_entry_get_text(GTK_ENTRY(props_dialog->source));
-		if (str) {
+		if (vfolder_change_source(vitem, str)) {
 			if (item) {
 				vitem->source = item;
 			} else {
@@ -426,13 +445,14 @@ gboolean vfolder_edit_item_dialog(VFolderItem* vitem, FolderItem* item) {
 				vitem->changed = TRUE;
 			}
 		} else {
-			ok = FALSE;
-			goto error;
+			ok = TRUE;
+			update = FALSE;
 		}
 
 		if (vitem->frozen != frozen) {
 			vitem->frozen = frozen;
 			ok = TRUE;
+			vitem->changed = TRUE;
 		}
 
 	}

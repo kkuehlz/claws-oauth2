@@ -6,7 +6,9 @@
 
 /*
  * Virtual folder plugin for claws-mail
- * Claws Mail is Copyright (C) 1999-2012 by the Claws Mail Team
+ *
+ * Claws Mail is Copyright (C) 1999-2014 by Michael Rasmussen and
+ * the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,6 +44,7 @@ GtkResponseType vfolder_msg_dialog(GtkMessageType msgtype, GtkButtonsType btntyp
 
 /* Callback functions */
 void vfolder_new_folder_cb(GtkAction* action, gpointer data);
+void vfolder_rename_cb(GtkAction* action, gpointer data);
 void vfolder_remove_folder_cb(GtkAction* action, gpointer data);
 void vfolder_properties_cb(GtkAction* action, gpointer data);
 void vfolder_refresh_cb(GtkAction* action, gpointer data);

@@ -2,11 +2,11 @@
  * $Id: $
  */
 /* vim:et:ts=4:sw=4:et:sts=4:ai:set list listchars=tab\:»·,trail\:·: */
-
 /*
  * Virtual folder plugin for claws-mail
  *
- * Claws Mail is Copyright (C) 1999-2012 by the Claws Mail Team
+ * Claws Mail is Copyright (C) 1999-2014 by Michael Rasmussen and
+ * the Claws Mail Team
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

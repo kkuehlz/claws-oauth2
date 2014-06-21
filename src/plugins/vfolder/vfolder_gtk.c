@@ -116,7 +116,7 @@ static void vfolder_set_sensitivity(GtkUIManager *ui_manager, FolderItem *item) 
 	SET_SENS("FolderViewPopup/RefreshAllFolders", folder_item_parent(item) == NULL);
 	SET_SENS("FolderViewPopup/FolderProperties", folder_item_parent(item) != NULL);
 	SET_SENS("FolderViewPopup/RenameFolder", folder_item_parent(item) != NULL);
-	SET_SENS("FolderViewPopup/NewFolder", TRUE);
+	SET_SENS("FolderViewPopup/NewFolder", folder_item_parent(item) != NULL && ! IS_VFOLDER_FOLDER_ITEM(item));
 	SET_SENS("FolderViewPopup/RemoveFolder", folder_item_parent(item) != NULL);
 
 #undef SET_SENS

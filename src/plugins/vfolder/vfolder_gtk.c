@@ -478,6 +478,12 @@ void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
 
     item = folderview_get_selected_item(folderview);
     if (item) {
+		FolderItem* parent = folder_item_parent(item);
+		if (! parent) {
+			alertpanel_error(_("%s: Is a root folder. You must choose a message folder like Inbox."),
+							 item->name);
+			return;
+		}
 		cm_return_if_fail(item->path != NULL);
 		cm_return_if_fail(item->folder != NULL);
 

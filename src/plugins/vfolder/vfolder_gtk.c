@@ -486,9 +486,9 @@ void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
 			return;
 		}
 	}
-	new_folder = input_dialog(_("New folder"),
-				  _("Input the name of new folder:"),
-				  _("NewFolder"));
+	new_folder = input_dialog(_("New virtual folder"),
+				  _("Input the name of the folder:"),
+				  _("Virtual Folder"));
 	if (!new_folder) return;
 	AUTORELEASE_STR(new_folder, {g_free(new_folder); return;});
 

@@ -300,16 +300,22 @@ gboolean vfolder_edit_item_dialog(VFolderItem* vitem, FolderItem* item) {
 	MainWindow *mainwin = mainwindow_get_mainwindow();
 	props_dialog = g_new0(PropsDialog, 1);
 	props_dialog->filter = gtk_entry_new();
+	CLAWS_SET_TIP(props_dialog->filter, _("Glob filter. '*' or '?' for wildcard"));
 	props_dialog->frozen = gtk_check_button_new();
+	CLAWS_SET_TIP(props_dialog->frozen, _("Disable automatic update. Manual refresh is not affected"));
 	props_dialog->source = gtk_entry_new();
+	CLAWS_SET_TIP(props_dialog->source, _("Folder to watch"));
 	props_dialog->label_btn =
 		gtk_radio_button_new_with_mnemonic(NULL, HEADERS);
+	CLAWS_SET_TIP(props_dialog->label_btn, _("Only scan message headers"));
 	props_dialog->message_btn =
 		gtk_radio_button_new_with_mnemonic_from_widget(
 			GTK_RADIO_BUTTON(props_dialog->label_btn), BODY);
+	CLAWS_SET_TIP(props_dialog->message_btn, _("Only scan message body"));
 	props_dialog->both_btn =
 		gtk_radio_button_new_with_mnemonic_from_widget(
 			GTK_RADIO_BUTTON(props_dialog->label_btn), BOTH);
+	CLAWS_SET_TIP(props_dialog->both_btn, _("Scan both message headers and message body"));
 	gtk_widget_set_name(props_dialog->source, "source");
 	add_current_config(vitem, props_dialog);
 

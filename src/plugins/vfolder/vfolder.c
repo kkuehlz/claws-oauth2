@@ -764,10 +764,10 @@ void vfolder_done(void) {
 
 	vfolder_vfolders_config_save();
 
-	g_hash_table_destroy(vfolders);
-
 	if (!claws_is_exiting())
 		folder_unregister_class(vfolder_folder_get_class());
+	else
+		g_hash_table_destroy(vfolders);
 }
 
 void vfolder_set_last_num(Folder *folder, FolderItem *item) {

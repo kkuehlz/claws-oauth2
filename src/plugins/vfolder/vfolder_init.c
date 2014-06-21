@@ -123,10 +123,8 @@ const gchar* plugin_desc(void) {
 			"The supported folder types are MH and IMAP.\n"
 			"Messages in a VFolder cannot be updated.\n"
 			"\n"
-			"To activate the archiving feature go to /View/Create virtual folder\n"
-			"\n"
-			"Default options can be set in /Configuration/Preferences/Plugins"
-			"/vfolder"
+			"To create a VFolder go to /View/Create virtual folder or choose a folder\n"
+			"in the folder view an press <Control>+v\n"
 			);
 }
 

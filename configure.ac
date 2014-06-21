@@ -1841,6 +1841,35 @@ else
 	AC_MSG_RESULT(no)
 fi
 
+AC_MSG_CHECKING([whether to build vcalendar plugin])
+if test x"$enable_vcalendar_plugin" != xno; then
+        dependencies_missing=""
+
+        if test x"$HAVE_CURL" = xno; then
+                dependencies_missing="libcurl $dependencies_missing"
+        fi
+
+        if test x"$HAVE_PERL" = xno; then
+                dependencies_missing="perl $dependencies_missing"
+        fi
+
+        if test x"$dependencies_missing" = x; then
+                PLUGINS="$PLUGINS vcalendar"
+                AC_MSG_RESULT(yes)
+        elif test x"$enable_vcalendar_plugin" = xauto; then
+                AC_MSG_RESULT(no)
+                AC_MSG_WARN("Plugin vcalendar will not be built; missing $dependencies_missing")
+                enable_vcalendar_plugin=no
+                MISSING_DEPS_PLUGINS="$MISSING_DEPS_PLUGINS vcalendar"
+        else
+                AC_MSG_RESULT(no)
+                AC_MSG_ERROR("Plugin vcalendar cannot be built; missing $dependencies_missing")
+        fi
+else
+        DISABLED_PLUGINS="$DISABLED_PLUGINS vcalendar"
+        AC_MSG_RESULT(no)
+fi
+
 AC_MSG_CHECKING([whether to build vfolder plugin])
 if test x"$enable_vfolder_plugin" != xno; then
 	dependencies_missing=""

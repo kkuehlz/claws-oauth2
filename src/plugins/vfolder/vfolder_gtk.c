@@ -1,7 +1,5 @@
-/*
- * $Id: $
- */
-/* vim:et:ts=4:sw=4:et:sts=4:ai:set list listchars=tab\:»·,trail\:·: */
+/* vim: ts=4:sw=4:et:sts=4:ai:
+*/
 
 /*
  * Virtual folder plugin for claws-mail

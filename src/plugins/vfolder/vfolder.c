@@ -712,9 +712,6 @@ FolderClass* vfolder_folder_get_class() {
 		vfolder_class.scan_required = vfolder_scan_required;
 
 		/* Message functions */
-/*
-		vfolder_class.copy_msgs = vfolder_copy_msgs;
-*/
 		vfolder_class.get_msginfo = vfolder_get_msginfo;
 		vfolder_class.fetch_msg = vfolder_fetch_msg;
 		vfolder_class.copy_msgs = NULL;

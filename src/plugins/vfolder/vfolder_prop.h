@@ -33,8 +33,7 @@ G_BEGIN_DECLS
 #include "vfolder.h"
 #include <gtk/gtk.h>
 
-gboolean vfolder_create_item_dialog(VFolderItem* vitem, FolderItem* item);
-gboolean vfolder_edit_item_dialog(VFolderItem* vitem, FolderItem* item);
+gboolean vfolder_edit_item_dialog(VFolderItem** vitem, FolderItem* item);
 void vfolder_set_msgs_filter(VFolderItem* vfolder_item);
 void vfolder_item_props_response(FolderPropsResponse resp);
 

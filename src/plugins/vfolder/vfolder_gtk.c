@@ -429,8 +429,9 @@ void vfolder_gtk_done(void) {
 }
 
 void vfolder_properties_cb(GtkAction* action, gpointer data) {
-	FolderView *folderview = (FolderView *)data;
-	FolderItem *item;
+	FolderView* folderview = (FolderView *)data;
+	FolderItem* item;
+	VFolderItem* vitem;
 
 	g_return_if_fail(folderview != NULL);
 
@@ -440,8 +441,9 @@ void vfolder_properties_cb(GtkAction* action, gpointer data) {
 	g_return_if_fail(item->path != NULL);
 	g_return_if_fail(item->folder != NULL);
 
-	if (vfolder_edit_item_dialog(VFOLDER_ITEM(item), NULL)) {
-		FolderPropsResponse resp = vfolder_folder_item_props_write(VFOLDER_ITEM(item));
+	vitem = VFOLDER_ITEM(item);
+	if (vfolder_edit_item_dialog(&vitem, NULL)) {
+		FolderPropsResponse resp = vfolder_folder_item_props_write(vitem);
 		vfolder_item_props_response(resp);
 	}
 }
@@ -469,10 +471,8 @@ void vfolder_rename_cb(GtkAction* action, gpointer data) {
 
 void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
 	FolderView *folderview = (FolderView *)data;
-	FolderItem *item, *new_item, *parent;
-	gchar* new_folder;
-	gchar* name;
-	gchar* p;
+	FolderItem *item;
+	VFolderItem* vitem = NULL;
 
     item = folderview_get_selected_item(folderview);
     if (item) {
@@ -490,45 +490,18 @@ void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
 			return;
 		}
 	}
-	new_folder = input_dialog(_("New virtual folder"),
-				  _("Input the name of the folder:"),
-				  _("Virtual Folder"));
-	if (!new_folder) return;
-	AUTORELEASE_STR(new_folder, {g_free(new_folder); return;});
 
-	p = strchr(new_folder, G_DIR_SEPARATOR);
-	if (p) {
-		alertpanel_error(_("'%c' can't be included in folder name."),
-				 G_DIR_SEPARATOR);
+	if (! vfolder_edit_item_dialog(&vitem, item)) {
+		if (vitem) {
+			FOLDER_ITEM(vitem)->folder->klass->remove_folder(
+				FOLDER_ITEM(vitem)->folder, FOLDER_ITEM(vitem));
+		}
 		return;
 	}
 
-	name = trim_string(new_folder, 32);
-	AUTORELEASE_STR(name, {g_free(name); return;});
-
-	Folder* folder = folder_find_from_name(VFOLDER_DEFAULT_MAILBOX, vfolder_folder_get_class());
-	parent = FOLDER_ITEM(folder->node->data);
-	/* find whether the directory already exists */
-	if (folder_find_child_item_by_name(parent, new_folder)) {
-		alertpanel_error(_("The folder '%s' already exists."), name);
-		return;
-	}
-
-	new_item = folder_create_folder(parent, new_folder);
-	if (!new_item) {
-		alertpanel_error(_("Can't create the folder '%s'."), name);
-		return;
-	}
-
-	if (! vfolder_create_item_dialog(VFOLDER_ITEM(new_item), item)) {
-		new_item->folder->klass->remove_folder(new_item->folder, new_item);
-		new_item = NULL;
-		return;
-	}
-
-	if (vfolder_msgvault_add(VFOLDER_ITEM(new_item))) {
-		new_item->folder->klass->remove_folder(new_item->folder, new_item);
-		new_item = NULL;
+	if (vfolder_msgvault_add(vitem)) {
+		FOLDER_ITEM(vitem)->folder->klass->remove_folder(
+			FOLDER_ITEM(vitem)->folder, FOLDER_ITEM(vitem));
 		return;
 	}
 

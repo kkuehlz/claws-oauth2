@@ -271,7 +271,7 @@ gboolean vfolder_create_item_dialog(VFolderItem* vitem, FolderItem* item) {
 
 	cm_return_val_if_fail(vitem != NULL, created);
 
-	vitem->msg_filter_func = vfolder_filter_msgs_list;
+	vfolder_set_msgs_filter(vitem);
 
 	if (vfolder_edit_item_dialog(vitem, item))
 		created = TRUE;

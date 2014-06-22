@@ -279,7 +279,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 	GtkWidget* row;
 	GtkWidget* box;
 	gint response;
-	gchar *name, *id;
+	gchar *name = NULL, *id = NULL;
 	const gchar* str;
 	gboolean frozen;
 	gchar* old_filter = NULL;
@@ -393,7 +393,6 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 		debug_print("VFolder name from dialog: %s\n", str);
 		if (! str) goto error;
 
-		name = NULL;
 		if (vitem)
 			name = folder_item_get_name(FOLDER_ITEM(vitem));
 		debug_print("VFolder name from VFolder: %s\n", name ? name : "NULL");
@@ -419,7 +418,6 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 				debug_print("Rename VFolder to: %s\n", str);
 				folder_item_rename(FOLDER_ITEM(vitem), (gchar *) str);
 			}
-			g_free(name);
 		}
 
 		frozen = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(props_dialog->frozen));
@@ -517,6 +515,7 @@ error:
 	gtk_widget_destroy(dialog);
 	g_free(props_dialog);
 	g_free(old_filter);
+	g_free(name);
 
 	return ok;
 }

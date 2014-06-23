@@ -44,7 +44,6 @@
 #include "statusbar.h"
 #include "mainwindow.h"
 #include "folderview.h"
-#include "msgcache.h"
 
 #include "vfolder.h"
 #include "vfolder_gtk.h"

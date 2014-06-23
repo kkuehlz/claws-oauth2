@@ -66,6 +66,7 @@ struct _VFolderItem {
 	gboolean		frozen;				/* Automatic update or not */
 	gboolean		updating;			/* Is this VFolder currently updating */
 	gboolean		changed;
+	gboolean		first_run;
 
 	SearchType		search;
 	FolderItem*		source;				/* Source folder for virtual folder */

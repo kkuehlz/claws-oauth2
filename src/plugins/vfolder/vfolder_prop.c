@@ -255,6 +255,7 @@ static gboolean vfolder_create_msgs_list(VFolderItem* item) {
 			filelist = procmsg_get_message_file_list(filtered);
 			if (filelist) {
 				gint n = folder_item_add_msgs(FOLDER_ITEM(item), filelist, FALSE);
+				item->first_run = FALSE;
 				FOLDER_ITEM(item)->last_num = n;
 				procmsg_message_file_list_free(filelist);
 			}
@@ -412,6 +413,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 					alertpanel_error(_("Can't create the folder '%s'."), str);
 					goto error;
 				}
+				vitem->first_run = TRUE;
 				vfolder_set_msgs_filter(vitem);
 				*vitem_ptr = vitem;
 			} else {

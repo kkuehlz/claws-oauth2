@@ -44,6 +44,7 @@
 #include "statusbar.h"
 #include "mainwindow.h"
 #include "folderview.h"
+#include "msgcache.h"
 
 #include "vfolder.h"
 #include "vfolder_gtk.h"
@@ -612,6 +613,9 @@ static MsgInfo* vfolder_get_msginfo(Folder* folder, FolderItem* item, gint num) 
 
 	if (!msginfo->folder)
 		msginfo->folder = item;
+
+	if (VFOLDER_ITEM(item)->first_run)
+		msginfo->flags.perm_flags = 0;
 
 	g_free(file);
 

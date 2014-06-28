@@ -352,6 +352,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 			gtk_entry_set_text(GTK_ENTRY(props_dialog->folder_name), name);
 			gtk_widget_set_sensitive(props_dialog->folder_name, FALSE);
 			g_free(name);
+			name = NULL;
 		}
 	}
 
@@ -487,11 +488,17 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 					ok = FALSE;
 					goto error;
 				}
-				if (vitem->source_id)
+				id = folder_item_get_identifier(vitem->source);
+				if (vitem->source_id) {
+					vfolder_vfolders_change_key(vitem, id);
 					g_free(vitem->source_id);
-				vitem->source_id = folder_item_get_identifier(vitem->source);
+				}
+				vitem->source_id = g_strdup(id);
+				g_free(id);
 				if (FOLDER_ITEM(vitem)->total_msgs > 0)
 					folder_item_remove_all_msg(FOLDER_ITEM(vitem));
+				if (! vitem->msg_filter_func)
+					vfolder_set_msgs_filter(vitem);
 				ok =  vfolder_create_msgs_list(vitem);
 				if (ok == FALSE) {
 					g_free(vitem->filter);

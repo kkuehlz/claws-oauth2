@@ -298,6 +298,8 @@ static void vfolder_item_destroy(Folder* folder, FolderItem* item) {
 		g_hash_table_remove(vfolders, vitem->source_id);
 		g_free(vitem->source_id);
 		vitem->source_id = NULL;
+	} else {
+		vfolder_msgvault_free(vitem->msgvault);
 	}
 
 	g_free(vitem->filter);
@@ -319,43 +321,42 @@ static gchar* vfolder_item_get_path(Folder* folder, FolderItem* item) {
 	return result;
 }
 
-static gint vfolder_folder_remove(Folder* folder, FolderItem* item) {
+static gint vfolder_remove_folder(FolderItem* item) {
 	GDir* dp;
 	const gchar* name;
 	gchar* cwd;
 	gint ret = -1;
 
-	cm_return_val_if_fail(folder != NULL, -1);
-	cm_return_val_if_fail(item != NULL, -1);
-	cm_return_val_if_fail(item->path != NULL, -1);
-	cm_return_val_if_fail(item->stype == F_NORMAL, -1);
+	cwd = g_get_current_dir();
 
 	debug_print("VFolder: removing folder item %s\n", item->path);
 
 	gchar* path = g_strconcat(get_rc_dir(), G_DIR_SEPARATOR_S,
 		VFOLDER_DIR, G_DIR_SEPARATOR_S, item->path, NULL);
-	remove_numbered_files(path, item->last_num - item->total_msgs + 1, item->last_num);
-
-	folder_item_remove(item);
-
-	cwd = g_get_current_dir();
 
 	if (change_dir(path) < 0 ) {
-		g_free(path);
 		return ret;
 	}
+
+	remove_numbered_files(path, item->last_num - item->total_msgs + 1, item->last_num);
 
 	if( (dp = g_dir_open(".", 0, NULL)) == NULL ) {
 		FILE_OP_ERROR(path, "g_dir_open");
 		change_dir(cwd);
 		g_free(cwd);
-		g_free(path);
 		return ret;
 	}
 
 	while ((name = g_dir_read_name(dp)) != NULL) {
-		debug_print("Removing: %s\n", name);
-		claws_unlink(name);
+		if (is_dir_exist(name)) {
+			gchar* child = g_strconcat(path, "/", name, NULL);
+			FolderItem* sub_item = folder_find_item_from_real_path(child);
+			vfolder_remove_folder(sub_item);
+			g_free(child);
+		} else {
+			debug_print("Removing: %s\n", name);
+			claws_unlink(name);
+		}
 	}
 
 	g_dir_close(dp);
@@ -369,10 +370,25 @@ static gint vfolder_folder_remove(Folder* folder, FolderItem* item) {
 	return ret;
 }
 
+static gint vfolder_folder_remove(Folder* folder, FolderItem* item) {
+	gint ret = 0;
+
+	cm_return_val_if_fail(folder != NULL, -1);
+	cm_return_val_if_fail(item != NULL, -1);
+	cm_return_val_if_fail(item->path != NULL, -1);
+	cm_return_val_if_fail(item->stype == F_NORMAL, -1);
+
+	ret = vfolder_remove_folder(item);
+	folder_item_remove(item);
+
+	return ret;
+}
+
 static FolderItem* vfolder_folder_create(Folder* folder,
 									   	 FolderItem* parent,
 									   	 const gchar* name) {
 	gchar* path = NULL;
+	gchar* parent_path = NULL;
 	FolderItem* newitem = NULL;
 
 	cm_return_val_if_fail(folder != NULL, NULL);
@@ -382,9 +398,14 @@ static FolderItem* vfolder_folder_create(Folder* folder,
 	if (parent->no_sub)
 		return NULL;
 
-	path = g_strconcat((parent->path != NULL) ? parent->path : "", name, NULL);
+	if (parent->path != NULL)
+		parent_path = g_strconcat(parent->path , "/", NULL);
+	else
+		parent_path = g_strdup("");
+
+	path = g_strconcat(parent_path, name, NULL);
+	g_free(parent_path);
 	newitem = folder_item_new(folder, name, path);
-	newitem->no_sub = TRUE;
 
 	folder_item_append(parent, newitem);
 	g_free(path);
@@ -1065,5 +1086,17 @@ void vfolder_source_folder_remove(VFolderItem* vitem) {
 			g_free(id2);
 		}
 		vfolder_folder_remove(FOLDER_ITEM(vitem)->folder, FOLDER_ITEM(vitem));
+	}
+}
+
+void vfolder_vfolders_change_key(VFolderItem* vitem, const gchar* key) {
+	gpointer old_key, value;
+
+	cm_return_if_fail(vitem != NULL);
+
+	if (g_hash_table_lookup_extended(vfolders, vitem->source_id, &old_key, &value)) {
+		g_hash_table_steal(vfolders, old_key);
+		g_free(old_key);
+		g_hash_table_replace(vfolders, g_strdup(key), value);
 	}
 }

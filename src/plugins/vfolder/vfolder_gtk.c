@@ -114,7 +114,7 @@ static void vfolder_set_sensitivity(GtkUIManager *ui_manager, FolderItem *item) 
 	SET_SENS("FolderViewPopup/RefreshAllFolders", folder_item_parent(item) == NULL);
 	SET_SENS("FolderViewPopup/FolderProperties", folder_item_parent(item) != NULL);
 	SET_SENS("FolderViewPopup/RenameFolder", folder_item_parent(item) != NULL);
-	SET_SENS("FolderViewPopup/NewFolder", folder_item_parent(item) != NULL && ! IS_VFOLDER_FOLDER_ITEM(item));
+	SET_SENS("FolderViewPopup/NewFolder", TRUE);
 	SET_SENS("FolderViewPopup/RemoveFolder", folder_item_parent(item) != NULL);
 
 #undef SET_SENS
@@ -473,25 +473,54 @@ void vfolder_new_folder_cb(GtkAction* action, gpointer data) {
 	FolderView *folderview = (FolderView *)data;
 	FolderItem *item;
 	VFolderItem* vitem = NULL;
+	gchar* new_folder;
+	gboolean not_empty_folder = TRUE;
 
     item = folderview_get_selected_item(folderview);
     if (item) {
-		FolderItem* parent = folder_item_parent(item);
-		if (! parent) {
-			alertpanel_error(_("%s: Is a root folder. You must choose a message folder like Inbox."),
-							 item->name);
-			return;
-		}
-		cm_return_if_fail(item->path != NULL);
-		cm_return_if_fail(item->folder != NULL);
+		if (IS_VFOLDER_FOLDER_ITEM(item)) {
+			new_folder = input_dialog(_("New virtual folder"),
+									  _("Input the name of the folder:"),
+									  _("Virtual Folder"));
+			if (!new_folder) return;
+			debug_print("Create VFolder: %s\n", new_folder);
 
-		if (item->no_sub) {
+			// find whether the directory already exists
+			if (folder_find_child_item_by_name(item, new_folder)) {
+				alertpanel_error(_("The folder '%s' already exists."), new_folder);
+				g_free(new_folder);
+				return;
+			}
+
+			vitem = VFOLDER_ITEM(folder_create_folder(item, new_folder));
+			if (!vitem) {
+				alertpanel_error(_("Can't create the folder '%s'."), new_folder);
+				g_free(new_folder);
+				return;
+			}
+			g_free(new_folder);
+			vitem->source_id = folder_item_get_identifier(FOLDER_ITEM(vitem));
+			vitem->changed = TRUE;
+			not_empty_folder = FALSE;
+			FolderPropsResponse resp = vfolder_folder_item_props_write(vitem);
+			vfolder_item_props_response(resp);
+		} else {
+			FolderItem* parent = folder_item_parent(item);
+			if (! parent) {
+				alertpanel_error(_("%s: Is a root folder. You must choose a message folder like Inbox."),
+								 item->name);
+				return;
+			}
+			cm_return_if_fail(item->path != NULL);
+			cm_return_if_fail(item->folder != NULL);
+		}
+/*		if (item->no_sub) {
 			alertpanel_error(N_("Virtual folders cannot contain subfolders"));
 			return;
-		}
+		}*/
 	}
 
-	if (! vfolder_edit_item_dialog(&vitem, item)) {
+	if (not_empty_folder && ! vfolder_edit_item_dialog(&vitem, item)) {
 		if (vitem) {
 			FOLDER_ITEM(vitem)->folder->klass->remove_folder(
 				FOLDER_ITEM(vitem)->folder, FOLDER_ITEM(vitem));

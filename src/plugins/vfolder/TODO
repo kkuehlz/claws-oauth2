@@ -2,6 +2,6 @@
 folder item this will require a lot of code.
 - use claws' built-in quick search. Add button to create a virtual folder
 using the result of search. Since quick search has the ability to make recursive
-searches this whish depends on whether recursive behavior is implemented
+searches this wish depends on whether recursive behavior is implemented
 in the VFolder plugin.
 - add 'Create virtual folder' to main context menu.

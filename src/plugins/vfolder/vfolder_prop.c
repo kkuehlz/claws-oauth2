@@ -391,6 +391,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 	response = gtk_dialog_run(GTK_DIALOG(dialog));
 
 	if (response == GTK_RESPONSE_ACCEPT) {
+		gtk_widget_set_sensitive(GTK_WIDGET(dialog), FALSE);
 		str = gtk_entry_get_text(GTK_ENTRY(props_dialog->folder_name));
 		debug_print("VFolder name from dialog: %s\n", str);
 		if (! str) goto error;

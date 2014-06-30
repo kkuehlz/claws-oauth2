@@ -74,7 +74,7 @@ typedef struct {
 static char* vfolder_popup_menu_labels[] = {
 	N_("_Refresh folder"),
 	N_("Refresh _all folders"),
-	N_("Folder pr_operties..."),
+	N_("Virtual folder pr_operties..."),
 	N_("Rena_me..."),
 	N_("_Create new folder..."),
 	N_("_Delete folder..."),

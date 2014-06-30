@@ -202,15 +202,45 @@ static gboolean vfolder_search_body(MsgInfo* msg, GPatternSpec* pattern) {
 	return found;
 }
 
+static gchar* vfolder_filter_assemble(const gchar* str) {
+	gchar *filter = NULL, *head, *tail;
+	glong len;
+	cm_return_val_if_fail(str != NULL, filter);
+
+	len = g_utf8_strlen(str, -1);
+
+	if (len < 2 && (*str == '*' || *str == '?')) {
+		filter = g_strdup(str);
+	} else if (g_utf8_collate("*", g_utf8_offset_to_pointer(str, len - 1)) == 0 ||
+			   g_utf8_collate("?", g_utf8_offset_to_pointer(str, len - 1)) == 0) {
+		filter = g_strdup(str);
+	} else if (*str == '*' || *str == '?') {
+		filter = g_strdup(str);
+	} else if (*str == '"' && g_utf8_collate("\"", g_utf8_offset_to_pointer(str, len - 1)) == 0) {
+		head = g_utf8_next_char(str);
+		tail = g_utf8_offset_to_pointer(str, len - 1);
+		filter = g_new0(gchar, (tail - head) + 1);
+		filter = g_utf8_strncpy(filter, head, tail - head);
+	}
+	else {
+		filter = g_strconcat("*", str, "*", NULL);
+	}
+
+	return filter;
+}
+
 static MsgInfoList* vfolder_filter_msgs_list(MsgInfoList* msgs, VFolderItem* item) {
 	MsgInfoList *list = NULL, *tmp;
 	GPatternSpec* pattern;
 	MsgInfo* msg;
+	gchar* filter;
 
 	if (!item || item->filter == NULL)
 		return list;
 
-	pattern = g_pattern_spec_new(item->filter);
+	filter = vfolder_filter_assemble(item->filter);
+	pattern = g_pattern_spec_new(filter);
+	g_free(filter);
 
 	for (tmp = msgs; tmp; tmp = g_slist_next(tmp)) {
 		msg = (MsgInfo *) tmp->data;
@@ -298,7 +328,10 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 	CLAWS_SET_TIP(props_dialog->folder_name, _("Name for VFolder"));
 	props_dialog->filter = gtk_entry_new();
 	gtk_entry_set_activates_default(GTK_ENTRY(props_dialog->filter), TRUE);
-	CLAWS_SET_TIP(props_dialog->filter, _("Glob filter. '*' or '?' for wildcard"));
+	CLAWS_SET_TIP(props_dialog->filter, _("Glob filter. '*' or '?' for wildcard.\n"
+										  "If no wildcard are found at the end of the glob\n"
+										  "the glob will be pre and post fixed with '*'.\n"
+										  "Place glob inside \"\" to avoid this."));
 	props_dialog->frozen = gtk_check_button_new();
 	CLAWS_SET_TIP(props_dialog->frozen, _("Disable automatic update. Manual refresh is not affected"));
 	props_dialog->source = gtk_entry_new();
@@ -451,12 +484,12 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 			update = TRUE;
 			ok = TRUE;
 		} else {
-			update = FALSE;
+			update = (update) ? TRUE : FALSE;
 		}
 
 
 		str = gtk_entry_get_text(GTK_ENTRY(props_dialog->source));
-		if (vfolder_change_source(vitem, str)) {
+		if (vfolder_change_source(vitem, str) || update) {
 			if (item) {
 				vitem->source = item;
 			} else {
@@ -510,7 +543,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 			}
 		} else {
 			ok = TRUE;
-			update = FALSE;
+			update = (update) ? TRUE : FALSE;
 		}
 
 		if (vitem->frozen != frozen) {

@@ -49,14 +49,16 @@
 #define BOTH	N_("_Both")
 
 typedef struct {
-	GtkWidget* folder_name;
-	GtkWidget* filter;
-	GtkWidget* frozen;
-	GtkWidget* source;
-	GtkWidget* label_btn;
-	GtkWidget* message_btn;
-	GtkWidget* both_btn;
+	GtkWidget*	folder_name;
+	GtkWidget*	filter;
+	GtkWidget*	frozen;
+	GtkWidget*	source;
+	GtkWidget*	label_btn;
+	GtkWidget*	message_btn;
+	GtkWidget*	both_btn;
 } PropsDialog;
+
+static FolderItem* dest_folder = NULL;
 
 static void add_current_config(VFolderItem* item, PropsDialog* props) {
 	if (item->filter)
@@ -102,10 +104,20 @@ static void foldersel_cb(GtkWidget *widget, gpointer data) {
 	}
 }
 
-static gboolean vfolder_source_widget(GtkWidget* widget) {
-	const gchar* name = gtk_widget_get_name(widget);
+static void dest_foldersel_cb(GtkWidget *widget, gpointer data) {
+	FolderItem *item;
 
-	return (name && strcmp("source", name) == 0);
+	item = foldersel_folder_sel(NULL, FOLDER_SEL_COPY, NULL, FALSE);
+	if (item && IS_VFOLDER_FOLDER_ITEM(item)) {
+		dest_folder = item;
+		debug_print("Destination Folder: %s\n", dest_folder->name);
+	}
+}
+
+static gboolean vfolder_is_widget(GtkWidget* widget, const gchar* name) {
+	const gchar* s = gtk_widget_get_name(widget);
+
+	return (s && strcmp(s, name) == 0);
 }
 
 static GtkWidget* vfolder_prop_row(GtkWidget* widget,
@@ -121,9 +133,17 @@ static GtkWidget* vfolder_prop_row(GtkWidget* widget,
 	gtk_box_pack_start(GTK_BOX(row), label, FALSE, FALSE, 5);
 	gtk_box_pack_start(GTK_BOX(row), widget, FALSE, FALSE, 5);
 
-	if (vfolder_source_widget(widget)) {
+	if (vfolder_is_widget(widget, "source")) {
 		btn = gtk_button_new_from_stock(GTK_STOCK_OPEN);
+		CLAWS_SET_TIP(btn, _("Choose source folder for VFolder"));
 		g_signal_connect(G_OBJECT(btn), "clicked", G_CALLBACK(foldersel_cb), widget);
+		gtk_box_pack_start(GTK_BOX(row), btn, FALSE, FALSE, 5);
+	}
+
+	if (vfolder_is_widget(widget, "name")) {
+		btn = gtk_button_new_from_stock(GTK_STOCK_HOME);
+		CLAWS_SET_TIP(btn, _("Choose parent folder for VFolder"));
+		g_signal_connect(G_OBJECT(btn), "clicked", G_CALLBACK(dest_foldersel_cb), NULL);
 		gtk_box_pack_start(GTK_BOX(row), btn, FALSE, FALSE, 5);
 	}
 
@@ -296,6 +316,14 @@ static gboolean vfolder_create_msgs_list(VFolderItem* item) {
 	return ok;
 }
 
+static void gtk_container_foreach_cb(GtkWidget* widget, gpointer data) {
+	cm_return_if_fail(widget != NULL);
+
+	if (GTK_IS_BUTTON(widget)) {
+		gtk_widget_set_sensitive(widget, FALSE);
+	}
+}
+
 void vfolder_set_msgs_filter(VFolderItem* vfolder_item) {
 	cm_return_if_fail(vfolder_item != NULL);
 
@@ -325,7 +353,10 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 	MainWindow *mainwin = mainwindow_get_mainwindow();
 	props_dialog = g_new0(PropsDialog, 1);
 	props_dialog->folder_name = gtk_entry_new();
-	CLAWS_SET_TIP(props_dialog->folder_name, _("Name for VFolder"));
+	CLAWS_SET_TIP(props_dialog->folder_name, _("Name for VFolder.\n"
+											   "Unless home is selected\n"
+											   "the virtual folder will be create\n"
+											   "as child of 'VFolder'."));
 	props_dialog->filter = gtk_entry_new();
 	gtk_entry_set_activates_default(GTK_ENTRY(props_dialog->filter), TRUE);
 	CLAWS_SET_TIP(props_dialog->filter, _("Glob filter. '*' or '?' for wildcard.\n"
@@ -349,6 +380,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 			GTK_RADIO_BUTTON(props_dialog->label_btn), BOTH);
 	CLAWS_SET_TIP(props_dialog->both_btn, _("Scan both message headers and message body"));
 	gtk_widget_set_name(props_dialog->source, "source");
+	gtk_widget_set_name(props_dialog->folder_name, "name");
 
 	if (vitem)
 		add_current_config(vitem, props_dialog);
@@ -365,7 +397,22 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 	GtkWidget* vbox = gtk_vbox_new(FALSE, 5);
 
 	row = vfolder_prop_row(props_dialog->folder_name, _("VFolder _name"), 90, FALSE);
+	if (vitem) {
+		name = folder_item_get_name(FOLDER_ITEM(vitem));
+		if (name) {
+			gtk_entry_set_text(GTK_ENTRY(props_dialog->folder_name), name);
+			gtk_widget_set_sensitive(props_dialog->folder_name, FALSE);
+			g_free(name);
+			name = NULL;
+		}
+	}
+
+	if ((item && IS_VFOLDER_FOLDER_ITEM(item)) ||
+		strlen(gtk_entry_get_text(GTK_ENTRY(props_dialog->folder_name))) > 0)
+		gtk_container_foreach(GTK_CONTAINER(row), gtk_container_foreach_cb, NULL);
+
 	gtk_box_pack_start(GTK_BOX(vbox), row, FALSE, FALSE, 5);
+
 	row = vfolder_prop_row(props_dialog->source, _("_Source folder"), 90, FALSE);
 	gtk_box_pack_start(GTK_BOX(vbox), row, FALSE, FALSE, 5);
 
@@ -377,16 +424,6 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 		gtk_entry_set_text(GTK_ENTRY(props_dialog->source), id);
 		gtk_widget_set_sensitive(props_dialog->source, FALSE);
 		g_free(id);
-	}
-
-	if (vitem) {
-		name = folder_item_get_name(FOLDER_ITEM(vitem));
-		if (name) {
-			gtk_entry_set_text(GTK_ENTRY(props_dialog->folder_name), name);
-			gtk_widget_set_sensitive(props_dialog->folder_name, FALSE);
-			g_free(name);
-			name = NULL;
-		}
 	}
 
 	GtkWidget* frame1 = gtk_frame_new(_("Message filter"));
@@ -434,16 +471,18 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 		debug_print("VFolder name from VFolder: %s\n", name ? name : "NULL");
 
 		if (! name || g_utf8_collate(name, str)) {
-			Folder* folder = folder_find_from_name(VFOLDER_DEFAULT_MAILBOX, vfolder_folder_get_class());
-			FolderItem* parent = FOLDER_ITEM(folder->node->data);
+			if (! dest_folder) {
+				Folder* folder = folder_find_from_name(VFOLDER_DEFAULT_MAILBOX, vfolder_folder_get_class());
+				dest_folder = FOLDER_ITEM(folder->node->data);
+			}
 			/* find whether the directory already exists */
-			if (folder_find_child_item_by_name(parent, str)) {
+			if (folder_find_child_item_by_name(dest_folder, str)) {
 				alertpanel_error(_("The folder '%s' already exists."), str);
 				goto error;
 			}
 			if (! vitem) {
 				debug_print("Create VFolder: %s\n", str);
-				vitem = VFOLDER_ITEM(folder_create_folder(parent, str));
+				vitem = VFOLDER_ITEM(folder_create_folder(dest_folder, str));
 				if (!vitem) {
 					alertpanel_error(_("Can't create the folder '%s'."), str);
 					goto error;
@@ -555,6 +594,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 	}
 
 error:
+	dest_folder = NULL;
 	gtk_widget_destroy(dialog);
 	g_free(props_dialog);
 	g_free(old_filter);

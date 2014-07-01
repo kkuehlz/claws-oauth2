@@ -327,6 +327,8 @@ static gint vfolder_remove_folder(FolderItem* item) {
 	gchar* cwd;
 	gint ret = -1;
 
+	if (! item->path || strlen(item->path) < 1) return 0;
+
 	cwd = g_get_current_dir();
 
 	debug_print("VFolder: removing folder item %s\n", item->path);

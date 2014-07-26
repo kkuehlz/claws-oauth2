@@ -876,7 +876,7 @@ gboolean vfolder_msgvault_serialize(VFolderItem* vitem, GKeyFile* config) {
 	// Save each key / value pair to file
 	while (g_hash_table_iter_next (&iter, &key, &value)) {
 		gchar* k = itos(GPOINTER_TO_INT(key));
-		g_key_file_set_integer(config, MSGVAULT_GROUP, g_strdup(k), GPOINTER_TO_INT(value));
+		g_key_file_set_integer(config, MSGVAULT_GROUP, k, GPOINTER_TO_INT(value));
 		debug_print("Vault to config: src->%s dest->%d\n", k, GPOINTER_TO_INT(value));
 	}
 

@@ -93,7 +93,8 @@ gint vfolder_get_virtual_msg_num(VFolderItem* vitem, gint srcnum);
 gint vfolder_get_source_msg_num(VFolderItem* vitem, gint virtnum);
 void vfolder_set_last_num(Folder *folder, FolderItem *item);
 gboolean vfolder_msgvault_add(VFolderItem* vitem);
-void vfolder_vfolders_change_key(VFolderItem* vitem, const gchar* key);
+gchar* vfolder_compute_unique_id(VFolderItem* vitem);
+void vfolder_vfolders_change_key(VFolderItem* vitem);
 
 void vfolder_msgvault_free(MsgVault* data);
 MsgVault* vfolder_msgvault_new();

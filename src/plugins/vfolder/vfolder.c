@@ -290,18 +290,21 @@ static FolderItem* vfolder_item_new(Folder* folder) {
 
 static void vfolder_item_destroy(Folder* folder, FolderItem* item) {
 	VFolderItem* vitem = VFOLDER_ITEM(item);
+	gchar* key;
 
 	cm_return_if_fail(vitem != NULL);
 
 	if (vitem->source_id) {
 		debug_print("%s: Removing virtual folder from message store\n", vitem->source_id);
-		g_hash_table_remove(vfolders, vitem->source_id);
+		key = vfolder_compute_unique_id(vitem);
+		g_hash_table_remove(vfolders, key);
 		g_free(vitem->source_id);
 		vitem->source_id = NULL;
 	} else {
 		vfolder_msgvault_free(vitem->msgvault);
 	}
 
+	g_free(key);
 	g_free(vitem->filter);
 	vitem->filter = NULL;
 	vitem->msgvault = NULL;
@@ -853,10 +856,16 @@ gint vfolder_get_source_msg_num(VFolderItem* vitem, gint virtnum) {
 }
 
 gboolean vfolder_msgvault_add(VFolderItem* vitem) {
+	gchar* key;
+
 	cm_return_val_if_fail(vitem != NULL, TRUE);
 	cm_return_val_if_fail(vitem->source_id != NULL, TRUE);
 
-	g_hash_table_replace(vfolders, g_strdup(vitem->source_id), vitem);
+	debug_print("%s: Added to message vault\n", vitem->source_id);
+	key = vfolder_compute_unique_id(vitem);
+	debug_print("New key: %s\n", key);
+	g_hash_table_replace(vfolders, g_strdup(key), vitem);
+	g_free(key);
 
 	return FALSE;
 }
@@ -1055,19 +1064,23 @@ VFolderItem* vfolder_folder_item_watch(FolderItem* item) {
 
 void vfolder_source_path_change(VFolderItem* vitem, FolderItem* newItem) {
 	VFolderItem* newVitem = NULL;
-	gpointer key, value;
+	gpointer oldkey, value;
+	gchar* key;
 
 	cm_return_if_fail(vitem != NULL);
 
-	if (g_hash_table_lookup_extended(vfolders, vitem->source_id, &key, &value)) {
-		g_hash_table_steal(vfolders, vitem->source_id);
-		g_free(key);
+	key = vfolder_compute_unique_id(vitem);
+	if (g_hash_table_lookup_extended(vfolders, key, &oldkey, &value)) {
+		g_hash_table_steal(vfolders, oldkey);
+		g_free(oldkey);
 		newVitem = VFOLDER_ITEM(value);
 		newVitem->source = newItem;
 		g_free(newVitem->source_id);
 		newVitem->source_id = folder_item_get_identifier(newItem);
-		g_hash_table_replace(vfolders, g_strdup(newVitem->source_id), newVitem);
+		g_hash_table_replace(vfolders, g_strdup(key), newVitem);
 	}
+
+	g_free(key);
 }
 
 void vfolder_source_folder_remove(VFolderItem* vitem) {
@@ -1091,14 +1104,34 @@ void vfolder_source_folder_remove(VFolderItem* vitem) {
 	}
 }
 
-void vfolder_vfolders_change_key(VFolderItem* vitem, const gchar* key) {
+void vfolder_vfolders_change_key(VFolderItem* vitem) {
 	gpointer old_key, value;
+	gchar* key;
+	gchar* id;
 
 	cm_return_if_fail(vitem != NULL);
 
-	if (g_hash_table_lookup_extended(vfolders, vitem->source_id, &old_key, &value)) {
+	id = folder_item_get_identifier(FOLDER_ITEM(vitem));
+	if (g_hash_table_lookup_extended(vfolders, id, &old_key, &value)) {
 		g_hash_table_steal(vfolders, old_key);
 		g_free(old_key);
+		key = vfolder_compute_unique_id(vitem);
 		g_hash_table_replace(vfolders, g_strdup(key), value);
 	}
+
+	g_free(key);
+	g_free(id);
+}
+
+gchar* vfolder_compute_unique_id(VFolderItem* vitem) {
+	gchar* key;
+	gchar* id;
+
+	cm_return_val_if_fail(vitem != NULL, NULL);
+
+	id = folder_item_get_identifier(FOLDER_ITEM(vitem));
+	key = g_strconcat(vitem->source_id, id, NULL);
+	g_free(id);
+
+	return key;
 }

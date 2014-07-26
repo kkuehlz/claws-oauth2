@@ -70,6 +70,7 @@ static gboolean libravatar_header_update_hook(gpointer source, gpointer data)
 
 		debug_print("libravatar added '%s'\n", a);
 		procmsg_msginfo_add_avatar(acd->msginfo, AVATAR_LIBRAVATAR, a);
+		g_free(a);
 	}
 
 	return FALSE; /* keep getting */
@@ -193,7 +194,7 @@ static GtkWidget *image_widget_from_url(const gchar *url, const gchar *md5)
 		if (filesize == 0)
 			missing_add_md5(libravatarmisses, md5);
 	} else {
-		g_warning("could not open '%s' for writting\n", filename);
+		g_warning("could not open '%s' for writing\n", filename);
 	}
 	curl_easy_cleanup(curl);
 	g_free(filename);

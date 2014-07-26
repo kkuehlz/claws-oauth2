@@ -153,6 +153,22 @@ static const gchar *get_validity_str(unsigned long validity)
 	}
 }
 
+static const gchar *get_owner_trust_str(unsigned long owner_trust)
+{
+	switch (gpgme_err_code(owner_trust)) {
+	case GPGME_VALIDITY_NEVER:
+		return _("Untrusted");
+	case GPGME_VALIDITY_MARGINAL:
+		return _("Marginal");
+	case GPGME_VALIDITY_FULL:
+		return _("Full");
+	case GPGME_VALIDITY_ULTIMATE:
+		return _("Ultimate");
+	default:
+		return _("Unknown");
+	}
+}
+
 static gchar *extract_name(const char *uid)
 {
 	if (uid == NULL)
@@ -209,19 +225,7 @@ gchar *sgpgme_sigstat_info_short(gpgme_ctx_t ctx, gpgme_verify_result_t status)
 		uname = g_strdup("<?>");
 	switch (gpg_err_code(sig->status)) {
 	case GPG_ERR_NO_ERROR:
-		switch (gpg_err_code(sig->validity)) {
-		case GPGME_VALIDITY_FULL:
-		case GPGME_VALIDITY_ULTIMATE:
-			result = g_strdup_printf(_("Good signature from %s."), uname);
-			break;
-		case GPGME_VALIDITY_MARGINAL:
-		case GPGME_VALIDITY_UNKNOWN:
-		case GPGME_VALIDITY_UNDEFINED:
-		case GPGME_VALIDITY_NEVER:
-		default:
-			result = g_strdup_printf(_("Good signature (untrusted) from %s."), uname);
-			break;
-		}
+		result = g_strdup_printf(_("Good signature from %s."), uname);
 		break;
 	case GPG_ERR_SIG_EXPIRED:
 		result = g_strdup_printf(_("Expired signature from %s."), uname);
@@ -338,10 +342,12 @@ gchar *sgpgme_sigstat_info_full(gpgme_ctx_t ctx, gpgme_verify_result_t status)
 				g_string_append_printf(siginfo,
 					_("                    uid \"%s\" (Validity: %s)\n"),
 					user->uid,
-					get_validity_str(user->validity));
+					user->revoked==TRUE?_("Revoked"):get_validity_str(user->validity));
 				j++;
 				user = user->next;
 			}
+			g_string_append_printf(siginfo,_("Owner Trust: %s\n"),
+					       get_owner_trust_str(key->owner_trust));
 			g_string_append(siginfo,
 				_("Primary key fingerprint:"));
 			const char* primary_fpr = NULL;

@@ -1,4 +1,8 @@
 #!/bin/sh
+# Copyright 1999-2014 the Claws Mail team.
+# This file is part of Claws Mail package, and distributed under the
+# terms of the General Public License version 3 (or later).
+# See COPYING file for license details.
 
 # ***** W32 build script *******
 # Used to cross-compile for Windows.
@@ -85,5 +89,7 @@ aclocal -I m4 \
   && autoheader \
   && automake --add-missing --foreign --copy \
   && autoconf \
-  && intltoolize -f --automake \
-  && ./configure --enable-maintainer-mode $@
+  && intltoolize -f --automake
+if test -z "$NOCONFIGURE"; then
+exec ./configure --enable-maintainer-mode $@
+fi   

@@ -170,20 +170,25 @@ static void rssyl_deleted_store_internal(GSList *deleted_items, const gchar *del
 {
 	FILE *f;
 
-	if (g_file_test(deleted_file, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_REGULAR))
-		g_remove(deleted_file);
+	if (g_file_test(deleted_file, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_REGULAR)) {
+		if (g_remove(deleted_file) != 0) {
+			debug_print("RSSyl: Oops, couldn't delete '%s', bailing out\n",
+					deleted_file);
+			return;
+		}
+	}
 
 	if (g_slist_length(deleted_items) == 0)
 		return;
 
 	if ((f = g_fopen(deleted_file, "w")) == NULL) {
-		debug_print("RSSyl: Couldn't open '%s', ignoring.\n", deleted_file);
+		debug_print("RSSyl: Couldn't open '%s', bailing out.\n", deleted_file);
 		return;
 	}
 
 	g_slist_foreach(deleted_items, (GFunc)_store_one_deleted_item,
 			(gpointer)f);
-	
+
 	fclose(f);
 	debug_print("RSSyl: written and closed deletion file\n");
 }
@@ -225,6 +230,7 @@ void rssyl_deleted_add(RFolderItem *ritem, gchar *path)
 	g_free(deleted_file);
 
 	rssyl_deleted_free(deleted_items);
+	feed_item_free(fitem);
 }
 
 static gint _rssyl_deleted_check_func(gconstpointer a, gconstpointer b)

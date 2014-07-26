@@ -25,6 +25,7 @@
 #endif
 
 /* Global includes */
+#include <errno.h>
 #include <glib.h>
 #include <glib/gi18n.h>
 #include <string.h>
@@ -130,14 +131,14 @@ static gint rssyl_cb_feed_compare(const FeedItem *a, const FeedItem *b)
 			return 0;
 		else
 			return 1;
+	}
 
-		/* ... and as a last resort, if there is no title, item texts. */
-		if( no_title && a->text && b->text ) {
-			if( !strcmp(a->text, b->text) )
-				return 0;
-			else
-				return 1;
-		}
+	/* ... and as a last resort, if there is no title, item texts. */
+	if( no_title && a->text && b->text ) {
+		if( !strcmp(a->text, b->text) )
+			return 0;
+		else
+			return 1;
 	}
 
 	/* We don't know this item. */
@@ -285,8 +286,6 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 	g_return_if_fail(ritem != NULL);
 
 	/* If item title is empty, try to fill it from source title (Atom only). */
-	debug_print(",%s,\n", (feed_item->title ? feed_item->title : "<null>"));
-	debug_print(",%s,\n", (feed_item->sourcetitle ? feed_item->sourcetitle : "<null>"));
 	tmp = feed_item_get_sourcetitle(feed_item);
 	if( feed_item_get_title(feed_item) == NULL ||
 			strlen(feed_item->title) == 0 ) {
@@ -296,12 +295,12 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 			feed_item_set_title(feed_item, C_("Empty RSS feed title placeholder", "(empty)"));
 	}
 
-	debug_print(",%s,\n", (feed_item->title ? feed_item->title : "<null>"));
-	debug_print(",%s,\n", (feed_item->sourcetitle ? feed_item->sourcetitle : "<null>"));
+/*
 	if (feed_item_get_id(feed_item) == NULL) {
 		debug_print("RSSyl: item ID empty, using its URL as ID.\n");
 		feed_item_set_id(feed_item, feed_item_get_url(feed_item));
 	}
+*/
 
 	/* If neither item date is set, use date from source (Atom only). */
 	if( feed_item_get_date_modified(feed_item) == -1 &&
@@ -351,7 +350,10 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 		oldperm_flags = msginfo->flags.perm_flags;
 
 		ritem->items = g_slist_remove(ritem->items, old_item);
-		g_remove(ctx->path);
+		if (g_unlink(ctx->path) != 0) {
+			debug_print("RSSyl: Error, could not delete file '%s': %s\n",
+					ctx->path, g_strerror(errno));
+		}
 
 		g_free(ctx->path);
 		feed_item_free(old_item);
@@ -372,11 +374,15 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 	dirname = folder_item_get_path(&ritem->item);
 	template = g_strconcat(dirname, G_DIR_SEPARATOR_S,
 			RSSYL_TMP_TEMPLATE, NULL);
-	fd = mkstemp(template);
+	if ((fd = mkstemp(template)) < 0) {
+		g_warning("Couldn't mkstemp('%s'), not adding message!\n", template);
+		g_free(template);
+		return;
+	}
 
 	f = fdopen(fd, "w");
-	if(f == NULL) {
-		g_warning("Couldn't open file '%s', not adding msg!\n", template);
+	if (f == NULL) {
+		g_warning("Couldn't open file '%s', not adding message!\n", template);
 		g_free(template);
 		return;
 	}

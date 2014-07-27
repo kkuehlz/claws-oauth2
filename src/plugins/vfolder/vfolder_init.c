@@ -47,7 +47,7 @@
 static GtkActionEntry vfolder_main_menu[] = {{
 	"View/CreateVfolder",
 	NULL, N_("Create virtual folder..."),
-	"<Control>v", N_("Create a virtual folder"),
+	"<Control><Alt>v", N_("Create a virtual folder"),
 	G_CALLBACK(vfolder_new_folder_cb)
 }};
 

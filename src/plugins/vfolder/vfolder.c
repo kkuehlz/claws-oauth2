@@ -1048,7 +1048,7 @@ VFolderItem* vfolder_folder_item_watch(FolderItem* item) {
 	cm_return_val_if_fail(item != NULL, FALSE);
 
 	gchar* id = folder_item_get_identifier(item);
-	if (!id) return FALSE;
+	if (!id) return NULL;
 
 	g_hash_table_iter_init (&iter, vfolders);
 	while (g_hash_table_iter_next (&iter, &key, &value) && ! match) {

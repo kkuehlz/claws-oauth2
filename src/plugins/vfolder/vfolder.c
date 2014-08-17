@@ -1117,9 +1117,9 @@ void vfolder_vfolders_change_key(VFolderItem* vitem) {
 		g_free(old_key);
 		key = vfolder_compute_unique_id(vitem);
 		g_hash_table_replace(vfolders, g_strdup(key), value);
+		g_free(key);
 	}
 
-	g_free(key);
 	g_free(id);
 }
 

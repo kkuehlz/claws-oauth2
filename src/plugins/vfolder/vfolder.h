@@ -106,6 +106,7 @@ void vfolder_scan_source_folder_all();
 VFolderItem* vfolder_folder_item_watch(FolderItem* item);
 void vfolder_source_path_change(VFolderItem* vitem, FolderItem* newItem);
 void vfolder_source_folder_remove(VFolderItem* vitem);
+void vfolder_folder_item_remove_all_msg(VFolderItem* vitem);
 
 G_END_DECLS
 

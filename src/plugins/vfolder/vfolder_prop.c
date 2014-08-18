@@ -604,7 +604,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 				}
 				if (vitem->source) {
 					vitem->source = NULL;
-					folder_item_remove_all_msg(FOLDER_ITEM(vitem));
+					vfolder_folder_item_remove_all_msg(vitem);
 					ok = TRUE;
 				}
 			} else {
@@ -631,7 +631,7 @@ gboolean vfolder_edit_item_dialog(VFolderItem** vitem_ptr, FolderItem* item) {
 				}
 				vitem->source_id = folder_item_get_identifier(vitem->source);
 				if (FOLDER_ITEM(vitem)->total_msgs > 0)
-					folder_item_remove_all_msg(FOLDER_ITEM(vitem));
+					vfolder_folder_item_remove_all_msg(vitem);
 				if (! vitem->msg_filter_func)
 					vfolder_set_msgs_filter(vitem);
 				ok = TRUE;

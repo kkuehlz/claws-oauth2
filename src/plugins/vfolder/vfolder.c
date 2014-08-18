@@ -44,6 +44,7 @@
 #include "statusbar.h"
 #include "mainwindow.h"
 #include "folderview.h"
+#include "summaryview.h"
 
 #include "vfolder.h"
 #include "vfolder_gtk.h"
@@ -1134,4 +1135,14 @@ gchar* vfolder_compute_unique_id(VFolderItem* vitem) {
 	g_free(id);
 
 	return key;
+}
+
+void vfolder_folder_item_remove_all_msg(VFolderItem* vitem) {
+	MainWindow* main_window = mainwindow_get_mainwindow();
+
+	folder_item_update_freeze();
+	summary_freeze(main_window->summaryview);
+	folder_item_remove_all_msg(FOLDER_ITEM(vitem));
+	summary_thaw(main_window->summaryview);
+	folder_item_update_thaw();
 }

@@ -451,6 +451,7 @@ void vfolder_properties_cb(GtkAction* action, gpointer data) {
 	}
 //	summary_thaw(main_window->summaryview);
 	folder_item_update_thaw();
+	folder_item_scan(item);
 }
 
 void vfolder_rename_cb(GtkAction* action, gpointer data) {

@@ -1141,4 +1141,5 @@ void vfolder_folder_item_remove_all_msg(VFolderItem* vitem) {
 	folder_item_update_freeze();
 	folder_item_remove_all_msg(FOLDER_ITEM(vitem));
 	folder_item_update_thaw();
+	folder_item_scan(FOLDER_ITEM(vitem));
 }

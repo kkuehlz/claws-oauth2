@@ -1138,11 +1138,7 @@ gchar* vfolder_compute_unique_id(VFolderItem* vitem) {
 }
 
 void vfolder_folder_item_remove_all_msg(VFolderItem* vitem) {
-	MainWindow* main_window = mainwindow_get_mainwindow();
-
 	folder_item_update_freeze();
-	summary_freeze(main_window->summaryview);
 	folder_item_remove_all_msg(FOLDER_ITEM(vitem));
-	summary_thaw(main_window->summaryview);
 	folder_item_update_thaw();
 }

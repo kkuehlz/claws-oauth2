@@ -442,10 +442,15 @@ void vfolder_properties_cb(GtkAction* action, gpointer data) {
 	g_return_if_fail(item->folder != NULL);
 
 	vitem = VFOLDER_ITEM(item);
+	folder_item_update_freeze();
+	//summary_freeze(main_window->summaryview);
+
 	if (vfolder_edit_item_dialog(&vitem, NULL)) {
 		FolderPropsResponse resp = vfolder_folder_item_props_write(vitem);
 		vfolder_item_props_response(resp);
 	}
+//	summary_thaw(main_window->summaryview);
+	folder_item_update_thaw();
 }
 
 void vfolder_rename_cb(GtkAction* action, gpointer data) {

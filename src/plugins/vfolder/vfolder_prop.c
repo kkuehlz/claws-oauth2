@@ -37,6 +37,7 @@
 
 #include "gtkutils.h"
 #include "mainwindow.h"
+#include "summaryview.h"
 #include "foldersel.h"
 #include "alertpanel.h"
 

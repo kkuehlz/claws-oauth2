@@ -70,17 +70,33 @@ GHashTable* vfolders;
 static gboolean existing_tree_found = FALSE;
 
 static MsgInfo* vfolder_msgvault_get_msginfo(VFolderItem* vitem, gint num, gboolean vmsginfo) {
+	MsgInfo* msginfo = NULL;
+	guint* pnum;
+	gint msgnum;
+
 	if (! vitem || ! vitem->msgvault) return NULL;
 
 	if (vmsginfo) {
 		debug_print("src->dest: Look up [%d] from %s\n", num, vitem->source_id);
-		return g_hash_table_lookup(vitem->msgvault->src_to_virt, GINT_TO_POINTER(num));
+		pnum = g_hash_table_lookup(vitem->msgvault->src_to_virt, GINT_TO_POINTER(num));
+		if (pnum) {
+			msgnum = GPOINTER_TO_INT(pnum);
+			//folder_get_item_from_identifier
+			msginfo = folder_item_get_msginfo(FOLDER_ITEM(vitem), msgnum);
+		}
 	} else {
 		gchar* id = folder_item_get_identifier(FOLDER_ITEM(vitem));
 		debug_print("dest->src: Look up [%d] from %s\n", num, id);
 		g_free(id);
-		return g_hash_table_lookup(vitem->msgvault->virt_to_src, GINT_TO_POINTER(num));
+		pnum = g_hash_table_lookup(vitem->msgvault->virt_to_src, GINT_TO_POINTER(num));
+		if (pnum) {
+			msgnum = GPOINTER_TO_INT(pnum);
+			//folder_get_item_from_identifier(vitem->
+			msginfo = folder_item_get_msginfo(vitem->source, msgnum);
+		}
 	}
+
+	return msginfo;
 }
 
 static void vfolder_free_hashtable(gpointer data) {
@@ -613,7 +629,7 @@ static gchar* vfolder_fetch_msg(Folder* folder, FolderItem* item, gint num) {
 }
 
 static MsgInfo* vfolder_get_msginfo(Folder* folder, FolderItem* item, gint num) {
-	MsgInfo* msginfo = NULL;
+	MsgInfo *msginfo = NULL, *srcmsg;
 	gchar* file;
 	MsgFlags flags;
 
@@ -629,7 +645,13 @@ static MsgInfo* vfolder_get_msginfo(Folder* folder, FolderItem* item, gint num) 
 		return NULL;
 	}
 
-	flags.perm_flags = MSG_NEW | MSG_UNREAD;
+	// copy flags from msg
+	srcmsg = vfolder_msgvault_get_msginfo(VFOLDER_ITEM(item), num, FALSE);
+	if (srcmsg)
+		flags.perm_flags = srcmsg->flags.perm_flags;
+	else
+		flags.perm_flags = MSG_NEW | MSG_UNREAD;
+
 	flags.tmp_flags = 0;
 
 	msginfo = procheader_parse_file(file, flags, TRUE, TRUE);
@@ -640,8 +662,8 @@ static MsgInfo* vfolder_get_msginfo(Folder* folder, FolderItem* item, gint num) 
 	if (!msginfo->folder)
 		msginfo->folder = item;
 
-	if (VFOLDER_ITEM(item)->first_run)
-		msginfo->flags.perm_flags = 0;
+//	if (VFOLDER_ITEM(item)->first_run)
+//		msginfo->flags.perm_flags = 0;
 
 	g_free(file);
 

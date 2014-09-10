@@ -81,7 +81,6 @@ static MsgInfo* vfolder_msgvault_get_msginfo(VFolderItem* vitem, gint num, gbool
 		pnum = g_hash_table_lookup(vitem->msgvault->src_to_virt, GINT_TO_POINTER(num));
 		if (pnum) {
 			msgnum = GPOINTER_TO_INT(pnum);
-			//folder_get_item_from_identifier
 			msginfo = folder_item_get_msginfo(FOLDER_ITEM(vitem), msgnum);
 		}
 	} else {
@@ -91,7 +90,6 @@ static MsgInfo* vfolder_msgvault_get_msginfo(VFolderItem* vitem, gint num, gbool
 		pnum = g_hash_table_lookup(vitem->msgvault->virt_to_src, GINT_TO_POINTER(num));
 		if (pnum) {
 			msgnum = GPOINTER_TO_INT(pnum);
-			//folder_get_item_from_identifier(vitem->
 			msginfo = folder_item_get_msginfo(vitem->source, msgnum);
 		}
 	}
@@ -179,11 +177,10 @@ static void vfolder_init_read_func(FolderItem* item, gpointer data) {
 
 	vfolder_set_msgs_filter(VFOLDER_ITEM(item));
 
-/*
 	if (! VFOLDER_ITEM(item)->frozen) {
-		folder_item_scan(VFOLDER_ITEM(item)->source);
+		vfolder_scan_source_folder(VFOLDER_ITEM(item));
 	}
-*/
+
 }
 
 static void vfolder_make_rc_dir(void) {
@@ -647,9 +644,10 @@ static MsgInfo* vfolder_get_msginfo(Folder* folder, FolderItem* item, gint num) 
 
 	// copy flags from msg
 	srcmsg = vfolder_msgvault_get_msginfo(VFOLDER_ITEM(item), num, FALSE);
-	if (srcmsg)
+	if (srcmsg) {
 		flags.perm_flags = srcmsg->flags.perm_flags;
-	else
+		procmsg_msginfo_free(srcmsg);
+	} else
 		flags.perm_flags = MSG_NEW | MSG_UNREAD;
 
 	flags.tmp_flags = 0;

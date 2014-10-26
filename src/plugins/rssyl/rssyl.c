@@ -39,6 +39,7 @@
 #include <xml.h>
 #include <toolbar.h>
 #include <prefs_toolbar.h>
+#include <utils.h>
 
 /* Local includes */
 #include "libfeed/feeditem.h"
@@ -807,12 +808,53 @@ static gboolean rssyl_subscribe_uri(Folder *folder, const gchar *uri)
 static void rssyl_copy_private_data(Folder *folder, FolderItem *oldi,
 		FolderItem *newi)
 {
-	g_return_if_fail(folder != NULL);
-	g_return_if_fail(oldi != NULL);
-	g_return_if_fail(newi != NULL);
+	gchar *dpathold;
+/*	gchar *dpathnew;*/
+	RFolderItem *olditem = (RFolderItem *)oldi,
+									*newitem = (RFolderItem *)newi;
 
-	rssyl_item_set_xml(newi->folder, newi,
-			rssyl_item_get_xml(folder, oldi));
+	g_return_if_fail(folder != NULL);
+	g_return_if_fail(olditem != NULL);
+	g_return_if_fail(newitem != NULL);
+
+	if (olditem->url != NULL) {
+		g_free(newitem->url);
+		newitem->url = g_strdup(olditem->url);
+	}
+
+	if (olditem->official_title != NULL) {
+		g_free(newitem->official_title);
+		newitem->official_title = g_strdup(olditem->official_title);
+	}
+
+	if (olditem->source_id != NULL) {
+		g_free(newitem->source_id);
+		newitem->source_id = g_strdup(olditem->source_id);
+	}
+
+	newitem->keep_old = olditem->keep_old;
+	newitem->default_refresh_interval = olditem->default_refresh_interval;
+	newitem->refresh_interval = olditem->refresh_interval;
+	newitem->fetch_comments = olditem->fetch_comments;
+	newitem->fetch_comments_max_age = olditem->fetch_comments_max_age;
+	newitem->silent_update = olditem->silent_update;
+	newitem->write_heading = olditem->write_heading;
+	newitem->ignore_title_rename = olditem->ignore_title_rename;
+	newitem->ssl_verify_peer = olditem->ssl_verify_peer;
+	newitem->refresh_id = olditem->refresh_id;
+	newitem->fetching_comments = olditem->fetching_comments;
+	newitem->last_update = olditem->last_update;
+
+	dpathold = g_strconcat(rssyl_item_get_path(oldi->folder, oldi),
+			G_DIR_SEPARATOR_S, RSSYL_DELETED_FILE, NULL);
+	if (is_file_exist(dpathold)) {
+/*		dpathnew = g_strconcat(rssyl_item_get_path(newi->folder, newi),
+				G_DIR_SEPARATOR_S, RSSYL_DELETED_FILE, NULL);
+		move_file(dpathold, dpathnew, TRUE);
+		g_free(dpathnew);*/
+		g_remove(dpathold);
+	}
+	g_free(dpathold);
 
 }
 

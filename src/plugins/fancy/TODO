@@ -1,0 +1,486 @@
+fancy_viewer.c: In function ‘fancy_get_selection’:
+fancy_viewer.c:356:16: warning: implicit declaration of function ‘webkit_web_view_get_dom_document’; did you mean ‘webkit_web_view_get_zoom_level’? [-Wimplicit-function-declaration]
+  viewer->doc = webkit_web_view_get_dom_document(WEBKIT_WEB_VIEW(viewer->view));
+                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                webkit_web_view_get_zoom_level
+fancy_viewer.c:356:14: warning: assignment to ‘WebKitDOMDocument *’ {aka ‘struct _WebKitDOMDocument *’} from ‘int’ makes pointer from integer without a cast [-Wint-conversion]
+  viewer->doc = webkit_web_view_get_dom_document(WEBKIT_WEB_VIEW(viewer->view));
+              ^
+fancy_viewer.c:357:2: warning: ‘webkit_dom_document_get_default_view’ is deprecated [-Wdeprecated-declarations]
+  viewer->window = webkit_dom_document_get_default_view (viewer->doc);
+  ^~~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:42,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMDocument.h:640:1: note: declared here
+ webkit_dom_document_get_default_view(WebKitDOMDocument* self);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:358:2: warning: ‘webkit_dom_dom_window_get_selection’ is deprecated [-Wdeprecated-declarations]
+  viewer->selection = webkit_dom_dom_window_get_selection (viewer->window);
+  ^~~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:40,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMDOMWindow.h:62:1: note: declared here
+ webkit_dom_dom_window_get_selection(WebKitDOMDOMWindow* self);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:361:2: warning: ‘webkit_dom_dom_selection_get_range_at’ is deprecated [-Wdeprecated-declarations]
+  viewer->range = webkit_dom_dom_selection_get_range_at(viewer->selection, 0, NULL);
+  ^~~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:38,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMDOMSelection.h:153:1: note: declared here
+ webkit_dom_dom_selection_get_range_at(WebKitDOMDOMSelection* self, gulong index, GError** error);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:364:2: warning: ‘webkit_dom_range_get_text’ is deprecated [-Wdeprecated-declarations]
+  gchar *sel = webkit_dom_range_get_text (viewer->range);
+  ^~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:117,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMRange.h:477:1: note: declared here
+ webkit_dom_range_get_text(WebKitDOMRange* self);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c: At top level:
+fancy_viewer.c:400:9: error: unknown type name ‘WebKitWebFrame’; did you mean ‘WebKitWebView’?
+         WebKitWebFrame            *frame,
+         ^~~~~~~~~~~~~~
+         WebKitWebView
+fancy_viewer.c:401:9: error: unknown type name ‘WebKitNetworkRequest’; did you mean ‘WebKitNetworkError’?
+         WebKitNetworkRequest      *request,
+         ^~~~~~~~~~~~~~~~~~~~
+         WebKitNetworkError
+fancy_viewer.c:402:9: error: unknown type name ‘WebKitWebNavigationAction’; did you mean ‘WebKitNavigationAction’?
+         WebKitWebNavigationAction *navigation_action,
+         ^~~~~~~~~~~~~~~~~~~~~~~~~
+         WebKitNavigationAction
+fancy_viewer.c:403:9: error: unknown type name ‘WebKitWebPolicyDecision’; did you mean ‘WebKitPolicyDecision’?
+         WebKitWebPolicyDecision   *policy_decision,
+         ^~~~~~~~~~~~~~~~~~~~~~~
+         WebKitPolicyDecision
+fancy_viewer.c:430:7: error: unknown type name ‘WebKitWebFrame’; did you mean ‘WebKitWebView’?
+       WebKitWebFrame  *frame,
+       ^~~~~~~~~~~~~~
+       WebKitWebView
+fancy_viewer.c:432:7: error: unknown type name ‘WebKitNetworkRequest’; did you mean ‘WebKitNetworkError’?
+       WebKitNetworkRequest *request,
+       ^~~~~~~~~~~~~~~~~~~~
+       WebKitNetworkError
+fancy_viewer.c:433:7: error: unknown type name ‘WebKitNetworkResponse’; did you mean ‘WebKitNetworkError’?
+       WebKitNetworkResponse *response,
+       ^~~~~~~~~~~~~~~~~~~~~
+       WebKitNetworkError
+fancy_viewer.c: In function ‘fancy_text_search’:
+fancy_viewer.c:479:9: warning: implicit declaration of function ‘webkit_web_view_search_text’; did you mean ‘webkit_web_view_get_context’? [-Wimplicit-function-declaration]
+  return webkit_web_view_search_text(((FancyViewer*)_viewer)->view, str,
+         ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+         webkit_web_view_get_context
+fancy_viewer.c: In function ‘fancy_prefs_cb’:
+fancy_viewer.c:486:3: warning: ‘gtk_menu_popup’ is deprecated: Use '(gtk_menu_popup_at_widget, gtk_menu_popup_at_pointer, gtk_menu_popup_at_rect)' instead [-Wdeprecated-declarations]
+   gtk_menu_popup(GTK_MENU(viewer->fancy_prefs_menu), NULL, NULL, NULL, NULL,
+   ^~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtklabel.h:34,
+                 from /usr/include/gtk-3.0/gtk/gtkaccellabel.h:35,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:33,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/gtkmenu.h:138:9: note: declared here
+ void    gtk_menu_popup    (GtkMenu        *menu,
+         ^~~~~~~~~~~~~~
+fancy_viewer.c: In function ‘load_progress_cb’:
+fancy_viewer.c:599:2: error: unknown type name ‘WebKitLoadStatus’; did you mean ‘WebKitLoadEvent’?
+  WebKitLoadStatus status = webkit_web_view_get_load_status(viewer->view);
+  ^~~~~~~~~~~~~~~~
+  WebKitLoadEvent
+fancy_viewer.c:599:28: warning: implicit declaration of function ‘webkit_web_view_get_load_status’; did you mean ‘webkit_web_view_get_editor_state’? [-Wimplicit-function-declaration]
+  WebKitLoadStatus status = webkit_web_view_get_load_status(viewer->view);
+                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                            webkit_web_view_get_editor_state
+fancy_viewer.c:600:17: warning: implicit declaration of function ‘webkit_web_view_get_progress’; did you mean ‘webkit_web_view_get_page_id’? [-Wimplicit-function-declaration]
+  gdouble pbar = webkit_web_view_get_progress(viewer->view);
+                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                 webkit_web_view_get_page_id
+fancy_viewer.c:610:8: error: ‘WEBKIT_LOAD_PROVISIONAL’ undeclared (first use in this function); did you mean ‘WEBKIT_LOAD_FINISHED’?
+   case WEBKIT_LOAD_PROVISIONAL:
+        ^~~~~~~~~~~~~~~~~~~~~~~
+        WEBKIT_LOAD_FINISHED
+fancy_viewer.c:610:8: note: each undeclared identifier is reported only once for each function it appears in
+fancy_viewer.c:612:8: error: ‘WEBKIT_LOAD_FIRST_VISUALLY_NON_EMPTY_LAYOUT’ undeclared (first use in this function)
+   case WEBKIT_LOAD_FIRST_VISUALLY_NON_EMPTY_LAYOUT:
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:614:8: error: ‘WEBKIT_LOAD_FAILED’ undeclared (first use in this function); did you mean ‘WEBKIT_LOAD_FINISHED’?
+   case WEBKIT_LOAD_FAILED:
+        ^~~~~~~~~~~~~~~~~~
+        WEBKIT_LOAD_FINISHED
+fancy_viewer.c: In function ‘search_the_web_cb’:
+fancy_viewer.c:634:6: warning: implicit declaration of function ‘webkit_web_view_has_selection’; did you mean ‘webkit_web_view_get_inspector’? [-Wimplicit-function-declaration]
+  if (webkit_web_view_has_selection(viewer->view)) {
+      ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      webkit_web_view_get_inspector
+fancy_viewer.c:636:15: warning: assignment to ‘WebKitDOMDocument *’ {aka ‘struct _WebKitDOMDocument *’} from ‘int’ makes pointer from integer without a cast [-Wint-conversion]
+   viewer->doc = webkit_web_view_get_dom_document(WEBKIT_WEB_VIEW(viewer->view));
+               ^
+fancy_viewer.c:637:3: warning: ‘webkit_dom_document_get_default_view’ is deprecated [-Wdeprecated-declarations]
+   viewer->window = webkit_dom_document_get_default_view (viewer->doc);
+   ^~~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:42,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMDocument.h:640:1: note: declared here
+ webkit_dom_document_get_default_view(WebKitDOMDocument* self);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:638:3: warning: ‘webkit_dom_dom_window_get_selection’ is deprecated [-Wdeprecated-declarations]
+   viewer->selection = webkit_dom_dom_window_get_selection (viewer->window);
+   ^~~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:40,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMDOMWindow.h:62:1: note: declared here
+ webkit_dom_dom_window_get_selection(WebKitDOMDOMWindow* self);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:639:3: warning: ‘webkit_dom_dom_selection_get_range_at’ is deprecated [-Wdeprecated-declarations]
+   viewer->range = webkit_dom_dom_selection_get_range_at(viewer->selection, 0, NULL);
+   ^~~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:38,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMDOMSelection.h:153:1: note: declared here
+ webkit_dom_dom_selection_get_range_at(WebKitDOMDOMSelection* self, gulong index, GError** error);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:640:3: warning: ‘webkit_dom_range_get_text’ is deprecated [-Wdeprecated-declarations]
+   gchar *tmp = webkit_dom_range_get_text (viewer->range);
+   ^~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:117,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMRange.h:477:1: note: declared here
+ webkit_dom_range_get_text(WebKitDOMRange* self);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c: In function ‘viewer_menu_handler’:
+fancy_viewer.c:754:4: warning: ‘gtk_image_menu_item_get_type’ is deprecated: Use 'gtk_menu_item_get_type' instead [-Wdeprecated-declarations]
+    GtkImageMenuItem *m_search = GTK_IMAGE_MENU_ITEM(menuitem);
+    ^~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:76:10: note: declared here
+ GType    gtk_image_menu_item_get_type          (void) G_GNUC_CONST;
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:768:4: warning: ‘gtk_image_menu_item_get_type’ is deprecated: Use 'gtk_menu_item_get_type' instead [-Wdeprecated-declarations]
+    GtkImageMenuItem *m_new = GTK_IMAGE_MENU_ITEM(menuitem);
+    ^~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:76:10: note: declared here
+ GType    gtk_image_menu_item_get_type          (void) G_GNUC_CONST;
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:777:4: warning: ‘gtk_image_menu_item_get_type’ is deprecated: Use 'gtk_menu_item_get_type' instead [-Wdeprecated-declarations]
+    GtkImageMenuItem *m_new = GTK_IMAGE_MENU_ITEM(menuitem);
+    ^~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:76:10: note: declared here
+ GType    gtk_image_menu_item_get_type          (void) G_GNUC_CONST;
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:786:4: warning: ‘gtk_image_menu_item_get_type’ is deprecated: Use 'gtk_menu_item_get_type' instead [-Wdeprecated-declarations]
+    GtkImageMenuItem *m_image = GTK_IMAGE_MENU_ITEM(menuitem);
+    ^~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:76:10: note: declared here
+ GType    gtk_image_menu_item_get_type          (void) G_GNUC_CONST;
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:800:4: warning: ‘gtk_image_menu_item_get_type’ is deprecated: Use 'gtk_menu_item_get_type' instead [-Wdeprecated-declarations]
+    GtkImageMenuItem *m_dlink = GTK_IMAGE_MENU_ITEM(menuitem);
+    ^~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:76:10: note: declared here
+ GType    gtk_image_menu_item_get_type          (void) G_GNUC_CONST;
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:811:4: warning: ‘gtk_image_menu_item_get_type’ is deprecated: Use 'gtk_menu_item_get_type' instead [-Wdeprecated-declarations]
+    GtkImageMenuItem *m_simage = GTK_IMAGE_MENU_ITEM(menuitem);
+    ^~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:76:10: note: declared here
+ GType    gtk_image_menu_item_get_type          (void) G_GNUC_CONST;
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:820:4: warning: ‘gtk_image_menu_item_get_type’ is deprecated: Use 'gtk_menu_item_get_type' instead [-Wdeprecated-declarations]
+    GtkImageMenuItem *m_cimage = GTK_IMAGE_MENU_ITEM(menuitem);
+    ^~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:76:10: note: declared here
+ GType    gtk_image_menu_item_get_type          (void) G_GNUC_CONST;
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c: In function ‘context_menu_cb’:
+fancy_viewer.c:859:3: warning: ‘gtk_image_menu_item_new_with_label’ is deprecated: Use 'gtk_menu_item_new_with_label' instead [-Wdeprecated-declarations]
+   GtkWidget *rssyl = gtk_image_menu_item_new_with_label(_("Import feed"));
+   ^~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:80:12: note: declared here
+ GtkWidget* gtk_image_menu_item_new_with_label    (const gchar      *label);
+            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:860:3: warning: ‘gtk_image_new_from_stock’ is deprecated: Use 'gtk_image_new_from_icon_name' instead [-Wdeprecated-declarations]
+   GtkWidget *img = gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU);
+   ^~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtkentry.h:42,
+                 from /usr/include/gtk-3.0/gtk/gtktreeview.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtkcombobox.h:27,
+                 from /usr/include/gtk-3.0/gtk/gtkappchooserbutton.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:42,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/gtkimage.h:122:12: note: declared here
+ GtkWidget* gtk_image_new_from_stock     (const gchar     *stock_id,
+            ^~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:860:3: warning: ‘GtkStock’ is deprecated [-Wdeprecated-declarations]
+   GtkWidget *img = gtk_image_new_from_stock(GTK_STOCK_ADD, GTK_ICON_SIZE_MENU);
+   ^~~~~~~~~
+fancy_viewer.c:861:3: warning: ‘gtk_image_menu_item_set_image’ is deprecated [-Wdeprecated-declarations]
+   gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(rssyl), img);
+   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:92:12: note: declared here
+ void       gtk_image_menu_item_set_image         (GtkImageMenuItem *image_menu_item,
+            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:861:3: warning: ‘gtk_image_menu_item_get_type’ is deprecated: Use 'gtk_menu_item_get_type' instead [-Wdeprecated-declarations]
+   gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(rssyl), img);
+   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:269,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkimagemenuitem.h:76:10: note: declared here
+ GType    gtk_image_menu_item_get_type          (void) G_GNUC_CONST;
+          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c: In function ‘release_button_cb’:
+fancy_viewer.c:897:12: warning: implicit declaration of function ‘webkit_web_view_get_hit_test_result’; did you mean ‘webkit_web_view_get_editor_state’? [-Wimplicit-function-declaration]
+   result = webkit_web_view_get_hit_test_result(view, (GdkEventButton *)ev);
+            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            webkit_web_view_get_editor_state
+fancy_viewer.c:897:10: warning: assignment to ‘WebKitHitTestResult *’ {aka ‘struct _WebKitHitTestResult *’} from ‘int’ makes pointer from integer without a cast [-Wint-conversion]
+   result = webkit_web_view_get_hit_test_result(view, (GdkEventButton *)ev);
+          ^
+fancy_viewer.c: In function ‘press_button_cb’:
+fancy_viewer.c:921:3: warning: initialization of ‘WebKitHitTestResult *’ {aka ‘struct _WebKitHitTestResult *’} from ‘int’ makes pointer from integer without a cast [-Wint-conversion]
+   webkit_web_view_get_hit_test_result(view, (GdkEventButton *)ev);
+   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:942:14: warning: assignment to ‘WebKitDOMDocument *’ {aka ‘struct _WebKitDOMDocument *’} from ‘int’ makes pointer from integer without a cast [-Wint-conversion]
+  viewer->doc = webkit_web_view_get_dom_document(WEBKIT_WEB_VIEW(viewer->view));
+              ^
+fancy_viewer.c:943:2: warning: ‘webkit_dom_document_get_default_view’ is deprecated [-Wdeprecated-declarations]
+  viewer->window = webkit_dom_document_get_default_view (viewer->doc);
+  ^~~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:42,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMDocument.h:640:1: note: declared here
+ webkit_dom_document_get_default_view(WebKitDOMDocument* self);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:944:2: warning: ‘webkit_dom_dom_window_get_selection’ is deprecated [-Wdeprecated-declarations]
+  viewer->selection = webkit_dom_dom_window_get_selection (viewer->window);
+  ^~~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:40,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMDOMWindow.h:62:1: note: declared here
+ webkit_dom_dom_window_get_selection(WebKitDOMDOMWindow* self);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:946:3: warning: ‘webkit_dom_dom_selection_empty’ is deprecated [-Wdeprecated-declarations]
+   webkit_dom_dom_selection_empty(viewer->selection);
+   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/webkitgtk-4.0/webkitdom/webkitdom.h:38,
+                 from ./fancy_viewer.h:33,
+                 from fancy_viewer.c:28:
+/usr/include/webkitgtk-4.0/webkitdom/WebKitDOMDOMSelection.h:215:1: note: declared here
+ webkit_dom_dom_selection_empty(WebKitDOMDOMSelection* self);
+ ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c: In function ‘zoom_in_cb’:
+fancy_viewer.c:959:2: warning: implicit declaration of function ‘webkit_web_view_zoom_in’; did you mean ‘webkit_web_view_go_back’? [-Wimplicit-function-declaration]
+  webkit_web_view_zoom_in(viewer->view);
+  ^~~~~~~~~~~~~~~~~~~~~~~
+  webkit_web_view_go_back
+fancy_viewer.c: In function ‘zoom_out_cb’:
+fancy_viewer.c:964:2: warning: implicit declaration of function ‘webkit_web_view_zoom_out’; did you mean ‘webkit_web_view_load_uri’? [-Wimplicit-function-declaration]
+  webkit_web_view_zoom_out(viewer->view);
+  ^~~~~~~~~~~~~~~~~~~~~~~~
+  webkit_web_view_load_uri
+fancy_viewer.c: At top level:
+fancy_viewer.c:968:9: error: unknown type name ‘WebKitWebFrame’; did you mean ‘WebKitWebView’?
+         WebKitWebFrame    *web_frame,
+         ^~~~~~~~~~~~~~
+         WebKitWebView
+fancy_viewer.c: In function ‘fancy_viewer_create’:
+fancy_viewer.c:999:26: warning: implicit declaration of function ‘webkit_get_default_session’; did you mean ‘webkit_get_major_version’? [-Wimplicit-function-declaration]
+   SoupSession *session = webkit_get_default_session();
+                          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+                          webkit_get_major_version
+fancy_viewer.c:999:26: warning: initialization of ‘SoupSession *’ {aka ‘struct _SoupSession *’} from ‘int’ makes pointer from integer without a cast [-Wint-conversion]
+fancy_viewer.c:1000:3: warning: ‘soup_proxy_resolver_gnome_get_type’ is deprecated: Use 'SoupSession:proxy-resolver' instead [-Wdeprecated-declarations]
+   soup_session_add_feature_by_type (session, SOUP_TYPE_PROXY_RESOLVER_GNOME);
+   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/libsoup-gnome-2.4/libsoup/soup-gnome.h:12,
+                 from ./fancy_viewer.h:55,
+                 from fancy_viewer.c:28:
+/usr/include/libsoup-gnome-2.4/libsoup/soup-gnome-features.h:15:7: note: declared here
+ GType soup_proxy_resolver_gnome_get_type (void);
+       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:1005:26: warning: initialization of ‘SoupSession *’ {aka ‘struct _SoupSession *’} from ‘int’ makes pointer from integer without a cast [-Wint-conversion]
+   SoupSession *session = webkit_get_default_session();
+                          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:1010:21: warning: implicit declaration of function ‘webkit_web_settings_new’; did you mean ‘webkit_settings_new’? [-Wimplicit-function-declaration]
+  viewer->settings = webkit_web_settings_new();
+                     ^~~~~~~~~~~~~~~~~~~~~~~
+                     webkit_settings_new
+fancy_viewer.c:1010:19: warning: assignment to ‘WebKitSettings *’ {aka ‘struct _WebKitSettings *’} from ‘int’ makes pointer from integer without a cast [-Wint-conversion]
+  viewer->settings = webkit_web_settings_new();
+                   ^
+fancy_viewer.c:1020:2: warning: ‘gtk_vbox_new’ is deprecated: Use 'gtk_box_new' instead [-Wdeprecated-declarations]
+  viewer->vbox = gtk_vbox_new(FALSE, 0);
+  ^~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:286,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkvbox.h:61:13: note: declared here
+ GtkWidget * gtk_vbox_new      (gboolean homogeneous,
+             ^~~~~~~~~~~~
+fancy_viewer.c:1021:2: warning: ‘gtk_hbox_new’ is deprecated: Use 'gtk_box_new' instead [-Wdeprecated-declarations]
+  hbox = gtk_hbox_new(FALSE, 0);
+  ^~~~
+In file included from /usr/include/gtk-3.0/gtk/gtk.h:262,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/deprecated/gtkhbox.h:63:13: note: declared here
+ GtkWidget * gtk_hbox_new      (gboolean homogeneous,
+             ^~~~~~~~~~~~
+fancy_viewer.c:1024:2: warning: ‘gtk_image_new_from_stock’ is deprecated: Use 'gtk_image_new_from_icon_name' instead [-Wdeprecated-declarations]
+  viewer->zoom_100 = gtk_image_new_from_stock(GTK_STOCK_ZOOM_100, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtkentry.h:42,
+                 from /usr/include/gtk-3.0/gtk/gtktreeview.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtkcombobox.h:27,
+                 from /usr/include/gtk-3.0/gtk/gtkappchooserbutton.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:42,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/gtkimage.h:122:12: note: declared here
+ GtkWidget* gtk_image_new_from_stock     (const gchar     *stock_id,
+            ^~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:1024:2: warning: ‘GtkStock’ is deprecated [-Wdeprecated-declarations]
+  viewer->zoom_100 = gtk_image_new_from_stock(GTK_STOCK_ZOOM_100, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+fancy_viewer.c:1025:2: warning: ‘gtk_image_new_from_stock’ is deprecated: Use 'gtk_image_new_from_icon_name' instead [-Wdeprecated-declarations]
+  viewer->zoom_in = gtk_image_new_from_stock(GTK_STOCK_ZOOM_IN, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtkentry.h:42,
+                 from /usr/include/gtk-3.0/gtk/gtktreeview.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtkcombobox.h:27,
+                 from /usr/include/gtk-3.0/gtk/gtkappchooserbutton.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:42,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/gtkimage.h:122:12: note: declared here
+ GtkWidget* gtk_image_new_from_stock     (const gchar     *stock_id,
+            ^~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:1025:2: warning: ‘GtkStock’ is deprecated [-Wdeprecated-declarations]
+  viewer->zoom_in = gtk_image_new_from_stock(GTK_STOCK_ZOOM_IN, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+fancy_viewer.c:1026:2: warning: ‘gtk_image_new_from_stock’ is deprecated: Use 'gtk_image_new_from_icon_name' instead [-Wdeprecated-declarations]
+  viewer->zoom_out = gtk_image_new_from_stock(GTK_STOCK_ZOOM_OUT, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtkentry.h:42,
+                 from /usr/include/gtk-3.0/gtk/gtktreeview.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtkcombobox.h:27,
+                 from /usr/include/gtk-3.0/gtk/gtkappchooserbutton.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:42,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/gtkimage.h:122:12: note: declared here
+ GtkWidget* gtk_image_new_from_stock     (const gchar     *stock_id,
+            ^~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:1026:2: warning: ‘GtkStock’ is deprecated [-Wdeprecated-declarations]
+  viewer->zoom_out = gtk_image_new_from_stock(GTK_STOCK_ZOOM_OUT, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+fancy_viewer.c:1027:2: warning: ‘gtk_image_new_from_stock’ is deprecated: Use 'gtk_image_new_from_icon_name' instead [-Wdeprecated-declarations]
+  viewer->stop_loading = gtk_image_new_from_stock(GTK_STOCK_CANCEL, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtkentry.h:42,
+                 from /usr/include/gtk-3.0/gtk/gtktreeview.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtkcombobox.h:27,
+                 from /usr/include/gtk-3.0/gtk/gtkappchooserbutton.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:42,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/gtkimage.h:122:12: note: declared here
+ GtkWidget* gtk_image_new_from_stock     (const gchar     *stock_id,
+            ^~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:1027:2: warning: ‘GtkStock’ is deprecated [-Wdeprecated-declarations]
+  viewer->stop_loading = gtk_image_new_from_stock(GTK_STOCK_CANCEL, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+fancy_viewer.c:1038:2: warning: ‘gtk_image_new_from_stock’ is deprecated: Use 'gtk_image_new_from_icon_name' instead [-Wdeprecated-declarations]
+  viewer->fancy_prefs = gtk_image_new_from_stock(GTK_STOCK_PREFERENCES, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+In file included from /usr/include/gtk-3.0/gtk/gtkentry.h:42,
+                 from /usr/include/gtk-3.0/gtk/gtktreeview.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtkcombobox.h:27,
+                 from /usr/include/gtk-3.0/gtk/gtkappchooserbutton.h:29,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:42,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+/usr/include/gtk-3.0/gtk/gtkimage.h:122:12: note: declared here
+ GtkWidget* gtk_image_new_from_stock     (const gchar     *stock_id,
+            ^~~~~~~~~~~~~~~~~~~~~~~~
+fancy_viewer.c:1038:2: warning: ‘GtkStock’ is deprecated [-Wdeprecated-declarations]
+  viewer->fancy_prefs = gtk_image_new_from_stock(GTK_STOCK_PREFERENCES, GTK_ICON_SIZE_MENU);
+  ^~~~~~
+In file included from /usr/include/glib-2.0/gobject/gobject.h:28,
+                 from /usr/include/glib-2.0/gobject/gbinding.h:29,
+                 from /usr/include/glib-2.0/glib-object.h:23,
+                 from /usr/include/glib-2.0/gio/gioenums.h:28,
+                 from /usr/include/glib-2.0/gio/giotypes.h:28,
+                 from /usr/include/glib-2.0/gio/gio.h:26,
+                 from /usr/include/gtk-3.0/gdk/gdkapplaunchcontext.h:28,
+                 from /usr/include/gtk-3.0/gdk/gdk.h:32,
+                 from /usr/include/gtk-3.0/gtk/gtk.h:30,
+                 from ./fancy_viewer.h:31,
+                 from fancy_viewer.c:28:
+fancy_viewer.c:1099:16: error: ‘navigation_policy_cb’ undeclared (first use in this function); did you mean ‘NavigationMode’?
+     G_CALLBACK(navigation_policy_cb), viewer);
+                ^~~~~~~~~~~~~~~~~~~~
+/usr/include/glib-2.0/gobject/gsignal.h:475:60: note: in definition of macro ‘g_signal_connect’
+     g_signal_connect_data ((instance), (detailed_signal), (c_handler), (data), NULL, (GConnectFlags) 0)
+                                                            ^~~~~~~~~
+fancy_viewer.c:1099:5: note: in expansion of macro ‘G_CALLBACK’
+     G_CALLBACK(navigation_policy_cb), viewer);
+     ^~~~~~~~~~
+fancy_viewer.c:1102:15: error: ‘resource_request_starting_cb’ undeclared (first use in this function); did you mean ‘soup_request_send_finish’?
+    G_CALLBACK(resource_request_starting_cb), viewer);
+               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/glib-2.0/gobject/gsignal.h:475:60: note: in definition of macro ‘g_signal_connect’
+     g_signal_connect_data ((instance), (detailed_signal), (c_handler), (data), NULL, (GConnectFlags) 0)
+                                                            ^~~~~~~~~
+fancy_viewer.c:1102:4: note: in expansion of macro ‘G_CALLBACK’
+    G_CALLBACK(resource_request_starting_cb), viewer);
+    ^~~~~~~~~~
+fancy_viewer.c:1123:16: error: ‘resource_load_failed_cb’ undeclared (first use in this function); did you mean ‘download_file_cb’?
+     G_CALLBACK(resource_load_failed_cb), viewer);
+                ^~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/glib-2.0/gobject/gsignal.h:475:60: note: in definition of macro ‘g_signal_connect’
+     g_signal_connect_data ((instance), (detailed_signal), (c_handler), (data), NULL, (GConnectFlags) 0)
+                                                            ^~~~~~~~~
+fancy_viewer.c:1123:5: note: in expansion of macro ‘G_CALLBACK’
+     G_CALLBACK(resource_load_failed_cb), viewer);
+     ^~~~~~~~~~
+make: *** [Makefile:634: fancy_la-fancy_viewer.lo] Error 1

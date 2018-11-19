@@ -84,7 +84,7 @@ static PrefParam param[] = {
  	 NULL, NULL, NULL},
 	{"save_copy_to_folder", NULL, &tmp_prefs.save_copy_to_folder, P_BOOL,
 	 NULL, NULL, NULL},
-	{"folder_color", "", &tmp_prefs.color, P_COLOR,
+	{"folder_color", "#000000", &tmp_prefs.color, P_COLOR,
 	 NULL, NULL, NULL},
 	{"enable_processing", "FALSE", &tmp_prefs.enable_processing, P_BOOL,
 	 NULL, NULL, NULL},
@@ -336,6 +336,7 @@ void folder_item_prefs_copy_prefs(FolderItem * src, FolderItem * dest)
 
 	*dest->prefs = tmp_prefs;
 	folder_item_prefs_save_config(dest);
+	prefs_matcher_write_config();
 
 	dest->collapsed = src->collapsed;
 	dest->thread_collapsed = src->thread_collapsed;

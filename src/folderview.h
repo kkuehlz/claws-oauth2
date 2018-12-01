@@ -51,6 +51,7 @@ struct _FolderView
 {
 	GtkWidget *scrolledwin;
 	GtkWidget *ctree;
+	GtkWidget *headerpopupmenu;
 
 	GHashTable *popups;
 
@@ -104,7 +105,7 @@ struct _FolderViewPopup
 };
 
 void folderview_initialize		(void);
-FolderView *folderview_create		(void);
+FolderView *folderview_create		(MainWindow *mainwin);
 void folderview_init			(FolderView	*folderview);
 
 void folderview_set			(FolderView	*folderview);

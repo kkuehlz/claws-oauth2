@@ -203,15 +203,9 @@ static gint source_window_delete_cb(GtkWidget *widget, GdkEventAny *event,
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event,
 			    SourceWindow *sourcewin)
 {
-
 	if (!event || !sourcewin) return FALSE;
-	
+
 	switch (event->keyval) {
-	case GDK_KEY_A:
-	case GDK_KEY_a:
-		if ((event->state & GDK_CONTROL_MASK) != 0)
-			gtk_editable_select_region(GTK_EDITABLE(sourcewin->text), 0, -1);
-		break;
 	case GDK_KEY_W:
 	case GDK_KEY_w:
 		if ((event->state & GDK_CONTROL_MASK) != 0)

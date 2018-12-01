@@ -1884,6 +1884,10 @@ MainWindow *main_window_create()
 		gtk_widget_hide(menubar);
 	gtk_window_add_accel_group(GTK_WINDOW(window), gtk_ui_manager_get_accel_group(mainwin->ui_manager));
 
+	/* Create a menu container for the different popup menus we
+	 * will be adding from other UI elements. */
+	MENUITEM_ADDUI_MANAGER(mainwin->ui_manager, "/", "Menus", "Menus", GTK_UI_MANAGER_MENUBAR)
+
 	gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, TRUE, 0);
 
 	if (prefs_common.toolbar_detachable) {
@@ -1994,7 +1998,7 @@ MainWindow *main_window_create()
 	g_signal_connect (G_OBJECT(offline_switch), "clicked", G_CALLBACK(online_switch_clicked), mainwin);
 #endif
 	/* create views */
-	mainwin->folderview  = folderview  = folderview_create();
+	mainwin->folderview  = folderview  = folderview_create(mainwin);
 	mainwin->summaryview = summaryview = summary_create(mainwin);
 	mainwin->messageview = messageview = messageview_create(mainwin);
 
@@ -2909,8 +2913,10 @@ static void main_window_add_mailbox(MainWindow *mainwin)
 	Folder *folder;
 
 	path = input_dialog(_("Add mailbox"),
-			    _("Input the location of mailbox.\n"
-			      "If an existing mailbox is specified, it will be\n"
+			    _("Input the location of the mailbox.\n"
+			      "The location can be either the full path or relative to the \n"
+			      "home directory.\n"
+			      "If the location of an existing mailbox is specified, it will be\n"
 			      "scanned automatically."),
 			    "Mail");
 	if (!path) return;

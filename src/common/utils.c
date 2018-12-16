@@ -218,22 +218,6 @@ gchar *to_human_readable(goffset size)
 	}
 }
 
-/* strcmp with NULL-checking */
-gint strcmp2(const gchar *s1, const gchar *s2)
-{
-	if (s1 == NULL || s2 == NULL)
-		return -1;
-	else
-		return strcmp(s1, s2);
-}
-/* strstr with NULL-checking */
-gchar *strstr2(const gchar *s1, const gchar *s2)
-{
-	if (s1 == NULL || s2 == NULL)
-		return NULL;
-	else
-		return strstr(s1, s2);
-}
 /* compare paths */
 gint path_cmp(const gchar *s1, const gchar *s2)
 {
@@ -840,7 +824,7 @@ GList *add_history(GList *list, const gchar *str)
 
 	cm_return_val_if_fail(str != NULL, list);
 
-	old = g_list_find_custom(list, (gpointer)str, (GCompareFunc)strcmp2);
+	old = g_list_find_custom(list, (gpointer)str, (GCompareFunc)g_strcmp0);
 	if (old) {
 		oldstr = old->data;
 		list = g_list_remove(list, old->data);
@@ -3404,9 +3388,10 @@ gboolean get_uri_part(const gchar *start, const gchar *scanpos,
 	*bp = scanpos;
 
 	/* find end point of URI */
-	for (ep_ = scanpos; *ep_ != '\0'; ep_++) {
-		if (!g_ascii_isgraph(*(const guchar *)ep_) ||
-		    !IS_ASCII(*(const guchar *)ep_) ||
+	for (ep_ = scanpos; *ep_ != '\0'; ep_ = g_utf8_next_char(ep_)) {
+		gunichar u = g_utf8_get_char_validated(ep_, -1);
+		if (!g_unichar_isgraph(u) ||
+		    u == (gunichar)-1 ||
 		    strchr("[]{}<>\"", *ep_)) {
 			break;
 		} else if (strchr("(", *ep_)) {

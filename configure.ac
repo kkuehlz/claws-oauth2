@@ -221,7 +221,7 @@ AC_CHECK_FUNCS(bind_textdomain_codeset)
 LIBS=$syl_save_LIBS
 
 dnl for gettext
-ALL_LINGUAS="ca cs da de en_GB es fi fr hu id_ID it ja nb nl pl pt_BR ro ru sk sv tr zh_TW"
+ALL_LINGUAS="ca cs da de en_GB es fi fr hu id_ID it ja nb nl pl pt_BR pt_PT ro ru sk sv tr zh_TW"
 GETTEXT_PACKAGE=claws-mail
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [Define text domain.])
@@ -302,7 +302,7 @@ AC_ARG_ENABLE(svg,
         [enable_svg=$enableval], [enable_svg=yes])
 
 AC_ARG_ENABLE(tests,
-				[ --enable-tests                   Build unit tests],
+				[  --enable-tests                   Build unit tests],
 				[enable_tests=$enableval], [enable_tests=no])
 
 manualdir='${docdir}/manual'

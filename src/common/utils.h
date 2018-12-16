@@ -47,9 +47,12 @@
 #  include <wchar.h>
 #endif
 
-/* The Hurd doesn't have this limit */
+/* The Hurd doesn't have these limits */
 #ifndef PATH_MAX
   #define PATH_MAX 4196
+#endif
+#ifndef HOST_NAME_MAX
+  #define HOST_NAME_MAX 256
 #endif
 
 #ifdef G_OS_WIN32
@@ -271,10 +274,6 @@ gchar *itos			(gint	      n);
 gchar *to_human_readable	(goffset      size);
 
 /* alternative string functions */
-gint strcmp2		(const gchar	*s1,
-			 const gchar	*s2);
-gchar *strstr2		(const gchar	*s1,
-			 const gchar	*s2);
 gint path_cmp		(const gchar	*s1,
 			 const gchar	*s2);
 gchar *strretchomp	(gchar		*str);

@@ -164,7 +164,18 @@ static GtkWidget *ssl_manager_list_view_create	(void)
 	ssl_manager_create_list_view_columns(GTK_WIDGET(list_view));
 
 	return GTK_WIDGET(list_view);
+}
 
+/*!
+ *\brief	Save Gtk object size to prefs dataset
+ */
+static void ssl_manager_size_allocate_cb(GtkWidget *widget,
+					 GtkAllocation *allocation)
+{
+	cm_return_if_fail(allocation != NULL);
+
+	prefs_common.sslmanwin_width = allocation->width;
+	prefs_common.sslmanwin_height = allocation->height;
 }
 
 void ssl_manager_create(void)
@@ -177,6 +188,7 @@ void ssl_manager_create(void)
 	GtkWidget *view_btn;
 	GtkWidget *delete_btn;
 	GtkWidget *close_btn;
+	static GdkGeometry geometry;
 
 	window = gtkut_window_new(GTK_WINDOW_TOPLEVEL, "ssl_manager");
 	gtk_window_set_title (GTK_WINDOW(window),
@@ -187,6 +199,8 @@ void ssl_manager_create(void)
 	gtk_window_set_resizable(GTK_WINDOW (window), TRUE);
 	g_signal_connect(G_OBJECT(window), "delete_event",
 			 G_CALLBACK(ssl_manager_close_cb), NULL);
+	g_signal_connect(G_OBJECT(window), "size_allocate",
+			 G_CALLBACK(ssl_manager_size_allocate_cb), NULL);
 	g_signal_connect(G_OBJECT(window), "key_press_event",
 			 G_CALLBACK(key_pressed), NULL);
 	MANAGE_WINDOW_SIGNALS_CONNECT (window);
@@ -212,6 +226,7 @@ void ssl_manager_create(void)
 	gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll),
 					GTK_POLICY_NEVER,
 					GTK_POLICY_AUTOMATIC);
+
 	gtk_container_add(GTK_CONTAINER (scroll), certlist);
 
 	gtk_box_pack_start(GTK_BOX(hbox1), scroll, TRUE, TRUE, 0);
@@ -219,6 +234,16 @@ void ssl_manager_create(void)
 	gtk_box_pack_start(GTK_BOX(vbox1), view_btn, FALSE, FALSE, 4);
 	gtk_box_pack_start(GTK_BOX(vbox1), delete_btn, FALSE, FALSE, 4);
 	gtk_box_pack_end(GTK_BOX(vbox1), close_btn, FALSE, FALSE, 4);
+
+	if (!geometry.min_height) {
+		geometry.min_width = 700;
+		geometry.min_height = 250;
+	}
+
+	gtk_window_set_geometry_hints(GTK_WINDOW(window), NULL, &geometry,
+				      GDK_HINT_MIN_SIZE);
+	gtk_widget_set_size_request(window, prefs_common.sslmanwin_width,
+				    prefs_common.sslmanwin_height);
 
 	gtk_widget_show(certlist);
 	gtk_widget_show(scroll);
@@ -240,58 +265,6 @@ void ssl_manager_create(void)
 	gtk_widget_show(window);
 }
 
-static gboolean get_serverport(const gchar *str, gchar **server, gchar **port)
-{
-	const gchar *pos, *prevpos;
-
-	g_return_val_if_fail(str != NULL, FALSE);
-
-	/* We expect 'host.name.port.cert' here, only set
-	 * server and port if we find that.
-	 * Validity of string in port should be checked by caller. */
-	for (prevpos = str, pos = strstr(str, ".");
-			pos != NULL;
-			prevpos = pos, pos = strstr(pos+1, ".")) {
-		if (!strcmp(pos, ".cert")) {
-			if (prevpos > str) {
-				*server = g_strndup(str, prevpos - str);
-				*port = g_strndup(prevpos+1, pos - prevpos - 1);
-			} else {
-				*server = *port = NULL;
-			}
-
-			return TRUE;
-		}
-	}
-
-	return FALSE;
-}
-
-static char *get_fingerprint(const char *str)
-{
-	char *ret = NULL, *tmp = g_strdup(str), *tmp2 = tmp;
-	char *previous_pos = NULL, *last_pos = NULL;
-
-	if (!strchr(tmp, ':')) {
-		/* no fingerprint */
-		if (strstr(tmp, ".cert"))
-			*(strstr(tmp, ".cert")+1) = '.';
-	}
-
-	while (tmp2 && (tmp2 = strstr(tmp2,".")) != NULL) {
-		tmp2++;
-		previous_pos = last_pos;
-		last_pos = tmp2;
-	}
-	if (last_pos && previous_pos && (int)(last_pos - previous_pos - 1) > 0)
-		ret = g_strndup(previous_pos, (int)(last_pos - previous_pos - 1));
-	else
-		ret = NULL;
-	g_free(tmp);
-	return ret;
-	
-}
-
 static void ssl_manager_list_view_insert_cert(GtkWidget *list_view,
 						  GtkTreeIter *row_iter,
 						  gchar *host, 
@@ -307,6 +280,8 @@ static void ssl_manager_list_view_insert_cert(GtkWidget *list_view,
 	GtkListStore *list_store = GTK_LIST_STORE(gtk_tree_view_get_model
 					(GTK_TREE_VIEW(list_view)));
 
+	g_return_if_fail(cert != NULL);
+
 	exp_time_t = gnutls_x509_crt_get_expiration_time(cert->x509_cert);
 
 	memset(buf, 0, sizeof(buf));
@@ -321,7 +296,7 @@ static void ssl_manager_list_view_insert_cert(GtkWidget *list_view,
 
 	sig_status = ssl_certificate_check_signer(cert, cert->status);
 
-	if (sig_status==NULL)
+	if (sig_status == NULL)
 		sig_status = g_strdup_printf(_("Correct%s"),exp_time_t < time(NULL)? _(" (expired)"): "");
 	else {
 		 weight = PANGO_WEIGHT_BOLD;
@@ -380,21 +355,21 @@ static void ssl_manager_load_certs (void)
 		if(strstr(d, ".cert") != d + (strlen(d) - strlen(".cert"))) 
 			continue;
 
-		get_serverport(d, &server, &port);
-		fp = get_fingerprint(d);
+		if (get_serverportfp_from_filename(d, &server, &port, &fp)) {
 
-		if (server != NULL && port != NULL) {
-			gint portnum = atoi(port);
-			if (portnum > 0 && portnum <= 65535) {
-				cert = ssl_certificate_find(server, portnum, fp);
-				ssl_manager_list_view_insert_cert(manager.certlist, NULL,
-						server, port, cert);
+			if (server != NULL && port != NULL) {
+				gint portnum = atoi(port);
+				if (portnum > 0 && portnum <= 65535) {
+					cert = ssl_certificate_find(server, portnum, fp);
+					ssl_manager_list_view_insert_cert(manager.certlist, NULL,
+							server, port, cert);
+				}
 			}
-		}
 		
-		g_free(server);
-		g_free(port);
-		g_free(fp);
+			g_free(server);
+			g_free(port);
+			g_free(fp);
+		}
 		row++;
 	}
 	g_dir_close(dir);
@@ -414,8 +389,14 @@ static void ssl_manager_close_cb(GtkWidget *widget,
 
 static gboolean key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-	if (event && event->keyval == GDK_KEY_Escape)
+	if (!event)
+		return FALSE;
+
+	if (event->keyval == GDK_KEY_Escape)
 		ssl_manager_close();
+	else if (event->keyval == GDK_KEY_Delete)
+		ssl_manager_delete_cb(manager.delete_btn, NULL);
+
 	return FALSE;
 }
 

@@ -1154,9 +1154,8 @@ static IMAPSession *imap_session_new(Folder * folder,
 			  "Do you want to continue connecting to this "
 			  "server? The communication would not be "
 			  "secure."),
-			  GTK_STOCK_CANCEL, _("Con_tinue connecting"), 
-			  NULL, FALSE, NULL, ALERT_WARNING,
-			  G_ALERTDEFAULT) != G_ALERTALTERNATE)
+			  GTK_STOCK_CANCEL, _("Con_tinue connecting"), NULL,
+				ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING) != G_ALERTALTERNATE)
 			return NULL;
 	}
 	port = account->set_imapport ? account->imapport
@@ -1277,7 +1276,9 @@ static IMAPSession *imap_session_new(Folder * folder,
 		session->uidplus = FALSE;
 		session->cmd_count = 1;
 	}
+	SESSION(session)->use_tls_sni = account->use_tls_sni;
 #endif
+
 	log_message(LOG_PROTOCOL, "IMAP connection is %s-authenticated\n",
 		    (session->authenticated) ? "pre" : "un");
 	
@@ -4090,7 +4091,7 @@ static gint imap_cmd_login(IMAPSession *session,
 	gint ok;
 
 	if (!strcmp(type, "plaintext") && imap_has_capability(session, "LOGINDISABLED")) {
-		gint ok = MAILIMAP_ERROR_BAD_STATE;
+		ok = MAILIMAP_ERROR_BAD_STATE;
 		if (imap_has_capability(session, "STARTTLS")) {
 #ifdef USE_GNUTLS
 			log_warning(LOG_PROTOCOL, _("Server requires STARTTLS to log in.\n"));

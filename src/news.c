@@ -361,6 +361,7 @@ static Session *news_session_new(Folder *folder, const PrefsAccount *account, gu
 	nntp_init(folder);
 
 #ifdef USE_GNUTLS
+	SESSION(session)->use_tls_sni = account->use_tls_sni;
 	if (ssl_type != SSL_NONE)
 		r = nntp_threaded_connect_ssl(folder, server, port, proxy_info);
 	else
@@ -405,9 +406,8 @@ static Session *news_session_new_for_folder(Folder *folder)
 			  "Do you want to continue connecting to this "
 			  "server? The communication would not be "
 			  "secure."),
-			  GTK_STOCK_CANCEL, _("Con_tinue connecting"), 
-			  NULL, FALSE, NULL, ALERT_WARNING,
-			  G_ALERTDEFAULT) != G_ALERTALTERNATE)
+			  GTK_STOCK_CANCEL, _("Con_tinue connecting"), NULL,
+				ALERTFOCUS_FIRST, FALSE, NULL, ALERT_WARNING) != G_ALERTALTERNATE)
 			return NULL;
 	}
 	port = ac->set_nntpport ? ac->nntpport : NNTP_PORT;

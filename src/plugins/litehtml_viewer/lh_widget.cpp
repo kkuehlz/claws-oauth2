@@ -29,6 +29,11 @@
 #include <sys/stat.h>
 #include <curl/curl.h>
 #include <gdk/gdk.h>
+
+#include "utils.h"
+
+#include "litehtml/litehtml.h"
+
 #include "lh_widget.h"
 #include "lh_widget_wrapped.h"
 #include "http.h"
@@ -105,19 +110,19 @@ GtkWidget *lh_widget::get_widget() const
 
 void lh_widget::set_caption(const litehtml::tchar_t* caption)
 {
-	g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget set_caption");
+	debug_print("lh_widget set_caption\n");
 	return;
 }
 
 void lh_widget::set_base_url(const litehtml::tchar_t* base_url)
 {
-	g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget set_base_url");
+	debug_print("lh_widget set_base_url\n");
 	return;
 }
 
 void lh_widget::on_anchor_click(const litehtml::tchar_t* url, const litehtml::element::ptr& el)
 {
-	g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget on_anchor_click. url -> %s", url);
+	debug_print("lh_widget on_anchor_click. url -> %s\n", url);
 	m_clicked_url = url;
 	
 	return;
@@ -125,7 +130,7 @@ void lh_widget::on_anchor_click(const litehtml::tchar_t* url, const litehtml::el
 
 void lh_widget::import_css(litehtml::tstring& text, const litehtml::tstring& url, litehtml::tstring& baseurl)
 {
-	g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget import_css");
+	debug_print("lh_widget import_css\n");
 	baseurl = master_css;
 }
 
@@ -139,7 +144,7 @@ void lh_widget::get_client_rect(litehtml::position& client) const
 	client.x = 0;
 	client.y = 0;
 
-//	g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget::get_client_rect: %dx%d",
+//	debug_print("lh_widget::get_client_rect: %dx%d\n",
 //			client.width, client.height);
 }
 
@@ -148,7 +153,7 @@ GdkPixbuf *lh_widget::get_image(const litehtml::tchar_t* url, bool redraw_on_rea
 	GError *error = NULL;
 	GdkPixbuf *pixbuf = NULL;
 
-	g_log(NULL, G_LOG_LEVEL_MESSAGE, "Loading... %s", url);
+	debug_print("Loading... %s\n", url);
 	gchar *msg = g_strdup_printf("Loading %s ...", url);
         lh_widget_statusbar_push(msg);
 	g_free(msg);
@@ -158,7 +163,7 @@ GdkPixbuf *lh_widget::get_image(const litehtml::tchar_t* url, bool redraw_on_rea
     
 	if (error || !image) {
 	    if (error) {
-		g_log(NULL, G_LOG_LEVEL_WARNING, "lh_widget::get_image: Could not create pixbuf %s", error->message);
+		g_warning("lh_widget::get_image: Could not create pixbuf %s", error->message);
 		g_clear_error(&error);
 	    }
 	    goto statusbar_pop;
@@ -166,7 +171,7 @@ GdkPixbuf *lh_widget::get_image(const litehtml::tchar_t* url, bool redraw_on_rea
 
 	pixbuf = gdk_pixbuf_new_from_stream(image, NULL, &error);
 	if (error) {
-	    g_log(NULL, G_LOG_LEVEL_WARNING, "lh_widget::get_image: Could not create pixbuf %s", error->message);
+	    g_warning("lh_widget::get_image: Could not create pixbuf %s", error->message);
 	    //g_object_unref(pixbuf);
 	    pixbuf = NULL;
 	    g_clear_error(&error);
@@ -189,7 +194,7 @@ void lh_widget::open_html(const gchar *contents)
 	m_html = litehtml::document::createFromString(contents, this, &m_context);
 	m_rendered_width = 0;
 	if (m_html != NULL) {
-		g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget::open_html created document");
+		debug_print("lh_widget::open_html created document\n");
 		redraw();
 	}
 	lh_widget_statusbar_pop();
@@ -225,7 +230,7 @@ void lh_widget::redraw()
 	cairo_t *cr;
 
 	if (m_html == NULL) {
-		g_log(NULL, G_LOG_LEVEL_WARNING, "lh_widget::redraw: No document!");
+		g_warning("lh_widget::redraw: No document!");
 		return;
 	}
 
@@ -235,8 +240,7 @@ void lh_widget::redraw()
 
 	/* If the available width has changed, rerender the HTML content. */
 	if (m_rendered_width != width) {
-		g_log(NULL, G_LOG_LEVEL_MESSAGE,
-				"lh_widget::redraw: width changed: %d != %d",
+		debug_print("lh_widget::redraw: width changed: %d != %d\n",
 				m_rendered_width, width);
 
 		/* Update our internally stored width, mainly so that
@@ -247,8 +251,7 @@ void lh_widget::redraw()
 		/* Re-render HTML for this width. */
 		m_html->media_changed();
 		m_html->render(m_rendered_width);
-		g_log(NULL, G_LOG_LEVEL_MESSAGE, "render is %dx%d",
-				m_html->width(), m_html->height());
+		debug_print("render is %dx%d\n", m_html->width(), m_html->height());
 
 		/* Change drawing area's size to match what was rendered. */
 		gtk_widget_set_size_request(m_drawing_area,
@@ -260,7 +263,7 @@ void lh_widget::redraw()
 	/* Paint the rendered HTML. */
 	gdkwin = gtk_widget_get_window(m_drawing_area);
 	if (gdkwin == NULL) {
-		g_log(NULL, G_LOG_LEVEL_WARNING, "lh_widget::redraw: No GdkWindow to draw on!");
+		g_warning("lh_widget::redraw: No GdkWindow to draw on!");
 		return;
 	}
 	cr = gdk_cairo_create(GDK_DRAWABLE(gdkwin));
@@ -273,7 +276,7 @@ void lh_widget::paint_white()
 {
 	GdkWindow *gdkwin = gtk_widget_get_window(m_drawing_area);
 	if (gdkwin == NULL) {
-		g_log(NULL, G_LOG_LEVEL_WARNING, "lh_widget::clear: No GdkWindow to draw on!");
+		g_warning("lh_widget::clear: No GdkWindow to draw on!");
 		return;
 	}
 	cairo_t *cr = gdk_cairo_create(GDK_DRAWABLE(gdkwin));
@@ -295,41 +298,66 @@ void lh_widget::clear()
 
 void lh_widget::set_cursor(const litehtml::tchar_t* cursor)
 {
-    //g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget set_cursor %s:%s", m_cursor, cursor);
-    if (cursor)
-    {
-	if (m_cursor != cursor)
-	{
-	    m_cursor = cursor;
-	    update_cursor();
+	if (cursor) {
+		if (m_cursor != cursor) {
+			m_cursor = cursor;
+			update_cursor();
+		}
 	}
-    }
 }
 
 void lh_widget::update_cursor()
 {
-    //g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget update_cursor %s", m_cursor);
-    GdkCursorType cursType = GDK_ARROW;
-    if(m_cursor == _t("pointer"))
-    {
-        cursType = GDK_HAND2;
-    }
-    if(cursType == GDK_ARROW)
-    {
-	lh_widget_statusbar_pop();
-        gdk_window_set_cursor(gtk_widget_get_window(m_drawing_area), NULL);
-    } else
-    {
-	if (!m_clicked_url.empty()) {
-	    lh_widget_statusbar_push(m_clicked_url.c_str());
+	gint x, y;
+	litehtml::element::ptr root_el, over_el, el;
+	GdkWindow *w = gdk_display_get_window_at_pointer(gdk_display_get_default(),
+			&x, &y);
+	GdkCursorType cursType = GDK_ARROW;
+
+	if (m_cursor == _t("pointer")) {
+		cursType = GDK_HAND2;
 	}
-        gdk_window_set_cursor(gtk_widget_get_window(m_drawing_area), gdk_cursor_new(cursType));
-    }
+
+	if (cursType == GDK_ARROW) {
+		gdk_window_set_cursor(gtk_widget_get_window(m_drawing_area), NULL);
+	} else {
+		gdk_window_set_cursor(gtk_widget_get_window(m_drawing_area), gdk_cursor_new(cursType));
+	}
+
+	if (w != gtk_widget_get_window(m_drawing_area))
+		return;
+
+	/* Find the element we are hovering over */
+	root_el = m_html->root();
+	g_return_if_fail(root_el != NULL);
+	over_el = root_el->get_element_by_point(x, y, x, y);
+	g_return_if_fail(over_el != NULL);
+
+	/* If it's not an anchor, check if it has a parent anchor
+	 * (e.g. it's an image within an anchor) and grab a pointer
+	 * to that. */
+	if (strcmp(over_el->get_tagName(), "a") && over_el->parent()) {
+		el = over_el->parent();
+		while (el && el != root_el && strcmp(el->get_tagName(), "a")) {
+			el = el->parent();
+		}
+
+		if (el && el != root_el)
+			over_el = el;
+	}
+
+	/* If it's an anchor, show its "href" attribute in statusbar,
+	 * otherwise clear statusbar. */
+	if (!strcmp(over_el->get_tagName(), "a")) {
+		lh_widget_statusbar_push(over_el->get_attr(_t("href")));
+	} else {
+		lh_widget_statusbar_pop();
+	}
 }
 
 void lh_widget::print()
 {
-    g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget print");
+    debug_print("lh_widget print\n");
     gtk_widget_realize(GTK_WIDGET(m_drawing_area));
 }
 
@@ -346,7 +374,7 @@ static void size_allocate_cb(GtkWidget *widget, GdkRectangle *allocation,
 {
 	lh_widget *w = (lh_widget *)user_data;
 
-	g_log(NULL, G_LOG_LEVEL_MESSAGE, "size_allocate_cb: %dx%d",
+	debug_print("size_allocate_cb: %dx%d\n",
 			allocation->width, allocation->height);
 
 	w->setHeight(allocation->height);
@@ -359,7 +387,7 @@ static gboolean button_press_event(GtkWidget *widget, GdkEventButton *event,
     litehtml::position::vector redraw_boxes;
     lh_widget *w = (lh_widget *)user_data;
     
-    g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget on_button_press_event");
+    debug_print("lh_widget on_button_press_event\n");
 
     if(w->m_html)
     {    
@@ -367,7 +395,7 @@ static gboolean button_press_event(GtkWidget *widget, GdkEventButton *event,
         {
             for(auto& pos : redraw_boxes)
             {
-		g_log(NULL, G_LOG_LEVEL_MESSAGE, "x: %d y:%d w: %d h: %d", pos.x, pos.y, pos.width, pos.height);
+		debug_print("x: %d y:%d w: %d h: %d\n", pos.x, pos.y, pos.width, pos.height);
                 gtk_widget_queue_draw_area(widget, pos.x, pos.y, pos.width, pos.height);
             }
         }
@@ -382,7 +410,7 @@ static gboolean motion_notify_event(GtkWidget *widget, GdkEventButton *event,
     litehtml::position::vector redraw_boxes;
     lh_widget *w = (lh_widget *)user_data;
     
-    //g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget on_motion_notify_event");
+    //debug_print("lh_widget on_motion_notify_event\n");
 
     if(w->m_html)
     {    
@@ -391,7 +419,7 @@ static gboolean motion_notify_event(GtkWidget *widget, GdkEventButton *event,
         {
             for (auto& pos : redraw_boxes)
             {
-		g_log(NULL, G_LOG_LEVEL_MESSAGE, "x: %d y:%d w: %d h: %d", pos.x, pos.y, pos.width, pos.height);
+		debug_print("x: %d y:%d w: %d h: %d\n", pos.x, pos.y, pos.width, pos.height);
                 gtk_widget_queue_draw_area(widget, pos.x, pos.y, pos.width, pos.height);
             }
         }
@@ -407,7 +435,7 @@ static gboolean button_release_event(GtkWidget *widget, GdkEventButton *event,
     lh_widget *w = (lh_widget *)user_data;
     GError* error = NULL;
 
-	g_log(NULL, G_LOG_LEVEL_MESSAGE, "lh_widget on_button_release_event");
+	debug_print("lh_widget on_button_release_event\n");
 	
 	if(w->m_html)
 	{
@@ -416,19 +444,19 @@ static gboolean button_release_event(GtkWidget *widget, GdkEventButton *event,
         {
             for (auto& pos : redraw_boxes)
             {
-		g_log(NULL, G_LOG_LEVEL_MESSAGE, "x: %d y:%d w: %d h: %d", pos.x, pos.y, pos.width, pos.height);
+		debug_print("x: %d y:%d w: %d h: %d\n", pos.x, pos.y, pos.width, pos.height);
                 gtk_widget_queue_draw_area(widget, pos.x, pos.y, pos.width, pos.height);
             }
         }
         
         if (!w->m_clicked_url.empty())
         {
-                g_log(NULL, G_LOG_LEVEL_MESSAGE, "Open in browser: %s", w->m_clicked_url.c_str());
+                debug_print("Open in browser: %s\n", w->m_clicked_url.c_str());
 		gtk_show_uri(gdk_screen_get_default(),
 			     w->m_clicked_url.c_str(),
 			     GDK_CURRENT_TIME, &error);
                 if (error) {
-                    g_log(NULL, G_LOG_LEVEL_WARNING, "Failed opening url(%s): %s", w->m_clicked_url, error->message);
+                    g_warning("Failed opening url(%s): %s", w->m_clicked_url, error->message);
                     g_clear_error(&error);
                 }
         }

@@ -171,7 +171,9 @@ static SnDisplay *sn_display = NULL;
 
 static gint lock_socket = -1;
 static gint lock_socket_tag = 0;
+#ifdef G_OS_UNIX
 static gchar *x_display = NULL;
+#endif
 typedef enum 
 {
 	ONLINE_MODE_DONT_CHANGE,
@@ -735,8 +737,8 @@ static void win32_log(const gchar *log_domain, GLogLevelFlags log_level, const g
 
 static void win32_open_log(void)
 {
-	gchar *logfile = g_strconcat(g_get_tmp_dir(), G_DIR_SEPARATOR_S, "claws-win32.log", NULL);
-	gchar *oldlogfile = g_strconcat(g_get_tmp_dir(), G_DIR_SEPARATOR_S, "claws-win32.log.bak", NULL);
+	gchar *logfile = win32_debug_log_path();
+	gchar *oldlogfile = g_strconcat(logfile, ".bak", NULL);
 
 	if (is_file_exist(logfile)) {
 		if (rename_force(logfile, oldlogfile) < 0)
@@ -2447,7 +2449,7 @@ static gint prohibit_duplicate_launch(void)
 			claws_fputs(buf, stdout);
 		}
 	} else {
-#ifndef G_OS_WIN32
+#ifdef G_OS_UNIX
 		gchar buf[BUFSIZ];
 		fd_write_all(uxsock, "get_display\n", 12);
 		memset(buf, 0, sizeof(buf));
@@ -2539,8 +2541,10 @@ static void lock_socket_input_cb(gpointer data,
 
 	if (!strncmp(buf, "popup", 5)) {
 		main_window_popup(mainwin);
+#ifdef G_OS_UNIX
 	} else if (!strncmp(buf, "get_display", 11)) {
 		fd_write_all(sock, x_display, strlen(x_display));
+#endif
 	} else if (!strncmp(buf, "receive_all", 11)) {
 		inc_all_account_mail(mainwin, FALSE, FALSE,
 				     prefs_common.newmail_notify_manu);

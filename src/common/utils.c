@@ -1413,7 +1413,8 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 					  "../",
 					  NULL };
 	gint num_attach = 0;
-	gchar **my_att = NULL;
+
+	cm_return_val_if_fail(mailto != NULL, -1);
 
 	Xstrdup_a(tmp_mailto, mailto, return -1);
 
@@ -1428,9 +1429,6 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 
 	if (to && !*to)
 		*to = decode_uri_gdup(tmp_mailto);
-
-	my_att = g_malloc(sizeof(char *));
-	my_att[0] = NULL;
 
 	while (p) {
 		gchar *field, *value;
@@ -1458,6 +1456,7 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 			} else {
 				gchar *tmp = decode_uri_gdup(value);
 				gchar *new_from = g_strdup_printf("%s, %s", *from, tmp);
+				g_free(tmp);
 				g_free(*from);
 				*from = new_from;
 			}
@@ -1467,6 +1466,7 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 			} else {
 				gchar *tmp = decode_uri_gdup(value);
 				gchar *new_cc = g_strdup_printf("%s, %s", *cc, tmp);
+				g_free(tmp);
 				g_free(*cc);
 				*cc = new_cc;
 			}
@@ -1476,6 +1476,7 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 			} else {
 				gchar *tmp = decode_uri_gdup(value);
 				gchar *new_bcc = g_strdup_printf("%s, %s", *bcc, tmp);
+				g_free(tmp);
 				g_free(*bcc);
 				*bcc = new_bcc;
 			}
@@ -1493,11 +1494,16 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 		} else if (attach && !g_ascii_strcasecmp(field, "attach")) {
 			int i = 0;
 			gchar *tmp = decode_uri_gdup(value);
+			gchar **my_att = g_malloc(sizeof(char *));
+
+			my_att[0] = NULL;
+
 			for (; forbidden_uris[i]; i++) {
 				if (strstr(tmp, forbidden_uris[i])) {
 					g_print("Refusing to attach '%s', potential private data leak\n",
 							tmp);
 					g_free(tmp);
+					g_free(my_att);
 					break;
 				}
 			}
@@ -1507,6 +1513,10 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 				my_att = g_realloc(my_att, (sizeof(char *))*(num_attach+1));
 				my_att[num_attach-1] = tmp;
 				my_att[num_attach] = NULL;
+				*attach = my_att;
+				g_free(tmp);
+			} else {
+				g_free(my_att);
 			}
 		} else if (inreplyto && !*inreplyto &&
 			   !g_ascii_strcasecmp(field, "in-reply-to")) {
@@ -1514,8 +1524,6 @@ gint scan_mailto_url(const gchar *mailto, gchar **from, gchar **to, gchar **cc, 
 		}
 	}
 
-	if (attach)
-		*attach = my_att;
 	return 0;
 }
 
@@ -4709,3 +4717,10 @@ gboolean get_serverportfp_from_filename(const gchar *str, gchar **server, gchar 
 		return TRUE;
 }
 
+#ifdef G_OS_WIN32
+gchar *win32_debug_log_path(void)
+{
+	return g_strconcat(g_get_tmp_dir(), G_DIR_SEPARATOR_S,
+			"claws-win32.log", NULL);
+}
+#endif

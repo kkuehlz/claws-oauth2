@@ -125,6 +125,10 @@ static gint rssyl_cb_feed_compare(const FeedItem *a, const FeedItem *b)
 	if (title_eq && date_eq)
 		return 0;
 
+	/* Or if the url and title match. */
+	if (url_eq && title_eq)
+		return 0;
+
 	/* There is no timestamp and the url matches (or there is none),
 	 * we need to compare titles, ... */
 	if( (no_url || url_eq) && no_date ) {
@@ -307,13 +311,13 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 	/* If one of the timestamps is empty, set it to value of the other one. */
 	if( feed_item_get_date_modified(feed_item) == -1 &&
 			feed_item_get_date_published(feed_item) >= 0 ) {
-		debug_print("RSSyl: setting missing moddate to pubdate %ld\n",
+		debug_print("RSSyl: setting missing moddate to pubdate %"G_GSIZE_FORMAT"\n",
 				feed_item_get_date_published(feed_item));
 		feed_item_set_date_modified(feed_item,
 				feed_item_get_date_published(feed_item));
 	} else if( feed_item_get_date_published(feed_item) == -1 &&
 			feed_item_get_date_modified(feed_item) >= 0 ) {
-		debug_print("RSSyl: setting missing pubdate to modddate %ld\n",
+		debug_print("RSSyl: setting missing pubdate to modddate %"G_GSIZE_FORMAT"\n",
 				feed_item_get_date_modified(feed_item));
 		feed_item_set_date_published(feed_item,
 				feed_item_get_date_modified(feed_item));
@@ -321,7 +325,7 @@ void rssyl_add_item(RFolderItem *ritem, FeedItem *feed_item)
 			feed_item_get_date_published(feed_item) == -1 &&
 			feed_item_get_sourcedate(feed_item) >= 0 ) {
 		/* If neither item date is set, use date from source (Atom only). */
-		debug_print("RSSyl: setting missing pubdate and moddate to feed source date %ld\n",
+		debug_print("RSSyl: setting missing pubdate and moddate to feed source date %"G_GSIZE_FORMAT"\n",
 				feed_item_get_sourcedate(feed_item));
 		feed_item_set_date_modified(feed_item,
 				feed_item_get_sourcedate(feed_item));

@@ -472,6 +472,9 @@ static PrefParam basic_param[] = {
 	{"user_id", NULL, &tmp_ac_prefs.userid, P_STRING,
 	 &basic_page.uid_entry, prefs_set_data_from_entry, prefs_set_entry},
 
+	{"oauth_refresh_server", NULL, &tmp_ac_prefs.oauth_refresh_server, P_STRING,
+	 &basic_page.refresh_server_entry, prefs_set_data_from_entry, prefs_set_entry},
+
 	{"password", NULL, &tmp_ac_prefs.passwd, P_PASSWORD,
 	 NULL, NULL, NULL},
 
@@ -1573,6 +1576,30 @@ static void basic_create_widget_func(PrefsPage * _page,
 		buf = passwd_store_get_account(ac_prefs->account_id,
 				PWS_ACCOUNT_RECV);
 		gtk_entry_set_text(GTK_ENTRY(page->pass_entry), buf != NULL ? buf : "");
+		if (buf != NULL) {
+			memset(buf, 0, strlen(buf));
+			g_free(buf);
+		}
+
+		buf = passwd_store_get_account(ac_prefs->account_id,
+				PWS_OAUTH_CLIENT_ID);
+		gtk_entry_set_text(GTK_ENTRY(page->client_id_entry), buf != NULL ? buf : "");
+		if (buf != NULL) {
+			memset(buf, 0, strlen(buf));
+			g_free(buf);
+		}
+
+		buf = passwd_store_get_account(ac_prefs->account_id,
+				PWS_OAUTH_CLIENT_SECRET);
+		gtk_entry_set_text(GTK_ENTRY(page->client_secret_entry), buf != NULL ? buf : "");
+		if (buf != NULL) {
+			memset(buf, 0, strlen(buf));
+			g_free(buf);
+		}
+
+		buf = passwd_store_get_account(ac_prefs->account_id,
+				PWS_OAUTH_REFRESH_TOKEN);
+		gtk_entry_set_text(GTK_ENTRY(page->refresh_token_entry), buf != NULL ? buf : "");
 		if (buf != NULL) {
 			memset(buf, 0, strlen(buf));
 			g_free(buf);
@@ -3441,6 +3468,26 @@ static gint prefs_basic_apply(void)
 		return -1;
 	}
 
+	if (strchr(gtk_entry_get_text(GTK_ENTRY(basic_page.client_id_entry)), '\n') != NULL) {
+		alertpanel_error(_("OAUTH client id cannot contain a newline character."));
+		return -1;
+	}
+
+	if (strchr(gtk_entry_get_text(GTK_ENTRY(basic_page.client_secret_entry)), '\n') != NULL) {
+		alertpanel_error(_("OAUTH client secret cannot contain a newline character."));
+		return -1;
+	}
+
+	if (strchr(gtk_entry_get_text(GTK_ENTRY(basic_page.refresh_server_entry)), '\n') != NULL) {
+		alertpanel_error(_("OAUTH refresh server cannot contain a newline character."));
+		return -1;
+	}
+
+	if (strchr(gtk_entry_get_text(GTK_ENTRY(basic_page.refresh_token_entry)), '\n') != NULL) {
+		alertpanel_error(_("OAUTH refresh token cannot contain a newline character."));
+		return -1;
+	}
+
 	prefs_set_data_from_dialog(basic_param);
 
 	/* Passwords are stored outside of PrefParams. */
@@ -3448,7 +3495,28 @@ static gint prefs_basic_apply(void)
 			PWS_ACCOUNT_RECV,
 			gtk_entry_get_text(GTK_ENTRY(basic_page.pass_entry)),
 			FALSE);
-	
+
+    if (*gtk_entry_get_text(GTK_ENTRY(basic_page.client_id_entry)) != '\0') {
+        passwd_store_set_account(tmp_ac_prefs.account_id,
+                PWS_OAUTH_CLIENT_ID,
+                gtk_entry_get_text(GTK_ENTRY(basic_page.client_id_entry)),
+                FALSE);
+    }
+
+    if (*gtk_entry_get_text(GTK_ENTRY(basic_page.client_secret_entry)) != '\0') {
+        passwd_store_set_account(tmp_ac_prefs.account_id,
+                PWS_OAUTH_CLIENT_SECRET,
+                gtk_entry_get_text(GTK_ENTRY(basic_page.client_secret_entry)),
+                FALSE);
+    }
+
+    if (*gtk_entry_get_text(GTK_ENTRY(basic_page.refresh_token_entry)) != '\0') {
+        passwd_store_set_account(tmp_ac_prefs.account_id,
+                PWS_OAUTH_REFRESH_TOKEN,
+                gtk_entry_get_text(GTK_ENTRY(basic_page.refresh_token_entry)),
+                FALSE);
+    }
+
 	if (protocol == A_IMAP4 || protocol == A_NNTP) {
 		new_id = g_strdup_printf("#%s/%s",
 				protocol == A_IMAP4 ? "imap":"news",

@@ -69,6 +69,7 @@ struct _PrefsAccount
 	gchar *userid;
 	gchar *passwd;
 	gchar *session_passwd;
+	gchar *oauth_refresh_server;
 
 	gchar * local_mbox;
 	gboolean use_mail_command;

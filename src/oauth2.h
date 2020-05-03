@@ -23,10 +23,22 @@
 
 #include "prefs_account.h"
 
-struct curl_oauth_refresh {
+struct curl_oauth2_refresh {
 	gchar *payload;
 	size_t size;
 };
+
+struct _OAuth2Ctx {
+    gchar *client_id;
+    gchar *client_secret;
+    gchar *refresh_server;
+    gchar *refresh_token;
+    gchar *access_token;
+    gboolean success;
+    gboolean ready;
+};
+
+typedef struct _OAuth2Ctx OAuth2Ctx;
 
 gchar *oauth2_get_access_token(PrefsAccount *account);
 

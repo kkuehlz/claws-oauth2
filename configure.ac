@@ -1180,6 +1180,11 @@ PKG_CHECK_MODULES(CURL, libcurl, HAVE_CURL=yes, HAVE_CURL=no)
 AC_SUBST(CURL_LIBS)
 AC_SUBST(CURL_CFLAGS)
 
+dnl json-c ********************************************************************
+PKG_CHECK_MODULES(JSONC, json-c, HAVE_JSONC=yes, HAVE_JSONC=no)
+AC_SUBST(JSONC_LIBS)
+AC_SUBST(JSONC_CFLAGS)
+
 dnl expat **********************************************************************
 PKG_CHECK_MODULES(EXPAT, expat, HAVE_EXPAT=yes, HAVE_EXPAT=no)
 

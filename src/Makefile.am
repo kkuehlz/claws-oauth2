@@ -607,7 +607,9 @@ claws_mail_LDADD = \
 	$(LIBETPAN_LIBS) \
 	$(DBUS_LIBS) \
 	$(SVG_LIBS) \
-	$(CONTACTS_LIBS)
+	$(CONTACTS_LIBS) \
+	$(CURL_LIBS) \
+	$(JSONC_LIBS)
 
 pixmapdir=$(datadir)/icons/hicolor/48x48/apps
 

@@ -73,6 +73,9 @@
 #include "passwordstore.h"
 #include "file-utils.h"
 
+#include <json-c/json.h>
+#include <curl/curl.h>
+
 typedef struct _IMAPFolder	IMAPFolder;
 typedef struct _IMAPSession	IMAPSession;
 typedef struct _IMAPNameSpace	IMAPNameSpace;
@@ -916,6 +919,9 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 	case IMAP_AUTH_GSSAPI:
 		ok = imap_cmd_login(session, user, pass, "GSSAPI");
 		break;
+	case IMAP_AUTH_OAUTH2:
+		ok = imap_cmd_login(session, user, pass, "OAUTH2");
+		break;
 	default:
 		debug_print("capabilities:\n"
 				"\t ANONYMOUS %d\n"
@@ -1295,6 +1301,133 @@ static IMAPSession *imap_session_new(Folder * folder,
 	return session;
 }
 
+struct curl_oauth_refresh {
+	gchar *payload;
+	size_t size;
+};
+
+static size_t oauth_refresh_cb(void *data, size_t size, size_t nmemb, void *userp) {
+	size_t realsize = size * nmemb;
+	struct curl_oauth_refresh *p = (struct curl_oauth_refresh *) userp;
+
+	p->payload = g_realloc(p->payload, p->size +  realsize + 1);
+	if (p->payload == NULL) {
+		return 0;
+	}
+
+	memcpy(&(p->payload[p->size]), data, realsize);
+	p->size += realsize;
+	p->payload[p->size] = 0;
+	
+	return realsize;
+}
+
+static gchar * oauth_refresh_api(gchar *client_id, 
+				gchar *client_secret, 
+				gchar *refresh_server,
+				gchar *refresh_token) {
+	
+	CURL *ch = NULL;
+	gchar *ret = NULL, *form_data = NULL;
+	json_object *refresh_json = NULL, *access_token_json;
+	enum json_tokener_error jerr;
+	CURLcode res;
+	
+	struct curl_slist *headers = NULL;
+	struct curl_oauth_refresh sr;
+	
+	memset(&sr, 0, sizeof(sr));
+	if ((ch = curl_easy_init()) == NULL) {
+		goto done;
+	}
+
+	if ((headers = curl_slist_append(headers, 
+			"Content-Type: application/x-www-form-urlencoded")) == NULL) {
+		goto done;
+	}
+	
+	form_data = g_strdup_printf("grant_type=refresh_token&client_id=%s&client_secret=%s&refresh_token=%s", 
+			client_id, client_secret, refresh_token);
+
+	curl_easy_setopt(ch, CURLOPT_URL, refresh_server);
+	curl_easy_setopt(ch, CURLOPT_POSTFIELDS, form_data);
+	curl_easy_setopt(ch, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(ch, CURLOPT_WRITEFUNCTION, oauth_refresh_cb);
+	curl_easy_setopt(ch, CURLOPT_WRITEDATA, (void *) &sr);
+	curl_easy_setopt(ch, CURLOPT_TIMEOUT, 5L);
+	curl_easy_setopt(ch, CURLOPT_FOLLOWLOCATION, 1L);
+	res = curl_easy_perform(ch);
+	
+	if (res != CURLE_OK || sr.size <= 0) {
+		goto done;
+	}
+
+	refresh_json = json_tokener_parse_verbose(sr.payload, &jerr);
+	if (jerr != json_tokener_success) {
+		goto done;
+	}
+
+	if (!json_object_object_get_ex(refresh_json, "access_token", &access_token_json)) {
+		goto done;
+	}
+	ret = json_object_get_string(access_token_json);
+	if (ret == NULL) {
+		goto done;
+	}
+	ret = g_strdup(ret); /* json-c manages this memory */
+
+done:
+	if (ch) {
+		curl_easy_cleanup(ch);
+	}
+	if (headers) {
+		curl_slist_free_all(headers);
+	}
+	if (form_data) {
+		g_free(form_data);
+	}
+	if (refresh_json) {
+		json_object_put(refresh_json);
+	}
+	
+	return ret;
+}
+
+static gchar * oauth2_get_access_token(PrefsAccount *account) {
+	gchar *client_id = NULL, *client_secret = NULL, *refresh_token = NULL;
+	gchar *access_token = NULL;
+	gint ok;
+
+	/* TODO(keur): Use hooks here? */
+	client_id = passwd_store_get_account(account->account_id,
+			PWS_OAUTH_CLIENT_ID);
+
+	client_secret = passwd_store_get_account(account->account_id,
+			PWS_OAUTH_CLIENT_SECRET);
+
+	refresh_token = passwd_store_get_account(account->account_id,
+			PWS_OAUTH_REFRESH_TOKEN);
+
+	if (client_id != NULL && client_secret != NULL && refresh_token != NULL) {
+		access_token = oauth_refresh_api(client_id, 
+				client_secret, 
+				account->oauth_refresh_server, 
+				refresh_token);
+	}
+	
+	if (client_id) {
+		g_free(client_id);
+	}
+	if (client_secret) {
+		g_free(client_secret);
+	}
+	if (refresh_token) {
+		g_free(refresh_token);
+	}
+
+	return access_token;
+}
+
 static gint imap_session_authenticate(IMAPSession *session, 
 				      PrefsAccount *account)
 {
@@ -1303,7 +1436,10 @@ static gint imap_session_authenticate(IMAPSession *session,
 	gint ok = MAILIMAP_NO_ERROR;
 	g_return_val_if_fail(account->userid != NULL, MAILIMAP_ERROR_BAD_STATE);
 
-	if (!password_get(account->userid, account->recv_server, "imap",
+	if (account->imap_auth_type == IMAP_AUTH_OAUTH2) {
+		/* TODO(keur): Add threading here */
+		acc_pass = oauth2_get_access_token(account);
+	} else if (!password_get(account->userid, account->recv_server, "imap",
 			 SESSION(session)->port, &acc_pass)) {
 		acc_pass = passwd_store_get_account(account->account_id,
 				PWS_ACCOUNT_RECV);

@@ -1834,6 +1834,7 @@ static void receive_create_widget_func(PrefsPage * _page,
 	COMBOBOX_ADD (menu, "SCRAM-SHA-1", IMAP_AUTH_SCRAM_SHA1);
 	COMBOBOX_ADD (menu, "PLAIN", IMAP_AUTH_PLAIN);
 	COMBOBOX_ADD (menu, "LOGIN", IMAP_AUTH_LOGIN);
+	COMBOBOX_ADD (menu, "OAUTH2", IMAP_AUTH_OAUTH2);
 
 	hbox1 = gtk_hbox_new (FALSE, 8);
 	gtk_widget_show (hbox1);

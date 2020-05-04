@@ -35,6 +35,10 @@
 #include <sys/wait.h>
 #endif
 
+#ifdef HAVE_OAUTH2
+#  include "oauth2.h"
+#endif
+
 #include "send_message.h"
 #include "session.h"
 #include "ssl.h"
@@ -303,6 +307,16 @@ gint send_message_smtp_full(PrefsAccount *ac_prefs, GSList *to_list, FILE *fp, g
 			smtp_session->forced_auth_type = ac_prefs->smtp_auth_type;
 			if (ac_prefs->smtp_userid && strlen(ac_prefs->smtp_userid)) {
 				smtp_session->user = g_strdup(ac_prefs->smtp_userid);
+#ifdef HAVE_OAUTH2
+				if (smtp_session->forced_auth_type == SMTPAUTH_OAUTH2) {
+					smtp_session->pass = oauth2_get_access_token(ac_prefs);
+					if (!smtp_session->pass) {
+						session_destroy(session);
+						return -1;
+					}
+					goto authenticated;
+				}
+#endif
 				if (password_get(smtp_session->user,
 							ac_prefs->smtp_server, "smtp", port,
 							&(smtp_session->pass))) {
@@ -322,6 +336,16 @@ gint send_message_smtp_full(PrefsAccount *ac_prefs, GSList *to_list, FILE *fp, g
 				}
 			} else {
 				smtp_session->user = g_strdup(ac_prefs->userid);
+#ifdef HAVE_OAUTH2
+				if (smtp_session->forced_auth_type == SMTPAUTH_OAUTH2) {
+					smtp_session->pass = oauth2_get_access_token(ac_prefs);
+					if (!smtp_session->pass) {
+						session_destroy(session);
+						return -1;
+					}
+					goto authenticated;
+				}
+#endif
 				if (password_get(smtp_session->user,
 							ac_prefs->smtp_server, "smtp", port,
 							&(smtp_session->pass))) {
@@ -343,7 +367,9 @@ gint send_message_smtp_full(PrefsAccount *ac_prefs, GSList *to_list, FILE *fp, g
 			smtp_session->user = NULL;
 			smtp_session->pass = NULL;
 		}
-
+#ifdef HAVE_OAUTH2
+authenticated:
+#endif
 		send_dialog = send_progress_dialog_create();
 		send_dialog->session = session;
 		smtp_session->dialog = send_dialog;

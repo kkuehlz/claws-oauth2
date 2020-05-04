@@ -30,6 +30,10 @@
 #include <unistd.h>
 #include <string.h>
 
+#ifdef HAVE_OAUTH2
+#  include "oauth2.h"
+#endif
+
 #include "main.h"
 #include "inc.h"
 #include "mainwindow.h"
@@ -633,6 +637,14 @@ static gint inc_start(IncProgressDialog *inc_dialog)
 				(inc_dialog->dialog->window,
 				 NULL, NULL);
 
+#ifdef HAVE_OAUTH2
+		if (pop3_session->ac_prefs->use_pop_auth
+				&& pop3_session->ac_prefs->pop_auth_type == POPAUTH_OAUTH2) {
+			pop3_session->pass = oauth2_get_access_token(pop3_session->ac_prefs);
+			qlist = next;
+			continue;
+		}
+#endif
 		if (password_get(pop3_session->user,
 					pop3_session->ac_prefs->recv_server,
 					"pop3", pop3_get_port(pop3_session),

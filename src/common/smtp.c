@@ -46,6 +46,9 @@ static gint smtp_starttls(SMTPSession *session);
 static gint smtp_auth_cram_md5(SMTPSession *session);
 static gint smtp_auth_login(SMTPSession *session);
 static gint smtp_auth_plain(SMTPSession *session);
+#ifdef HAVE_OAUTH2
+static gint smtp_auth_oauth2(SMTPSession *session);
+#endif
 
 static gint smtp_ehlo(SMTPSession *session);
 static gint smtp_ehlo_recv(SMTPSession *session, const gchar *msg);
@@ -165,6 +168,13 @@ static gint smtp_auth(SMTPSession *session)
             &&
 	     (session->avail_auth_type & SMTPAUTH_CRAM_MD5) != 0)
 		smtp_auth_cram_md5(session);
+#ifdef HAVE_OAUTH2
+	else if ((session->forced_auth_type == SMTPAUTH_OAUTH2
+		  || session->forced_auth_type == 0)
+                 &&
+		  (session->avail_auth_type & SMTPAUTH_OAUTH2) != 0)
+		smtp_auth_oauth2(session);
+#endif
 	else if ((session->forced_auth_type == SMTPAUTH_LOGIN
 		  || session->forced_auth_type == 0)
                  &&
@@ -317,6 +327,10 @@ static gint smtp_ehlo_recv(SMTPSession *session, const gchar *msg)
 				session->avail_auth_type |= SMTPAUTH_CRAM_MD5;
 			if (strcasestr(p, "DIGEST-MD5"))
 				session->avail_auth_type |= SMTPAUTH_DIGEST_MD5;
+#ifdef HAVE_OAUTH2
+			if (strcasestr(p, "XOAUTH2"))
+				session->avail_auth_type |= SMTPAUTH_OAUTH2;
+#endif
 		}
 		if (g_ascii_strncasecmp(p, "SIZE", 4) == 0) {
 			p += 5;
@@ -390,6 +404,37 @@ static gint smtp_auth_plain(SMTPSession *session)
 
 	return SM_OK;
 }
+
+#ifdef HAVE_OAUTH2
+static gint smtp_auth_oauth2(SMTPSession *session)
+{
+	gchar buf[MESSAGEBUFSIZE], *b64buf, *out;
+	gint len;
+
+	session->state = SMTP_AUTH_OAUTH2;
+	session->auth_type = SMTPAUTH_OAUTH2;
+
+	memset(buf, 0, sizeof buf);
+
+	/* "user=" {User} "^Aauth=Bearer " {Access Token} "^A^A"*/
+        /* session->pass contains the OAUTH2 Access Token*/
+	len = sprintf(buf, "user=%s\1auth=Bearer %s\1\1", session->user, session->pass);
+	b64buf = g_base64_encode(buf, len);
+	out = g_strconcat("AUTH XOAUTH2 ", b64buf, NULL);
+	g_free(b64buf);
+
+	if (session_send_msg(SESSION(session), out) < 0) {
+		g_free(out);
+		return SM_ERROR;
+	}
+
+	g_free(out);
+
+	log_print(LOG_PROTOCOL, "ESMTP> [AUTH XOAUTH2]\n");
+
+	return SM_OK;
+}
+#endif
 
 static gint smtp_auth_login(SMTPSession *session)
 {
@@ -509,6 +554,9 @@ static gint smtp_session_recv_msg(Session *session, const gchar *msg)
 	case SMTP_AUTH_PLAIN:
 	case SMTP_AUTH_LOGIN_USER:
 	case SMTP_AUTH_LOGIN_PASS:
+#ifdef HAVE_OAUTH2
+        case SMTP_AUTH_OAUTH2:
+#endif
 	case SMTP_AUTH_CRAM_MD5:
 		log_print(LOG_PROTOCOL, "ESMTP< %s\n", msg);
 		break;
@@ -631,6 +679,9 @@ static gint smtp_session_recv_msg(Session *session, const gchar *msg)
 		break;
 	case SMTP_AUTH_PLAIN:
 	case SMTP_AUTH_LOGIN_PASS:
+#ifdef HAVE_OAUTH2
+        case SMTP_AUTH_OAUTH2:
+#endif
 	case SMTP_AUTH_CRAM_MD5:
 		ret = smtp_from(smtp_session);
 		break;

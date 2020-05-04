@@ -54,6 +54,7 @@
 #include "colorlabel.h"
 #include "smtp.h"
 #include "imap.h"
+#include "pop.h"
 #include "remotefolder.h"
 #include "combobox.h"
 #include "setup.h"
@@ -149,7 +150,8 @@ typedef struct ReceivePage
     GtkWidget *vbox;
 
 	GtkWidget *pop3_frame;
-	GtkWidget *use_apop_checkbtn;
+	GtkWidget *pop_auth_checkbtn;
+	GtkWidget *pop_auth_type_optmenu;
 	GtkWidget *rmmail_checkbtn;
 	GtkWidget *leave_time_spinbtn;
 	GtkWidget *leave_hour_spinbtn;
@@ -394,6 +396,9 @@ static void prefs_account_imap_auth_type_set_optmenu	(PrefParam *pparam);
 static void prefs_account_smtp_auth_type_set_data_from_optmenu
 							(PrefParam *pparam);
 static void prefs_account_smtp_auth_type_set_optmenu	(PrefParam *pparam);
+static void prefs_account_pop_auth_type_set_data_from_optmenu
+							(PrefParam *pparam);
+static void prefs_account_pop_auth_type_set_optmenu	(PrefParam *pparam);
 
 static void prefs_account_set_autochk_interval_from_widgets(PrefParam *pparam);
 static void prefs_account_set_autochk_interval_to_widgets(PrefParam *pparam);
@@ -491,9 +496,14 @@ static PrefParam basic_param[] = {
 };
 
 static PrefParam receive_param[] = {
-	{"use_apop_auth", "FALSE", &tmp_ac_prefs.use_apop_auth, P_BOOL,
-	 &receive_page.use_apop_checkbtn,
+	{"use_pop_auth", "FALSE", &tmp_ac_prefs.use_pop_auth, P_BOOL,
+	 &receive_page.pop_auth_checkbtn,
 	 prefs_set_data_from_toggle, prefs_set_toggle},
+
+	{"pop_auth_method", "0", &tmp_ac_prefs.pop_auth_type, P_ENUM,
+	 &receive_page.pop_auth_type_optmenu,
+	 prefs_account_pop_auth_type_set_data_from_optmenu,
+	 prefs_account_pop_auth_type_set_optmenu},
 
 	{"remove_mail", "TRUE", &tmp_ac_prefs.rmmail, P_BOOL,
 	 &receive_page.rmmail_checkbtn,
@@ -1641,10 +1651,10 @@ static void receive_create_widget_func(PrefsPage * _page,
 	ReceivePage *page = (ReceivePage *) _page;
 	PrefsAccount *ac_prefs = (PrefsAccount *) data;
 
-	GtkWidget *vbox1, *vbox2, *vbox3, *vbox4;
-	GtkWidget *hbox1, *hbox2;
+	GtkWidget *vbox1, *vbox2, *vbox3, *vbox4, *vbox5;
+	GtkWidget *hbox1, *hbox2, *hbox3;
 	GtkWidget *frame1;
-	GtkWidget *use_apop_checkbtn;
+	GtkWidget *pop_auth_checkbtn;
 	GtkWidget *rmmail_checkbtn;
 	GtkWidget *hbox_spc;
 	GtkWidget *leave_time_label;
@@ -1678,8 +1688,8 @@ static void receive_create_widget_func(PrefsPage * _page,
 	GtkObject *adj;
 	struct AutocheckWidgets *autochk_widgets;
 
-	GtkWidget *optmenu;
-	GtkListStore *menu;
+	GtkWidget *optmenu, *optmenu2;
+	GtkListStore *menu, *menu2;
 	GtkTreeIter iter;
 	GtkWidget *recvatgetall_checkbtn;
 
@@ -1719,8 +1729,40 @@ static void receive_create_widget_func(PrefsPage * _page,
 			  local_inbox_entry);
 
 	vbox2 = gtkut_get_options_frame(vbox1, &frame1, _("POP"));
-	PACK_CHECK_BUTTON (vbox2, use_apop_checkbtn,
-			   _("Use secure authentication (APOP)"));
+
+	PACK_CHECK_BUTTON (vbox2, pop_auth_checkbtn,
+			   _("Use secure POP authentication"));
+
+	vbox5 = gtk_vbox_new (FALSE, 0);
+	gtk_widget_show (vbox5);
+	gtk_box_pack_start (GTK_BOX (vbox2), vbox5, FALSE, FALSE, 0);
+
+	hbox3 = gtk_hbox_new (FALSE, 8);
+	gtk_widget_show (hbox3);
+	gtk_box_pack_start (GTK_BOX (vbox5), hbox3, FALSE, FALSE, 0);
+
+	hbox_spc = gtk_hbox_new (FALSE, 0);
+	gtk_widget_show (hbox_spc);
+	gtk_box_pack_start (GTK_BOX (hbox3), hbox_spc, FALSE, FALSE, 0);
+	gtk_widget_set_size_request (hbox_spc, 12, -1);
+
+	label = gtk_label_new (_("Authentication method"));
+	gtk_widget_show (label);
+	gtk_box_pack_start (GTK_BOX (hbox3), label, FALSE, FALSE, 0);
+
+	optmenu2 = gtkut_sc_combobox_create(NULL, FALSE);
+	menu2 = GTK_LIST_STORE(gtk_combo_box_get_model(GTK_COMBO_BOX(optmenu2)));
+	gtk_widget_show (optmenu2);
+	gtk_box_pack_start (GTK_BOX (hbox3), optmenu2, FALSE, FALSE, 0);
+
+	COMBOBOX_ADD (menu2, _("Select"), 0);
+	COMBOBOX_ADD (menu2, NULL, 0);
+	COMBOBOX_ADD (menu2, "APOP", POPAUTH_APOP);
+#ifdef HAVE_OAUTH2
+	COMBOBOX_ADD (menu2, "OAUTH2", POPAUTH_OAUTH2);
+#endif
+
+	SET_TOGGLE_SENSITIVITY (pop_auth_checkbtn, vbox5);
 
 	PACK_CHECK_BUTTON (vbox2, rmmail_checkbtn,
 			   _("Remove messages on server when received"));
@@ -1970,7 +2012,8 @@ static void receive_create_widget_func(PrefsPage * _page,
 		 _("'Get Mail' checks for new messages on this account"));
 
 	page->pop3_frame               = frame1;
-	page->use_apop_checkbtn          = use_apop_checkbtn;
+	page->pop_auth_checkbtn          = pop_auth_checkbtn;
+	page->pop_auth_type_optmenu      = optmenu2;
 	page->rmmail_checkbtn            = rmmail_checkbtn;
 	page->leave_time_spinbtn         = leave_time_spinbtn;
 	page->leave_hour_spinbtn         = leave_hour_spinbtn;
@@ -2115,6 +2158,9 @@ static void send_create_widget_func(PrefsPage * _page,
 	COMBOBOX_ADD (menu, "PLAIN", SMTPAUTH_PLAIN);
 	COMBOBOX_ADD (menu, "LOGIN", SMTPAUTH_LOGIN);
 	COMBOBOX_ADD (menu, "CRAM-MD5", SMTPAUTH_CRAM_MD5);
+#ifdef HAVE_OAUTH2
+	COMBOBOX_ADD (menu, "OAUTH2", SMTPAUTH_OAUTH2);
+#endif
 	COMBOBOX_ADD (menu, "DIGEST-MD5", SMTPAUTH_DIGEST_MD5);
 	gtk_list_store_set(menu, &iter, COMBOBOX_SENS, FALSE, -1);
 
@@ -4886,6 +4932,20 @@ static void prefs_account_smtp_auth_type_set_data_from_optmenu(PrefParam *pparam
 static void prefs_account_smtp_auth_type_set_optmenu(PrefParam *pparam)
 {
 	SMTPAuthType type = *((SMTPAuthType *)pparam->data);
+	GtkComboBox *optmenu = GTK_COMBO_BOX(*pparam->widget);
+
+	combobox_select_by_data(optmenu, type);
+}
+
+static void prefs_account_pop_auth_type_set_data_from_optmenu(PrefParam *pparam)
+{
+	*((RecvProtocol *)pparam->data) =
+		combobox_get_active_data(GTK_COMBO_BOX(*pparam->widget));
+}
+
+static void prefs_account_pop_auth_type_set_optmenu(PrefParam *pparam)
+{
+	POPAuthType type = *((POPAuthType *)pparam->data);
 	GtkComboBox *optmenu = GTK_COMBO_BOX(*pparam->widget);
 
 	combobox_select_by_data(optmenu, type);

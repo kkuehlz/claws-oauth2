@@ -55,7 +55,10 @@ typedef enum
 	SMTPAUTH_CRAM_MD5   = 1 << 1,
 	SMTPAUTH_DIGEST_MD5 = 1 << 2,
 	SMTPAUTH_TLS_AVAILABLE = 1 << 3,
-	SMTPAUTH_PLAIN      = 1 << 4
+	SMTPAUTH_PLAIN      = 1 << 4,
+#ifdef HAVE_OAUTH2
+	SMTPAUTH_OAUTH2     = 1 << 5
+#endif
 } SMTPAuthType;
 
 typedef enum
@@ -70,6 +73,9 @@ typedef enum
 	SMTP_AUTH_LOGIN_PASS,
 	SMTP_AUTH_CRAM_MD5,
 	SMTP_AUTH_PLAIN,
+#ifdef HAVE_OAUTH2
+	SMTP_AUTH_OAUTH2,
+#endif
 	SMTP_RCPT,
 	SMTP_DATA,
 	SMTP_SEND_DATA,

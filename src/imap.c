@@ -922,7 +922,7 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 		break;
 #ifdef HAVE_OAUTH2
 	case IMAP_AUTH_OAUTH2:
-		ok = imap_cmd_login(session, user, pass, "OAUTH2");
+		ok = imap_cmd_login(session, user, pass, "XOAUTH2");
 		break;
 #endif
 	default:
@@ -932,6 +932,9 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 				"\t DIGEST-MD5 %d\n"
 				"\t SCRAM-SHA-1 %d\n"
 				"\t PLAIN %d\n"
+#ifdef HAVE_OAUTH2
+				"\t OAUTH2 %d\n"
+#endif
 				"\t LOGIN %d\n"
 				"\t GSSAPI %d\n", 
 			imap_has_capability(session, "ANONYMOUS"),
@@ -939,6 +942,9 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 			imap_has_capability(session, "DIGEST-MD5"),
 			imap_has_capability(session, "SCRAM-SHA-1"),
 			imap_has_capability(session, "PLAIN"),
+#ifdef HAVE_OAUTH2
+			imap_has_capability(session, "XOAUTH2"),
+#endif
 			imap_has_capability(session, "LOGIN"),
 			imap_has_capability(session, "GSSAPI"));
 		if (imap_has_capability(session, "CRAM-MD5"))
@@ -949,6 +955,10 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 			ok = imap_cmd_login(session, user, pass, "SCRAM-SHA-1");
 		if (ok == MAILIMAP_ERROR_LOGIN && imap_has_capability(session, "PLAIN"))
 			ok = imap_cmd_login(session, user, pass, "PLAIN");
+#ifdef HAVE_OAUTH2
+		if (ok == MAILIMAP_ERROR_LOGIN && imap_has_capability(session, "XOAUTH2"))
+			ok = imap_cmd_login(session, user, pass, "XOAUTH2");
+#endif
 		if (ok == MAILIMAP_ERROR_LOGIN && imap_has_capability(session, "LOGIN"))
 			ok = imap_cmd_login(session, user, pass, "LOGIN");
 		if (ok == MAILIMAP_ERROR_LOGIN && imap_has_capability(session, "GSSAPI"))
@@ -1314,7 +1324,6 @@ static gint imap_session_authenticate(IMAPSession *session,
 
 #ifdef HAVE_OAUTH2
 	if (account->imap_auth_type == IMAP_AUTH_OAUTH2) {
-		/* TODO(keur): Add threading here */
 		acc_pass = oauth2_get_access_token(account);
 	} else if (!password_get(account->userid, account->recv_server, "imap",
 			 SESSION(session)->port, &acc_pass)) {

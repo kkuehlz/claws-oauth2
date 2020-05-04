@@ -41,9 +41,18 @@ typedef enum {
 	SIG_DIRECT
 } SigType;
 
+typedef enum
+{
+	POPAUTH_APOP      = 1 << 0,
+#ifdef HAVE_OAUTH2
+	POPAUTH_OAUTH2    = 1 << 1
+#endif
+} POPAuthType;
+
 #include <glib.h>
 
 #include "smtp.h"
+#include "pop.h"
 #include "gtk/prefswindow.h"
 
 struct _Folder;
@@ -92,7 +101,8 @@ struct _PrefsAccount
 	gboolean use_tls_sni;
 
 	/* Receive */
-	gboolean use_apop_auth;
+	gboolean use_pop_auth;
+	POPAuthType pop_auth_type;
 	gboolean rmmail;
 	gint msg_leave_time;
 	gint msg_leave_hour;

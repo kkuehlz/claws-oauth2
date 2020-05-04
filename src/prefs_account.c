@@ -122,16 +122,20 @@ typedef struct BasicPage
 	GtkWidget *mailcmd_entry;
 	GtkWidget *uid_label;
 	GtkWidget *pass_label;
+#ifdef HAVE_OAUTH2
 	GtkWidget *client_id_label;
 	GtkWidget *client_secret_label;
 	GtkWidget *refresh_server_label;
 	GtkWidget *refresh_token_label;
+#endif
 	GtkWidget *uid_entry;
 	GtkWidget *pass_entry;
+#ifdef HAVE_OAUTH2
 	GtkWidget *client_id_entry;
 	GtkWidget *client_secret_entry;
 	GtkWidget *refresh_server_entry;
 	GtkWidget *refresh_token_entry;
+#endif
 	GtkWidget *showpwd_checkbtn;
 	GtkWidget *auto_configure_btn;
 	GtkWidget *auto_configure_cancel_btn;
@@ -472,8 +476,10 @@ static PrefParam basic_param[] = {
 	{"user_id", NULL, &tmp_ac_prefs.userid, P_STRING,
 	 &basic_page.uid_entry, prefs_set_data_from_entry, prefs_set_entry},
 
+#ifdef HAVE_OAUTH2
 	{"oauth_refresh_server", NULL, &tmp_ac_prefs.oauth_refresh_server, P_STRING,
 	 &basic_page.refresh_server_entry, prefs_set_data_from_entry, prefs_set_entry},
+#endif
 
 	{"password", NULL, &tmp_ac_prefs.passwd, P_PASSWORD,
 	 NULL, NULL, NULL},
@@ -1277,7 +1283,11 @@ static void basic_create_widget_func(PrefsPage * _page,
 	protocol_optmenu->no_imap_warn_icon = no_imap_warn_icon;
 	protocol_optmenu->no_imap_warn_label = no_imap_warn_label;
 
+#ifdef HAVE_OAUTH2
 	serv_table = gtk_table_new (14, 4, FALSE);
+#else
+	serv_table = gtk_table_new (10, 4, FALSE);
+#endif
 	gtk_widget_show (serv_table);
 	gtk_box_pack_start (GTK_BOX (vbox2), serv_table, FALSE, FALSE, 0);
 	gtk_table_set_row_spacings (GTK_TABLE (serv_table), VSPACING_NARROW);
@@ -1343,6 +1353,7 @@ static void basic_create_widget_func(PrefsPage * _page,
 			G_CALLBACK(prefs_account_entry_changed_newline_check_cb),
 			GINT_TO_POINTER(ac_prefs->protocol));
 
+#ifdef HAVE_OAUTH2
 	client_id_entry = gtk_entry_new ();
 	gtk_widget_show (client_id_entry);
 	gtk_widget_set_size_request (client_id_entry, DEFAULT_ENTRY_WIDTH, -1);
@@ -1370,6 +1381,7 @@ static void basic_create_widget_func(PrefsPage * _page,
 	g_signal_connect(G_OBJECT(refresh_token_entry), "changed",
 			G_CALLBACK(prefs_account_entry_changed_newline_check_cb),
 			GINT_TO_POINTER(ac_prefs->protocol));
+#endif
 
 #ifndef GENERIC_UMPC
 	gtk_table_attach (GTK_TABLE (serv_table), uid_entry, 1, 2, 7, 8,
@@ -1380,6 +1392,7 @@ static void basic_create_widget_func(PrefsPage * _page,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL, 0, 0);
 
+#ifdef HAVE_OAUTH2
 	gtk_table_attach (GTK_TABLE (serv_table), client_id_entry, 1, 2, 11, 12,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL, 0, 0);
@@ -1395,6 +1408,7 @@ static void basic_create_widget_func(PrefsPage * _page,
 	gtk_table_attach (GTK_TABLE (serv_table), refresh_token_entry, 3, 4, 13, 14,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL, 0, 0);
+#endif
 #else
 	gtk_table_attach (GTK_TABLE (serv_table), uid_entry, 1, 4, 7, 8,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL,
@@ -1402,6 +1416,7 @@ static void basic_create_widget_func(PrefsPage * _page,
 	gtk_table_attach (GTK_TABLE (serv_table), pass_entry, 1, 4, 8, 9,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL, 0, 0);
+#ifdef HAVE_OAUTH2
 	gtk_table_attach (GTK_TABLE (serv_table), client_id_entry, 1, 4, 10, 11,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL, 0, 0);
@@ -1414,6 +1429,7 @@ static void basic_create_widget_func(PrefsPage * _page,
 	gtk_table_attach (GTK_TABLE (serv_table), refresh_token_entry, 1, 4, 13, 14,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL,
 			  GTK_EXPAND | GTK_SHRINK | GTK_FILL, 0, 0);
+#endif
 #endif
 	gtk_entry_set_visibility (GTK_ENTRY (pass_entry), FALSE);
 
@@ -1485,6 +1501,7 @@ static void basic_create_widget_func(PrefsPage * _page,
 	g_signal_connect(G_OBJECT(showpwd_checkbtn), "toggled",
 			G_CALLBACK(prefs_account_showpwd_checkbtn_toggled), pass_entry);
 
+#ifdef HAVE_OAUTH2
     client_id_label = gtk_label_new(_("Client ID"));
     gtk_widget_show( client_id_label );
     gtk_table_attach (GTK_TABLE (serv_table), client_id_label, 0, 1, 11, 12,
@@ -1509,18 +1526,20 @@ static void basic_create_widget_func(PrefsPage * _page,
               GTK_FILL, 0, 0, 0);
 	gtk_misc_set_alignment (GTK_MISC (refresh_token_label), 1, 0.5);
 
-	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, uid_label);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, client_id_label);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, client_secret_label);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, refresh_server_label);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, refresh_token_label);
-	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, pass_label);
-	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, uid_entry);
-	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, pass_entry);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, client_id_entry);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, client_secret_entry);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, refresh_server_entry);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, refresh_token_entry);
+#endif
+
+	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, uid_label);
+	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, pass_label);
+	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, uid_entry);
+	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, pass_entry);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, showpwd_checkbtn);
 	SET_TOGGLE_SENSITIVITY (nntpauth_checkbtn, nntpauth_onconnect_checkbtn);
 
@@ -1548,21 +1567,23 @@ static void basic_create_widget_func(PrefsPage * _page,
 	page->mailcmd_label   = mailcmd_label;
 	page->mailcmd_entry   = mailcmd_entry;
 	page->uid_label        = uid_label;
-	page->client_id_label  = client_id_label;
-	page->client_secret_label  = client_secret_label;
-	page->refresh_server_label  = refresh_server_label;
-	page->refresh_token_label  = refresh_token_label;
 	page->pass_label       = pass_label;
 	page->uid_entry        = uid_entry;
 	page->pass_entry       = pass_entry;
-	page->client_id_entry  = client_id_entry;
-	page->client_secret_entry  = client_secret_entry;
-	page->refresh_server_entry  = refresh_server_entry;
-	page->refresh_token_entry  = refresh_token_entry;
 	page->showpwd_checkbtn = showpwd_checkbtn;
 	page->auto_configure_btn = auto_configure_btn;
 	page->auto_configure_cancel_btn = auto_configure_cancel_btn;
 	page->auto_configure_lbl = auto_configure_lbl;
+#ifdef HAVE_OAUTH2
+	page->client_id_label  = client_id_label;
+	page->client_secret_label  = client_secret_label;
+	page->refresh_server_label  = refresh_server_label;
+	page->refresh_token_label  = refresh_token_label;
+	page->client_id_entry  = client_id_entry;
+	page->client_secret_entry  = client_secret_entry;
+	page->refresh_server_entry  = refresh_server_entry;
+	page->refresh_token_entry  = refresh_token_entry;
+#endif
 
 	if (new_account) {
 		prefs_set_dialog_to_default(basic_param);
@@ -1581,6 +1602,7 @@ static void basic_create_widget_func(PrefsPage * _page,
 			g_free(buf);
 		}
 
+#ifdef HAVE_OAUTH2
 		buf = passwd_store_get_account(ac_prefs->account_id,
 				PWS_OAUTH_CLIENT_ID);
 		gtk_entry_set_text(GTK_ENTRY(page->client_id_entry), buf != NULL ? buf : "");
@@ -1604,6 +1626,7 @@ static void basic_create_widget_func(PrefsPage * _page,
 			memset(buf, 0, strlen(buf));
 			g_free(buf);
 		}
+#endif
 	}
 
 	page->vbox = vbox1;
@@ -1834,7 +1857,9 @@ static void receive_create_widget_func(PrefsPage * _page,
 	COMBOBOX_ADD (menu, "SCRAM-SHA-1", IMAP_AUTH_SCRAM_SHA1);
 	COMBOBOX_ADD (menu, "PLAIN", IMAP_AUTH_PLAIN);
 	COMBOBOX_ADD (menu, "LOGIN", IMAP_AUTH_LOGIN);
+#ifdef HAVE_OAUTH2
 	COMBOBOX_ADD (menu, "OAUTH2", IMAP_AUTH_OAUTH2);
+#endif
 
 	hbox1 = gtk_hbox_new (FALSE, 8);
 	gtk_widget_show (hbox1);
@@ -3469,6 +3494,7 @@ static gint prefs_basic_apply(void)
 		return -1;
 	}
 
+#ifdef HAVE_OAUTH2
 	if (strchr(gtk_entry_get_text(GTK_ENTRY(basic_page.client_id_entry)), '\n') != NULL) {
 		alertpanel_error(_("OAUTH client id cannot contain a newline character."));
 		return -1;
@@ -3488,6 +3514,7 @@ static gint prefs_basic_apply(void)
 		alertpanel_error(_("OAUTH refresh token cannot contain a newline character."));
 		return -1;
 	}
+#endif
 
 	prefs_set_data_from_dialog(basic_param);
 
@@ -3497,6 +3524,7 @@ static gint prefs_basic_apply(void)
 			gtk_entry_get_text(GTK_ENTRY(basic_page.pass_entry)),
 			FALSE);
 
+#ifdef HAVE_OAUTH2
     if (*gtk_entry_get_text(GTK_ENTRY(basic_page.client_id_entry)) != '\0') {
         passwd_store_set_account(tmp_ac_prefs.account_id,
                 PWS_OAUTH_CLIENT_ID,
@@ -3517,6 +3545,7 @@ static gint prefs_basic_apply(void)
                 gtk_entry_get_text(GTK_ENTRY(basic_page.refresh_token_entry)),
                 FALSE);
     }
+#endif
 
 	if (protocol == A_IMAP4 || protocol == A_NNTP) {
 		new_id = g_strdup_printf("#%s/%s",
@@ -5146,32 +5175,36 @@ static void prefs_account_protocol_changed(GtkComboBox *combobox, gpointer data)
 					   5, VSPACING_NARROW);
 		gtk_widget_hide(basic_page.uid_label);
 		gtk_widget_hide(basic_page.pass_label);
+#ifdef HAVE_OAUTH2
 		gtk_widget_hide(basic_page.client_id_label);
 		gtk_widget_hide(basic_page.client_secret_label);
 		gtk_widget_hide(basic_page.refresh_server_label);
 		gtk_widget_hide(basic_page.refresh_token_label);
-		gtk_widget_hide(basic_page.uid_entry);
-		gtk_widget_hide(basic_page.pass_entry);
 		gtk_widget_hide(basic_page.client_id_entry);
 		gtk_widget_hide(basic_page.client_secret_entry);
 		gtk_widget_hide(basic_page.refresh_server_entry);
 		gtk_widget_hide(basic_page.refresh_token_entry);
+#endif
+		gtk_widget_hide(basic_page.uid_entry);
+		gtk_widget_hide(basic_page.pass_entry);
 		gtk_widget_hide(basic_page.showpwd_checkbtn);
   		gtk_table_set_row_spacing (GTK_TABLE (basic_page.serv_table),
 					   7, 0);
 
 		gtk_widget_set_sensitive(basic_page.uid_label,  TRUE);
 		gtk_widget_set_sensitive(basic_page.pass_label, TRUE);
+#ifdef HAVE_OAUTH2
 		gtk_widget_set_sensitive(basic_page.client_id_label, TRUE);
 		gtk_widget_set_sensitive(basic_page.client_secret_label, TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_server_label, TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_token_label, TRUE);
-		gtk_widget_set_sensitive(basic_page.uid_entry,  TRUE);
-		gtk_widget_set_sensitive(basic_page.pass_entry, TRUE);
 		gtk_widget_set_sensitive(basic_page.client_id_entry,  TRUE);
 		gtk_widget_set_sensitive(basic_page.client_secret_entry,  TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_server_entry,  TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_token_entry,  TRUE);
+#endif
+		gtk_widget_set_sensitive(basic_page.uid_entry,  TRUE);
+		gtk_widget_set_sensitive(basic_page.pass_entry, TRUE);
 		gtk_widget_set_sensitive(basic_page.showpwd_checkbtn, TRUE);
 		gtk_widget_hide(receive_page.pop3_frame);
 		gtk_widget_hide(receive_page.imap_frame);
@@ -5269,32 +5302,36 @@ static void prefs_account_protocol_changed(GtkComboBox *combobox, gpointer data)
 					   5, 0);
 		gtk_widget_show(basic_page.uid_label);
 		gtk_widget_show(basic_page.pass_label);
+#ifdef HAVE_OAUTH2
 		gtk_widget_show(basic_page.client_id_label);
 		gtk_widget_show(basic_page.client_secret_label);
 		gtk_widget_show(basic_page.refresh_server_label);
 		gtk_widget_show(basic_page.refresh_token_label);
-		gtk_widget_show(basic_page.uid_entry);
-		gtk_widget_show(basic_page.pass_entry);
 		gtk_widget_show(basic_page.client_id_entry);
 		gtk_widget_show(basic_page.client_secret_entry);
 		gtk_widget_show(basic_page.refresh_server_entry);
 		gtk_widget_show(basic_page.refresh_token_entry);
+#endif
+		gtk_widget_show(basic_page.uid_entry);
+		gtk_widget_show(basic_page.pass_entry);
 		gtk_widget_show(basic_page.showpwd_checkbtn);
   		gtk_table_set_row_spacing (GTK_TABLE (basic_page.serv_table),
 					   7, VSPACING_NARROW);
 
 		gtk_widget_set_sensitive(basic_page.uid_label,  TRUE);
 		gtk_widget_set_sensitive(basic_page.pass_label, TRUE);
+#ifdef HAVE_OAUTH2
 		gtk_widget_set_sensitive(basic_page.client_id_label, TRUE);
 		gtk_widget_set_sensitive(basic_page.client_secret_label, TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_server_label, TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_token_label, TRUE);
-		gtk_widget_set_sensitive(basic_page.uid_entry,  TRUE);
-		gtk_widget_set_sensitive(basic_page.pass_entry, TRUE);
 		gtk_widget_set_sensitive(basic_page.client_id_entry,  TRUE);
 		gtk_widget_set_sensitive(basic_page.client_secret_entry,  TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_server_entry,  TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_token_entry,  TRUE);
+#endif
+		gtk_widget_set_sensitive(basic_page.uid_entry,  TRUE);
+		gtk_widget_set_sensitive(basic_page.pass_entry, TRUE);
 		gtk_widget_set_sensitive(basic_page.showpwd_checkbtn, TRUE);
 		gtk_widget_hide(receive_page.pop3_frame);
 		gtk_widget_show(receive_page.imap_frame);
@@ -5386,32 +5423,36 @@ static void prefs_account_protocol_changed(GtkComboBox *combobox, gpointer data)
 					   5, 0);
 		gtk_widget_hide(basic_page.uid_label);
 		gtk_widget_hide(basic_page.pass_label);
+#ifdef HAVE_OAUTH2
 		gtk_widget_hide(basic_page.client_id_label);
 		gtk_widget_hide(basic_page.client_secret_label);
 		gtk_widget_hide(basic_page.refresh_server_label);
 		gtk_widget_hide(basic_page.refresh_token_label);
-		gtk_widget_hide(basic_page.uid_entry);
-		gtk_widget_hide(basic_page.pass_entry);
 		gtk_widget_hide(basic_page.client_id_entry);
 		gtk_widget_hide(basic_page.client_secret_entry);
 		gtk_widget_hide(basic_page.refresh_server_entry);
 		gtk_widget_hide(basic_page.refresh_token_entry);
+#endif
+		gtk_widget_hide(basic_page.uid_entry);
+		gtk_widget_hide(basic_page.pass_entry);
 		gtk_widget_hide(basic_page.showpwd_checkbtn);
   		gtk_table_set_row_spacing (GTK_TABLE (basic_page.serv_table),
 					   7, VSPACING_NARROW);
 
 		gtk_widget_set_sensitive(basic_page.uid_label,  FALSE);
 		gtk_widget_set_sensitive(basic_page.pass_label, FALSE);
+#ifdef HAVE_OAUTH2
 		gtk_widget_set_sensitive(basic_page.client_id_label,  FALSE);
 		gtk_widget_set_sensitive(basic_page.client_secret_label,  FALSE);
 		gtk_widget_set_sensitive(basic_page.refresh_server_label,  FALSE);
 		gtk_widget_set_sensitive(basic_page.refresh_token_label,  FALSE);
-		gtk_widget_set_sensitive(basic_page.uid_entry,  FALSE);
-		gtk_widget_set_sensitive(basic_page.pass_entry, FALSE);
 		gtk_widget_set_sensitive(basic_page.client_id_entry,  FALSE);
 		gtk_widget_set_sensitive(basic_page.client_secret_entry,  FALSE);
 		gtk_widget_set_sensitive(basic_page.refresh_server_entry,  FALSE);
 		gtk_widget_set_sensitive(basic_page.refresh_token_entry,  FALSE);
+#endif
+		gtk_widget_set_sensitive(basic_page.uid_entry,  FALSE);
+		gtk_widget_set_sensitive(basic_page.pass_entry, FALSE);
 		gtk_widget_set_sensitive(basic_page.showpwd_checkbtn, FALSE);
 		gtk_widget_set_sensitive(receive_page.pop3_frame, FALSE);
 		gtk_widget_hide(receive_page.pop3_frame);
@@ -5500,32 +5541,36 @@ static void prefs_account_protocol_changed(GtkComboBox *combobox, gpointer data)
 					   5, 0);
 		gtk_widget_show(basic_page.uid_label);
 		gtk_widget_show(basic_page.pass_label);
+#ifdef HAVE_OAUTH2
 		gtk_widget_show(basic_page.client_id_label);
 		gtk_widget_show(basic_page.client_secret_label);
 		gtk_widget_show(basic_page.refresh_server_label);
 		gtk_widget_show(basic_page.refresh_token_label);
-		gtk_widget_show(basic_page.uid_entry);
-		gtk_widget_show(basic_page.pass_entry);
 		gtk_widget_show(basic_page.client_id_entry);
 		gtk_widget_show(basic_page.client_secret_entry);
 		gtk_widget_show(basic_page.refresh_server_entry);
 		gtk_widget_show(basic_page.refresh_token_entry);
+#endif
+		gtk_widget_show(basic_page.uid_entry);
+		gtk_widget_show(basic_page.pass_entry);
 		gtk_widget_show(basic_page.showpwd_checkbtn);
   		gtk_table_set_row_spacing (GTK_TABLE (basic_page.serv_table),
 					   7, VSPACING_NARROW);
 
 		gtk_widget_set_sensitive(basic_page.uid_label,  TRUE);
 		gtk_widget_set_sensitive(basic_page.pass_label, TRUE);
+#ifdef HAVE_OAUTH2
 		gtk_widget_set_sensitive(basic_page.client_id_label, TRUE);
 		gtk_widget_set_sensitive(basic_page.client_secret_label, TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_server_label, TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_token_label, TRUE);
-		gtk_widget_set_sensitive(basic_page.uid_entry,  TRUE);
-		gtk_widget_set_sensitive(basic_page.pass_entry, TRUE);
 		gtk_widget_set_sensitive(basic_page.client_id_entry,  TRUE);
 		gtk_widget_set_sensitive(basic_page.client_secret_entry,  TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_server_entry,  TRUE);
 		gtk_widget_set_sensitive(basic_page.refresh_token_entry,  TRUE);
+#endif
+		gtk_widget_set_sensitive(basic_page.uid_entry,  TRUE);
+		gtk_widget_set_sensitive(basic_page.pass_entry, TRUE);
 		gtk_widget_set_sensitive(basic_page.showpwd_checkbtn, TRUE);
 		gtk_widget_set_sensitive(receive_page.pop3_frame, TRUE);
 		gtk_widget_show(receive_page.pop3_frame);
@@ -5594,10 +5639,12 @@ static void prefs_account_nntpauth_toggled(GtkToggleButton *button,
 	gtk_widget_set_sensitive(basic_page.pass_label, auth);
 	gtk_widget_set_sensitive(basic_page.uid_entry,  auth);
 	gtk_widget_set_sensitive(basic_page.pass_entry, auth);
+#ifdef HAVE_OAUTH2
 	gtk_widget_set_sensitive(basic_page.client_id_entry, auth);
 	gtk_widget_set_sensitive(basic_page.client_secret_entry, auth);
 	gtk_widget_set_sensitive(basic_page.refresh_server_entry, auth);
 	gtk_widget_set_sensitive(basic_page.refresh_token_entry, auth);
+#endif
 	gtk_widget_set_sensitive(basic_page.showpwd_checkbtn, auth);
 	gtk_widget_set_sensitive(basic_page.nntpauth_onconnect_checkbtn, auth);
 }
@@ -5615,10 +5662,12 @@ static void prefs_account_mailcmd_toggled(GtkToggleButton *button,
 	gtk_widget_set_sensitive(basic_page.smtpserv_label, !use_mailcmd);
 	gtk_widget_set_sensitive(basic_page.uid_entry,  !use_mailcmd);
 	gtk_widget_set_sensitive(basic_page.pass_entry, !use_mailcmd);
+#ifdef HAVE_OAUTH2
 	gtk_widget_set_sensitive(basic_page.client_id_entry, !use_mailcmd);
 	gtk_widget_set_sensitive(basic_page.client_secret_entry, !use_mailcmd);
 	gtk_widget_set_sensitive(basic_page.refresh_server_entry, !use_mailcmd);
 	gtk_widget_set_sensitive(basic_page.refresh_token_entry, !use_mailcmd);
+#endif
 	gtk_widget_set_sensitive(basic_page.showpwd_checkbtn, !use_mailcmd);
 }
 

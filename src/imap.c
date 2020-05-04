@@ -49,6 +49,10 @@
 #  include "ssl.h"
 #endif
 
+#ifdef HAVE_OAUTH2
+#  include "oauth2.h"
+#endif
+
 #include "folder.h"
 #include "session.h"
 #include "procmsg.h"
@@ -72,7 +76,6 @@
 #include "main.h"
 #include "passwordstore.h"
 #include "file-utils.h"
-#include "oauth2.h"
 
 typedef struct _IMAPFolder	IMAPFolder;
 typedef struct _IMAPSession	IMAPSession;
@@ -917,9 +920,11 @@ static gint imap_auth(IMAPSession *session, const gchar *user, const gchar *pass
 	case IMAP_AUTH_GSSAPI:
 		ok = imap_cmd_login(session, user, pass, "GSSAPI");
 		break;
+#ifdef HAVE_OAUTH2
 	case IMAP_AUTH_OAUTH2:
 		ok = imap_cmd_login(session, user, pass, "OAUTH2");
 		break;
+#endif
 	default:
 		debug_print("capabilities:\n"
 				"\t ANONYMOUS %d\n"
@@ -1307,6 +1312,7 @@ static gint imap_session_authenticate(IMAPSession *session,
 	gint ok = MAILIMAP_NO_ERROR;
 	g_return_val_if_fail(account->userid != NULL, MAILIMAP_ERROR_BAD_STATE);
 
+#ifdef HAVE_OAUTH2
 	if (account->imap_auth_type == IMAP_AUTH_OAUTH2) {
 		/* TODO(keur): Add threading here */
 		acc_pass = oauth2_get_access_token(account);
@@ -1315,6 +1321,13 @@ static gint imap_session_authenticate(IMAPSession *session,
 		acc_pass = passwd_store_get_account(account->account_id,
 				PWS_ACCOUNT_RECV);
 	}
+#else
+	if (!password_get(account->userid, account->recv_server, "imap",
+			 SESSION(session)->port, &acc_pass)) {
+		acc_pass = passwd_store_get_account(account->account_id,
+				PWS_ACCOUNT_RECV);
+	}
+#endif
 
 try_again:
 	pass = acc_pass;

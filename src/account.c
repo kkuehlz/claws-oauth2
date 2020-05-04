@@ -935,7 +935,9 @@ static void account_clone(GtkWidget *widget, gpointer data)
 	ACP_FASSIGN(use_nntp_auth_onconnect);
 	ACP_FDUP(userid);
 	ACP_FDUP(passwd);
+#ifdef HAVE_OAUTH2
 	ACP_FDUP(oauth_refresh_server);
+#endif
 
 	ACP_FDUP(local_mbox);
 	ACP_FASSIGN(use_mail_command);

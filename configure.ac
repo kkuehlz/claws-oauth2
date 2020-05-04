@@ -258,6 +258,10 @@ AC_ARG_ENABLE(enchant,
 		[  --disable-enchant               Do not build Enchant support for spell-checking],
 		[enable_enchant=$enableval], [enable_enchant=yes])
 
+AC_ARG_ENABLE(oauth2,
+		[  --disable-oauth2                Do not build OAUTH2 support for authentication],
+		[enable_oauth2=$enableval], [enable_oauth2=yes])
+
 AC_ARG_ENABLE(crash-dialog,
 		[  --enable-crash-dialog           Build crash dialog],
 		[enable_crash_dialog=$enableval], [enable_crash_dialog=no])
@@ -611,6 +615,23 @@ if test $enable_enchant = yes; then
 	])
 	AC_SUBST(ENCHANT_CFLAGS)
 	AC_SUBST(ENCHANT_LIBS)
+fi
+
+AC_MSG_CHECKING([whether to enable OAUTH2])
+AC_MSG_RESULT($enable_oauth2)
+if test $enable_oauth2 = yes; then
+	PKG_CHECK_MODULES(OAUTH2, [libetpan >= 1.9.4, json-c, libcurl],
+	[
+		AC_SUBST(OAUTH2_LIBS)
+		AC_SUBST(OAUTH2_CFLAGS)
+		AC_DEFINE(HAVE_OAUTH2, 1, [Define if oauth2 is supported.])
+		echo "Building with OAUTH2 support"
+		enable_oauth2=yes
+	],
+	[
+		echo "Building without oauth2 support"
+		enable_oauth2=no
+	])
 fi
 
 dnl want crash dialog
@@ -1179,11 +1200,6 @@ dnl libcurl ********************************************************************
 PKG_CHECK_MODULES(CURL, libcurl, HAVE_CURL=yes, HAVE_CURL=no)
 AC_SUBST(CURL_LIBS)
 AC_SUBST(CURL_CFLAGS)
-
-dnl json-c ********************************************************************
-PKG_CHECK_MODULES(JSONC, json-c, HAVE_JSONC=yes, HAVE_JSONC=no)
-AC_SUBST(JSONC_LIBS)
-AC_SUBST(JSONC_CFLAGS)
 
 dnl expat **********************************************************************
 PKG_CHECK_MODULES(EXPAT, expat, HAVE_EXPAT=yes, HAVE_EXPAT=no)
@@ -2235,6 +2251,7 @@ echo "iconv              : $am_cv_func_iconv"
 echo "compface           : $enable_compface"
 echo "IPv6               : $enable_ipv6"
 echo "enchant            : $enable_enchant"
+echo "oauth2             : $enable_oauth2"
 echo "IMAP4              : $enable_libetpan"
 echo "NNTP               : $enable_libetpan"
 echo "Crash dialog       : $enable_crash_dialog"

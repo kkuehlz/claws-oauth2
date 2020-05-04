@@ -32,7 +32,9 @@ typedef enum
 	IMAP_AUTH_SCRAM_SHA1	= 1 << 5,
 	IMAP_AUTH_PLAIN   = 1 << 6,
 	IMAP_AUTH_LOGIN   = 1 << 7,
-	IMAP_AUTH_OAUTH2 = 1 << 8
+#ifdef HAVE_OAUTH2
+	IMAP_AUTH_OAUTH2 = 1 << 8,
+#endif
 } IMAPAuthType;
 
 FolderClass *imap_get_class		(void);

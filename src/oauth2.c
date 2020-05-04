@@ -16,6 +16,13 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CONFIG_H
+#  include "config.h"
+#include "claws-features.h"
+#endif
+
+#ifdef HAVE_OAUTH2
+
 #include <json-c/json.h>
 #include <curl/curl.h>
 
@@ -168,3 +175,4 @@ done:
 
 	return access_token;
 }
+#endif /* HAVE_OAUTH2 */

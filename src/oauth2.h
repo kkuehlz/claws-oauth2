@@ -19,6 +19,13 @@
 #ifndef OAUTH2_H
 #define OAUTH2_H
 
+#ifdef HAVE_CONFIG_H
+#  include "config.h"
+#include "claws-features.h"
+#endif
+
+#ifdef HAVE_OAUTH2
+
 #include <glib.h>
 
 #include "prefs_account.h"
@@ -41,5 +48,6 @@ struct _OAuth2Ctx {
 typedef struct _OAuth2Ctx OAuth2Ctx;
 
 gchar *oauth2_get_access_token(PrefsAccount *account);
+#endif /* HAVE_OAUTH2 */
 
-#endif
+#endif /* OAUTH2_H */

@@ -611,7 +611,7 @@ claws_mail_LDADD = \
 	$(SVG_LIBS) \
 	$(CONTACTS_LIBS) \
 	$(CURL_LIBS) \
-	$(JSONC_LIBS)
+	$(OAUTH2_LIBS)
 
 pixmapdir=$(datadir)/icons/hicolor/48x48/apps
 
